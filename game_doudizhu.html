@@ -136,7 +136,9 @@
         let myId = null, myIdx = -1; 
         let myCards = [], diPai = [];
         let landlordIdx = -1;
-        
+        let lastPlayed = { idx: -1, typeInfo: null }; // 记录上一次谁出了什么牌
+
+
         // 🔥 核心状态：'bidding' (抢地主) 或 'playing' (出牌)
         let gamePhase = 'idle'; 
 
@@ -243,18 +245,136 @@
             sendMsg(msg);
         }
 
-        function playSelectedCards() {
-            const els = document.querySelectorAll('.poker.selected');
-            if(els.length === 0) return alert('请选牌');
-            
-            const selected = Array.from(els).map(e => JSON.parse(e.dataset.val));
-            myCards = myCards.filter(c => !selected.some(s => s.r === c.r && s.s === c.s));
-            sortAndRenderHand();
-            hideBtns();
+        // === 替换原来的 playSelectedCards 函数 ===
+function playSelectedCards() {
+    const selectedEls = document.querySelectorAll('.poker.selected');
+    if(selectedEls.length === 0) return alert('请先选牌！');
+    
+    // 1. 获取选中的牌数据
+    const selected = Array.from(selectedEls).map(e => JSON.parse(e.dataset.val));
+    // 按大小排序 (大牌在前)
+    selected.sort((a,b) => b.v - a.v);
 
-            const msg = { type: 'ACTION', idx: myIdx, act: 'play', cards: selected };
-            sendMsg(msg);
+    // 2. 检查牌型是否合法 (比如 3,4,6 这种乱出的不行)
+    const typeInfo = getCardType(selected);
+    if(!typeInfo) return alert('牌型不符合规则！');
+
+    // 3. 检查是否打得过上家
+    // 如果桌面上没牌(lastPlayed.idx == -1)，或者是自己刚才出的牌没人要(lastPlayed.idx == myIdx) -> 可以随便出
+    const isFreeTurn = (lastPlayed.idx === -1 || lastPlayed.idx === myIdx);
+
+    if (!isFreeTurn) {
+        // 如果不是自由出牌，必须管住上家
+        if (!canBeat(typeInfo, lastPlayed.typeInfo)) {
+            return alert('你的牌打不过上家！(类型不对或太小)');
         }
+    }
+
+    // 4. 验证通过，执行出牌
+    // 本地移除手牌
+    myCards = myCards.filter(c => !selected.some(s => s.r === c.r && s.s === c.s));
+    sortAndRenderHand();
+    hideBtns();
+
+    // 广播动作
+    const msg = { 
+        type: 'ACTION', 
+        idx: myIdx, 
+        act: 'play', 
+        cards: selected,
+        typeInfo: typeInfo // 把牌型发出去，给下一个人做判断依据
+    };
+    sendMsg(msg);
+
+    // 如果我是房主，立即更新上家出牌记录
+    if(myIdx === 0) {
+        lastPlayed = { idx: myIdx, typeInfo: typeInfo };
+    }
+}
+
+// === 新增：识别这是什么牌 ===
+function getCardType(cards) {
+    const len = cards.length;
+    const vals = cards.map(c => c.v);
+    
+    // 统计每种点数有几张 (比如 3334 -> {3:3, 4:1})
+    let counts = {};
+    vals.forEach(x => { counts[x] = (counts[x] || 0) + 1; });
+    let maxCount = Math.max(...Object.values(counts)); // 最多重复了几张
+
+    // 1. 王炸 (火箭)
+    if (len === 2 && vals[0] === 17 && vals[1] === 16) return { type: 'rocket', val: 99 };
+
+    // 2. 炸弹 (4张一样)
+    if (len === 4 && maxCount === 4) return { type: 'bomb', val: vals[0] };
+
+    // 3. 单张
+    if (len === 1) return { type: '1', val: vals[0] };
+
+    // 4. 对子
+    if (len === 2 && maxCount === 2) return { type: '2', val: vals[0] };
+
+    // 5. 三张 (333)
+    if (len === 3 && maxCount === 3) return { type: '3', val: vals[0] };
+
+    // 6. 三带一 (333+4)
+    if (len === 4 && maxCount === 3) {
+        // 找到是哪个数有3张
+        let mainVal = parseInt(Object.keys(counts).find(k => counts[k] === 3));
+        return { type: '3+1', val: mainVal };
+    }
+
+    // 7. 三带二 (333+44) - 注意：这里简化为只允许带对子，或者带两张散牌(实际上斗地主通常带一对)
+    if (len === 5 && maxCount === 3) {
+        let mainVal = parseInt(Object.keys(counts).find(k => counts[k] === 3));
+        return { type: '3+2', val: mainVal };
+    }
+
+    // 8. 顺子 (5张起，最大不能超过2(15)，必须连续)
+    if (len >= 5 && maxCount === 1 && vals[0] < 15) {
+        if (vals[0] - vals[len-1] === len - 1) {
+            return { type: 'straight', val: vals[0], len: len }; 
+        }
+    }
+
+    // 9. 连对 (334455)
+    if (len >= 6 && len % 2 === 0 && maxCount === 2 && vals[0] < 15) {
+        // 简单检查：每种牌都是2张
+        let isPairs = Object.values(counts).every(c => c === 2);
+        let keys = Object.keys(counts).map(Number).sort((a,b)=>b-a);
+        if (isPairs && (keys[0] - keys[keys.length-1] === keys.length - 1)) {
+            return { type: 'pairs', val: keys[0], len: len/2 };
+        }
+    }
+
+    return null; // 不合规
+}
+
+// === 新增：能不能打过上家 ===
+function canBeat(my, enemy) {
+    if (!enemy) return true; // 没人出牌，我最大
+
+    // 1. 王炸无敌
+    if (my.type === 'rocket') return true;
+    if (enemy.type === 'rocket') return false;
+
+    // 2. 炸弹规则
+    if (my.type === 'bomb') {
+        if (enemy.type !== 'bomb') return true; // 炸弹 > 普通牌
+        return my.val > enemy.val; // 都是炸弹比点数
+    }
+    if (enemy.type === 'bomb') return false; // 对面是炸弹，我不是，打不过
+
+    // 3. 普通牌型比较 (必须类型相同，张数/长度相同)
+    if (my.type !== enemy.type) return false; 
+    
+    // 顺子/连对还要检查长度
+    if ((my.type === 'straight' || my.type === 'pairs') && my.len !== enemy.len) return false;
+
+    // 4. 比主牌点数
+    return my.val > enemy.val;
+}
+
 
         function sendMsg(msg) {
             if(myIdx === 0) { 
@@ -311,6 +431,8 @@
                     const cntEl = document.getElementById('count' + viewIdx);
                     cntEl.innerText = parseInt(cntEl.innerText) - data.cards.length;
                 }
+
+if(myIdx === 0) lastPlayed = { idx: data.idx, typeInfo: data.typeInfo };
 
                 if(myIdx === 0) passTurn(data.idx, false);
             }
