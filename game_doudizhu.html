@@ -131,6 +131,8 @@
     border-color: rgba(0,0,0,0.7) transparent transparent transparent;
 }
 
+.btn-orange { background: linear-gradient(to bottom, #ffeaa7, #fdcb6e); color: #d35400; }
+
     </style>
 </head>
 <body>
@@ -178,12 +180,16 @@
 <div class="rain-overlay" id="rainLayer"></div>
 
 
-        <div class="control-panel" id="btnArea">
-            <button class="game-btn btn-call" id="btnCall" onclick="doAction('call')">抢地主</button>
-            <button class="game-btn btn-pass" id="btnNoCall" onclick="doAction('pass_call')">不抢</button>
-            <button class="game-btn btn-play" id="btnOut" onclick="playSelectedCards()">出牌</button>
-            <button class="game-btn btn-pass" id="btnPass" onclick="doAction('pass')">不出</button>
-        </div>
+       <div class="control-panel" id="btnArea">
+    <button class="game-btn btn-call" id="btnCall" onclick="doAction('call')">抢地主</button>
+    <button class="game-btn btn-pass" id="btnNoCall" onclick="doAction('pass_call')">不抢</button>
+    
+    <button class="game-btn btn-orange" id="btnHint" onclick="autoSelectCards()">💡 提示</button>
+    
+    <button class="game-btn btn-play" id="btnOut" onclick="playSelectedCards()">出牌</button>
+    <button class="game-btn btn-pass" id="btnPass" onclick="doAction('pass')">不出</button>
+</div>
+
 
 <div class="chat-bar">
     <input type="text" id="chatInput" placeholder="聊两句..." onkeydown="if(event.keyCode==13) sendChat()">
@@ -223,6 +229,7 @@
         let peer = null, connList = [], hostConn = null;
         let myId = null, myIdx = -1; 
         let myCards = [], diPai = [];
+let allHandsBackup = []; // 房主用来备份所有人的牌
         let landlordIdx = -1;
         let lastPlayed = { idx: -1, typeInfo: null }; // 记录上一次谁出了什么牌
 
@@ -247,18 +254,36 @@
             document.getElementById('hostWait').style.display = 'block';
             myIdx = 0; 
 
-            peer.on('connection', conn => {
-                connList.push(conn);
-                document.getElementById('pCount').innerText = connList.length + 1;
-                
-                conn.on('data', data => handleData(data));
-                conn.on('open', () => {
-                    conn.send({ type: 'WELCOME', idx: connList.length });
-                    if(connList.length === 2) {
-                        let btn = document.getElementById('startBtn');
-                        btn.disabled = false; btn.style.opacity = 1; btn.innerText = "✨ 人齐了，发牌！";
-                    }
-                });
+           peer.on('connection', conn => {
+    connList.push(conn);
+    // 这里不再直接更新人数，而是先判断是不是重连
+    
+    conn.on('open', () => {
+        // 如果游戏已经开始了 (allHandsBackup有数据)，说明是重连
+        if (allHandsBackup.length > 0) {
+            // 简单粗暴：第1个连进来的是p1，第2个是p2
+            // 如果你刷新了，你是作为“新连接”进来的，正好补位
+            let pIdx = connList.length; 
+            
+            // 发送重连包
+            conn.send({ 
+                type: 'RECONNECT', 
+                idx: pIdx, 
+                cards: allHandsBackup[pIdx], // 把当初的牌还给他
+                diPai: diPai,
+                landlord: landlordIdx
+            });
+        } else {
+            // 正常进房
+            document.getElementById('pCount').innerText = connList.length + 1;
+            conn.send({ type: 'WELCOME', idx: connList.length });
+            if(connList.length === 2) {
+                let btn = document.getElementById('startBtn');
+                btn.disabled = false; btn.style.opacity = 1; btn.innerText = "✨ 人齐了，发牌！";
+            }
+        }
+    });
+  
                 conn.on('close', () => { alert('有人退出'); location.reload(); });
             });
         }
@@ -303,6 +328,24 @@ function handleData(data) {
             });
         }
     } 
+
+else if (data.type === 'RECONNECT') {
+    // 恢复现场
+    document.getElementById('lobbyModal').style.display = 'none';
+    myIdx = data.idx;
+    myCards = data.cards; // 拿回手牌
+    diPai = data.diPai;
+    landlordIdx = data.landlord;
+    
+    sortAndRenderHand(); // 重新渲染
+    updateNames();
+    
+    // 如果地主已经产生，恢复地主显示
+    if(landlordIdx !== -1) setLandlord(landlordIdx);
+    
+    alert('欢迎回来！已恢复手牌！');
+}
+
     // 👇👇👇 这里是修改过的开始逻辑 (增加了清理桌面) 👇👇👇
     else if(data.type === 'START') {
         // 🔥 关键：每次收到开始信号，先清空上一局的残局
@@ -347,6 +390,7 @@ function handleData(data) {
             deck.sort(() => Math.random() - 0.5);
 
             const hands = [deck.slice(0,17), deck.slice(17,34), deck.slice(34,51)];
+allHandsBackup = hands; // 👈 加这一行，房主记住牌
             const di = deck.slice(51);
 
             const msg = { type: 'START', hands: hands, diPai: di, turn: 0 };
@@ -598,7 +642,7 @@ function handleRemoteAction(data) {
                 if(gamePhase === 'bidding') {
                     showBtns(['btnCall', 'btnNoCall']);
                 } else {
-                    showBtns(['btnOut', 'btnPass']);
+                    showBtns(['btnOut', 'btnPass', 'btnHint']);
                 }
             } else {
                 document.getElementById('statusText').innerText = "对方思考中...";
@@ -630,20 +674,51 @@ function handleRemoteAction(data) {
         }
 
         // === 辅助 ===
-        function sortAndRenderHand() {
-            myCards.sort((a,b) => b.v - a.v);
-            const box = document.getElementById('handArea');
-            box.innerHTML = '';
-            myCards.forEach(c => {
-                let div = document.createElement('div');
-                div.className = `poker ${['♥','♦'].includes(c.s) || c.v>15 ? 'red' : 'black'}`;
-                let txt = DISPLAY_MAP[c.r] || c.r;
-                div.innerHTML = `<div class="val-top">${txt}</div><div class="suit-center">${c.s||txt}</div>`;
-                div.onclick = () => div.classList.toggle('selected');
-                div.dataset.val = JSON.stringify(c);
-                box.appendChild(div);
-            });
-        }
+        // === 替换这个函数：支持滑动选牌 ===
+let isDragging = false; // 是否正在拖动
+
+function sortAndRenderHand() {
+    // 1. 先排序
+    myCards.sort((a,b) => b.v - a.v);
+    
+    const box = document.getElementById('handArea');
+    box.innerHTML = '';
+    
+    // 2. 绑定滑动开关 (鼠标按下开启，松开关闭)
+    box.onmousedown = () => { isDragging = true; };
+    window.onmouseup = () => { isDragging = false; }; // 鼠标在屏幕任何地方松开都停止
+
+    myCards.forEach((c, index) => {
+        let div = document.createElement('div');
+        // 设置样式
+        div.className = `poker ${['♥','♦'].includes(c.s) || c.v>15 ? 'red' : 'black'}`;
+        let txt = DISPLAY_MAP[c.r] || c.r;
+        div.innerHTML = `<div class="val-top">${txt}</div><div class="suit-center">${c.s||txt}</div>`;
+        
+        // 存数据
+        div.dataset.val = JSON.stringify(c);
+
+        // === 滑动逻辑核心 ===
+        // 鼠标按下这张牌：选中/取消，并开启滑动模式
+        div.onmousedown = (e) => {
+            isDragging = true;
+            div.classList.toggle('selected');
+            e.stopPropagation(); // 防止冒泡给 box
+        };
+        
+        // 鼠标滑过这张牌：如果处于滑动模式，就切换选中状态
+        div.onmouseenter = () => {
+            if (isDragging) {
+                div.classList.toggle('selected');
+                // 震动反馈 (提升手感)
+                if(navigator.vibrate) navigator.vibrate(10); 
+            }
+        };
+
+        box.appendChild(div);
+    });
+}
+
         function getRelativeIdx(target) {
             if (target === myIdx) return 0;
             if (target === (myIdx + 2) % 3) return 1; 
@@ -917,6 +992,88 @@ function showBubble(viewIdx, text) {
     }
 */
 
+// === 新增：点击空白处取消选牌 ===
+// 监听整个游戏区域的点击
+document.addEventListener('click', function(e) {
+    // 如果点的是手牌区域，或者是按钮，或者是牌本身，就不处理
+    if (e.target.closest('.my-hand') || e.target.closest('.game-btn') || e.target.closest('.poker')) {
+        return;
+    }
+    
+    // 否则，说明点的是空白处 -> 取消所有选中的牌
+    const selected = document.querySelectorAll('.poker.selected');
+    if (selected.length > 0) {
+        selected.forEach(card => card.classList.remove('selected'));
+    }
+});
+
+// === 新增：智能提牌算法 ===
+function autoSelectCards() {
+    // 1. 先把所有选中的取消
+    document.querySelectorAll('.poker.selected').forEach(p => p.classList.remove('selected'));
+
+    let suggestion = [];
+    const mySorted = [...myCards].sort((a,b) => a.v - b.v); // 从小到大找
+
+    // A. 自由出牌 (或者自己是上家) -> 出最小的一张
+    if (lastPlayed.idx === -1 || lastPlayed.idx === myIdx) {
+        suggestion.push(mySorted[0]);
+    } 
+    // B. 管牌模式
+    else {
+        const targetType = lastPlayed.typeInfo.type;
+        const targetVal = lastPlayed.typeInfo.val;
+
+        // 策略1: 找同类型的更大的牌
+        if (targetType === '1') { // 找单张
+            suggestion = mySorted.filter(c => c.v > targetVal).slice(0, 1);
+        } else if (targetType === '2') { // 找对子
+            for (let i = 0; i < mySorted.length - 1; i++) {
+                if (mySorted[i].v === mySorted[i+1].v && mySorted[i].v > targetVal) {
+                    suggestion = [mySorted[i], mySorted[i+1]];
+                    break;
+                }
+            }
+        } 
+        // 策略2: 如果找不到同类，或者对面出的是炸弹，找炸弹！
+        if (suggestion.length === 0 && targetType !== 'rocket') {
+            // 找4张一样的
+            let counts = {};
+            mySorted.forEach(c => counts[c.v] = (counts[c.v]||0)+1);
+            for (let v in counts) {
+                if (counts[v] === 4) {
+                    // 如果对面也是炸弹，我要比他大；如果对面不是炸弹，我随便炸
+                    if (targetType !== 'bomb' || parseInt(v) > targetVal) {
+                        suggestion = mySorted.filter(c => c.v == v);
+                        break;
+                    }
+                }
+            }
+            // 找王炸
+            if (suggestion.length === 0) {
+                const kings = mySorted.filter(c => c.v > 15);
+                if (kings.length === 2) suggestion = kings;
+            }
+        }
+    }
+
+    // 执行选中
+    if (suggestion.length > 0) {
+        const allPokers = document.querySelectorAll('.poker');
+        suggestion.forEach(card => {
+            // 找到对应的 DOM 元素并选中
+            for (let el of allPokers) {
+                const data = JSON.parse(el.dataset.val);
+                if (data.r === card.r && data.s === card.s && !el.classList.contains('selected')) {
+                    el.classList.add('selected');
+                    break; // 防止多选同花色的牌
+                }
+            }
+        });
+    } else {
+        alert("没有能管上的牌... 要不起！");
+    }
+}
 
 
     </script>
