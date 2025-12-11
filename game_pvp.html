@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>💕 密友空间 💕</title>
-    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.4.7/peerjs.min.js"></script>
     <style>
-        /* === 1. 字体强制设定 === */
+        /* === 字体与样式保持不变 === */
         @font-face {
             font-family: 'MyCutieFont';
             src: url('https://files.catbox.moe/cweam3.ttf') format('truetype');
@@ -15,20 +15,19 @@
 
         :root {
             --main-pink: #ff9a9e;
-            --chat-me: #a29bfe;   /* 我发的消息颜色 */
-            --chat-friend: #ff9a9e; /* 对方发的消息颜色 */
+            --chat-me: #a29bfe;   
+            --chat-friend: #ff9a9e;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
         body {
-            font-family: 'MyCutieFont', sans-serif; /* 强制应用字体 */
+            font-family: 'MyCutieFont', sans-serif;
             height: 100vh; overflow: hidden;
             background: linear-gradient(135deg, #fff1eb 0%, #ace0f9 100%);
             display: flex; justify-content: center; align-items: center;
         }
 
-        /* 背景装饰 */
         .floating-container { position: absolute; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
         .floating-item { position: absolute; bottom: -50px; font-size: 24px; opacity: 0.6; animation: floatUp 15s linear infinite; }
         @keyframes floatUp { 0% { transform: translateY(0); } 100% { transform: translateY(-110vh); } }
@@ -36,23 +35,22 @@
         /* === 主卡片 === */
         .game-card {
             width: 95%; max-width: 400px; height: 90vh;
-            background: rgba(255, 255, 255, 0.9);
+            background: rgba(255, 255, 255, 0.95);
             border-radius: 30px; border: 4px solid #fff;
             outline: 2px dashed var(--main-pink); outline-offset: -8px;
             box-shadow: 0 20px 50px rgba(0,0,0,0.1);
             display: flex; flex-direction: column; position: relative; z-index: 10; overflow: hidden;
         }
 
-        /* 顶部栏 */
         .header {
             padding: 15px; border-bottom: 2px dashed #eee; display: flex; justify-content: space-between; align-items: center;
             background: #fff; z-index: 20;
         }
-        .back-btn { text-decoration: none; font-size: 20px; }
-        .status-badge { font-size: 12px; color: #aaa; background: #f0f0f0; padding: 4px 10px; border-radius: 15px; }
-        .status-badge.active { color: #fff; background: #ff9a9e; }
+        .back-btn { text-decoration: none; font-size: 20px; cursor: pointer; }
+        .status-badge { font-size: 12px; color: #fff; background: #ff9a9e; padding: 4px 10px; border-radius: 15px; cursor: pointer; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
-        /* === 互动区 (头像) === */
+        /* 互动区 */
         .arena-area {
             height: 120px; display: flex; justify-content: space-around; align-items: flex-end;
             padding-bottom: 10px; border-bottom: 1px solid #f0f0f0; background: rgba(255,255,255,0.5);
@@ -66,40 +64,33 @@
         .pop-text { position: absolute; top: -30px; width: 100%; text-align: center; font-size: 18px; color: #ff6b81; font-weight: bold; opacity: 0; pointer-events: none; }
         @keyframes popUp { 0% { transform: translateY(10px); opacity: 1; } 100% { transform: translateY(-30px); opacity: 0; } }
 
-        /* === 聊天记录区 === */
+        /* 聊天区 */
         .chat-box {
             flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px;
             background: #f9f9f9;
         }
         .msg-row { display: flex; align-items: flex-end; gap: 8px; }
         .msg-row.me { justify-content: flex-end; }
-        
         .bubble {
             max-width: 70%; padding: 8px 12px; border-radius: 15px; font-size: 14px; color: #fff;
             position: relative; word-wrap: break-word;
         }
         .bubble.me { background: var(--chat-me); border-bottom-right-radius: 2px; }
         .bubble.friend { background: var(--chat-friend); border-bottom-left-radius: 2px; }
+        .bubble img { max-width: 100px; border-radius: 8px; }
         
-        .bubble img { max-width: 100px; border-radius: 8px; } /* 表情包大小 */
-        .bubble audio { height: 30px; width: 150px; } /* 语音条大小 */
-
-        /* === 底部控制栏 === */
+        /* 底部控制 */
         .control-bar {
             background: #fff; padding: 10px; border-top: 1px solid #eee;
             display: flex; flex-direction: column; gap: 10px;
         }
-        
-        /* 1. 功能按钮行 */
         .action-row { display: flex; gap: 10px; justify-content: space-around; }
         .icon-btn {
             background: none; border: none; font-size: 24px; cursor: pointer; transition: 0.2s;
             width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
         }
-        .icon-btn:hover { background: #f0f0f0; }
-        .icon-btn:active { transform: scale(0.9); }
-
-        /* 2. 输入框行 */
+        .icon-btn:active { transform: scale(0.9); background: #eee; }
+        
         .input-row { display: flex; gap: 8px; align-items: center; }
         .chat-input {
             flex: 1; padding: 10px; border-radius: 20px; border: 1px solid #ddd;
@@ -110,27 +101,25 @@
             border-radius: 15px; cursor: pointer; font-family: inherit;
         }
 
-        /* === 隐藏的面板 (连接/表情) === */
+        /* 隐藏面板 */
         .overlay-panel {
             position: absolute; bottom: 0; left: 0; width: 100%; background: #fff;
             border-radius: 20px 20px 0 0; padding: 20px; box-shadow: 0 -5px 20px rgba(0,0,0,0.1);
-            transform: translateY(100%); transition: transform 0.3s; z-index: 50;
+            transform: translateY(120%); transition: transform 0.3s; z-index: 50; /* 默认藏在下面 */
         }
         .overlay-panel.show { transform: translateY(0); }
-        .close-panel { position: absolute; top: 10px; right: 15px; font-size: 20px; cursor: pointer; color: #aaa; }
+        .close-panel { position: absolute; top: 10px; right: 15px; font-size: 24px; cursor: pointer; color: #aaa; padding: 5px;}
 
         /* 连接面板 */
-        .id-text { font-size: 12px; background: #eee; padding: 5px; border-radius: 5px; word-break: break-all; margin: 10px 0; }
-        .connect-btn { width: 100%; padding: 10px; background: var(--main-pink); color: white; border: none; border-radius: 10px; }
+        .id-text { font-size: 12px; background: #eee; padding: 10px; border-radius: 5px; word-break: break-all; margin: 10px 0; user-select: text; }
+        .connect-btn { width: 100%; padding: 12px; background: var(--main-pink); color: white; border: none; border-radius: 10px; font-size: 16px;}
 
-        /* 表情面板 */
+        /* 表情 */
         .emoji-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; max-height: 200px; overflow-y: auto; }
         .emoji-item { width: 100%; aspect-ratio: 1; object-fit: contain; cursor: pointer; border-radius: 8px; border: 1px solid #eee; }
-        .emoji-item:hover { background: #f0f0f0; }
 
-        /* 录音按钮状态 */
-        #btnVoice.recording { background: #ff7675; color: white; animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        /* 录音状态 */
+        #btnVoice.recording { background: #ff7675; color: white; border-radius: 50%; }
 
     </style>
 </head>
@@ -141,7 +130,7 @@
     <div class="game-card">
         <div class="header">
             <a href="game_loppy.html" class="back-btn">🔙</a>
-            <div id="statusBadge" class="status-badge" onclick="togglePanel('connect')">📡 点击连接</div>
+            <div id="statusBadge" class="status-badge" onclick="togglePanel('connect')">📡 点我连接</div>
         </div>
 
         <div class="arena-area">
@@ -157,15 +146,15 @@
         </div>
 
         <div class="chat-box" id="chatBox">
-            <div style="text-align:center; color:#ccc; font-size:12px;">—— 聊天记录 ——</div>
+            <div style="text-align:center; color:#ccc; font-size:12px; margin-top:20px;">—— 暂无消息 ——</div>
         </div>
 
         <div class="control-bar">
             <div class="action-row">
-                <button class="icon-btn" onclick="sendAction('hug')" title="贴贴">✨</button>
-                <button class="icon-btn" onclick="sendAction('feed')" title="投喂">🍰</button>
-                <button class="icon-btn" onclick="togglePanel('emoji')" title="表情包">🖼️</button>
-                <button class="icon-btn" id="btnVoice" title="按住说话">🎙️</button>
+                <button class="icon-btn" onclick="sendAction('hug')">✨</button>
+                <button class="icon-btn" onclick="sendAction('feed')">🍰</button>
+                <button class="icon-btn" onclick="togglePanel('emoji')">🖼️</button>
+                <button class="icon-btn" id="btnVoice">🎙️</button>
             </div>
             <div class="input-row">
                 <input type="text" id="msgInput" class="chat-input" placeholder="说点什么...">
@@ -173,59 +162,125 @@
             </div>
         </div>
 
-        <div class="overlay-panel" id="panelConnect">
+        <div class="overlay-panel show" id="panelConnect">
             <div class="close-panel" onclick="togglePanel('connect')">×</div>
             <h3>🔗 建立连接</h3>
-            <p style="font-size:12px; color:#888;">把你的ID发给TA，或者输入TA的ID。</p>
-            <div class="id-text" id="myId" onclick="copyId()">正在生成ID...</div>
-            <input type="text" id="friendId" class="chat-input" placeholder="对方的ID" style="width:100%; margin-bottom:10px;">
-            <button class="connect-btn" onclick="connectFriend()">连接</button>
+            <p style="font-size:12px; color:#888;">复制ID发给对方，或者粘贴对方的ID。</p>
+            <div class="id-text" id="myId" onclick="copyId()">⏳ 正在生成ID... (若长时间无反应请刷新)</div>
+            <input type="text" id="friendId" class="chat-input" placeholder="输入对方ID" style="width:100%; margin-bottom:10px;">
+            <button class="connect-btn" onclick="connectFriend()">🚀 连 接</button>
         </div>
 
         <div class="overlay-panel" id="panelEmoji">
             <div class="close-panel" onclick="togglePanel('emoji')">×</div>
-            <h3>🖼️ 发送表情</h3>
-            <div class="emoji-grid" id="emojiGrid">
-                </div>
+            <h3>🖼️ 选择表情</h3>
+            <div class="emoji-grid" id="emojiGrid"></div>
         </div>
     </div>
 
     <script>
-        // === 配置：在这里添加你的表情包链接！===
+        // === 0. 你的表情包配置 ===
         const MY_EMOJIS = [
-            "https://files.catbox.moe/fv8f8p.gif",  // 示例1 (Loppy动图)
-            "https://files.catbox.moe/4hxxkv.gif",  // 示例2
-            "https://files.catbox.moe/vdvz1m.gif",  // 示例3
-            // 👇 在这里继续添加你的链接，用逗号隔开，记得加引号
-            // "你的链接1",
-            // "你的链接2" 
+            "https://files.catbox.moe/fv8f8p.gif",
+            "https://files.catbox.moe/4hxxkv.gif",
+            "https://files.catbox.moe/vdvz1m.gif"
         ];
 
-        // === 1. 初始化表情面板 ===
-        const emojiGrid = document.getElementById('emojiGrid');
-        MY_EMOJIS.forEach(src => {
-            const img = document.createElement('img');
-            img.src = src;
-            img.className = 'emoji-item';
-            img.onclick = () => sendEmoji(src);
-            emojiGrid.appendChild(img);
+        // === 1. 安全初始化 (防止JS崩溃) ===
+        function safeInit() {
+            // 初始化背景
+            const bgContainer = document.getElementById('bgFloat');
+            const icons = ['✨', '🌸', '🎀', '🧸'];
+            for(let i=0; i<15; i++) {
+                let el = document.createElement('div');
+                el.className = 'floating-item';
+                el.innerText = icons[Math.floor(Math.random()*icons.length)];
+                el.style.left = Math.random()*100 + '%';
+                el.style.animationDuration = (Math.random()*10 + 5) + 's';
+                bgContainer.appendChild(el);
+            }
+
+            // 初始化表情
+            const grid = document.getElementById('emojiGrid');
+            MY_EMOJIS.forEach(src => {
+                let img = document.createElement('img');
+                img.src = src; img.className = 'emoji-item';
+                img.onclick = () => sendEmoji(src);
+                grid.appendChild(img);
+            });
+        }
+        safeInit();
+
+        // === 2. 核心：防崩溃的面板切换 ===
+        // 这个函数必须放在全局，确保 HTML onclick 能找到它
+        window.togglePanel = function(name) {
+            console.log("点击了面板:", name); // 调试信息
+            
+            // 先关闭所有面板
+            document.querySelectorAll('.overlay-panel').forEach(p => p.classList.remove('show'));
+            
+            // 找到目标面板
+            const targetId = 'panel' + name.charAt(0).toUpperCase() + name.slice(1);
+            const target = document.getElementById(targetId);
+            
+            // 如果面板存在，并且当前是隐藏的，就显示它
+            // 我们通过检测 class 是否包含 show 来判断切换逻辑
+            // 但是为了简单，如果是点击 "connect" 且它已经开了，我们就不动或者关闭
+            // 这里强制：点击就显示。关闭按钮单独处理。
+            if (target) {
+                target.classList.add('show');
+            } else {
+                alert("面板未找到: " + targetId);
+            }
+        }
+
+        // 专门给关闭按钮用的，防止逻辑冲突
+        document.querySelectorAll('.close-panel').forEach(btn => {
+            btn.onclick = function(e) {
+                e.stopPropagation(); // 防止冒泡
+                this.parentElement.classList.remove('show');
+            };
         });
 
-        // === 2. 联机逻辑 (PeerJS) ===
-        let peer = new Peer(null, { debug: 2 });
+        // === 3. 联机逻辑 (PeerJS) ===
+        let peer = null;
         let conn = null;
-        
-        peer.on('open', id => {
-            document.getElementById('myId').innerText = id;
-        });
 
-        peer.on('connection', c => setupConn(c));
+        // 检查 PeerJS 是否加载成功
+        if (typeof Peer === 'undefined') {
+            document.getElementById('myId').innerText = "❌ 错误：联机组件未加载。\n可能是网络拦截了CDN。";
+            document.getElementById('myId').style.color = "red";
+        } else {
+            try {
+                peer = new Peer(null, { debug: 2 });
+                
+                peer.on('open', id => {
+                    document.getElementById('myId').innerText = id;
+                });
+
+                peer.on('connection', c => {
+                    setupConn(c);
+                    alert("🎉 对方已连接！");
+                });
+
+                peer.on('error', err => {
+                    console.error(err);
+                    alert("联机错误：" + err.type);
+                });
+            } catch (e) {
+                alert("初始化失败：" + e.message);
+            }
+        }
 
         function connectFriend() {
             const id = document.getElementById('friendId').value.trim();
             if(!id) return alert('请输入ID');
-            const c = peer.connect(id);
-            setupConn(c);
+            if(!peer) return alert('联机组件未就绪');
+            
+            try {
+                const c = peer.connect(id);
+                setupConn(c);
+            } catch (e) { alert("连接发起失败"); }
         }
 
         function setupConn(c) {
@@ -235,14 +290,17 @@
                 document.getElementById('statusBadge').classList.add('active');
                 document.getElementById('p2').style.filter = "none";
                 document.getElementById('p2').style.opacity = "1";
-                togglePanel('connect'); // 关掉面板
-                addLog('系统', '密友已连接！开始聊天吧~');
+                
+                // 自动关闭连接面板
+                document.getElementById('panelConnect').classList.remove('show');
+                
+                addLog('系统', '连接成功！开始聊天吧~');
             });
             conn.on('data', data => handleData(data));
             conn.on('close', () => alert('连接断开'));
         }
 
-        // === 3. 消息处理中心 ===
+        // === 4. 消息处理 ===
         function handleData(data) {
             if (data.type === 'text') addLog('friend', data.content);
             if (data.type === 'emoji') addLog('friend', `<img src="${data.content}">`);
@@ -250,20 +308,19 @@
             if (data.type === 'voice') playVoice(data.content);
         }
 
-        // === 4. 发送功能 ===
         function sendText() {
             const input = document.getElementById('msgInput');
-            const text = input.value.trim();
-            if(!text) return;
-            if(conn) conn.send({ type: 'text', content: text });
-            addLog('me', text);
+            const val = input.value.trim();
+            if(!val) return;
+            if(conn) conn.send({ type: 'text', content: val });
+            addLog('me', val);
             input.value = '';
         }
 
         function sendEmoji(url) {
             if(conn) conn.send({ type: 'emoji', content: url });
             addLog('me', `<img src="${url}">`);
-            togglePanel('emoji');
+            document.getElementById('panelEmoji').classList.remove('show');
         }
 
         function sendAction(act) {
@@ -272,44 +329,48 @@
             triggerEffect('p2', map[act]);
         }
 
-        // === 5. 语音功能 (按住说话) ===
+        // === 5. 语音模块 (加了 try-catch 防崩) ===
         const btnVoice = document.getElementById('btnVoice');
-        let mediaRecorder;
-        let chunks = [];
+        
+        try {
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                let mediaRecorder;
+                let chunks = [];
 
-        // 仅在支持的浏览器启用
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-                mediaRecorder = new MediaRecorder(stream);
-                
-                mediaRecorder.ondataavailable = e => chunks.push(e.data);
-                
-                mediaRecorder.onstop = () => {
-                    const blob = new Blob(chunks, { type: 'audio/ogg; codecs=opus' });
-                    chunks = [];
-                    // 发送 Blob
-                    if(conn) conn.send({ type: 'voice', content: blob });
-                    // 自己也要显示
-                    addVoiceBubble('me', blob);
-                };
+                navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+                    mediaRecorder = new MediaRecorder(stream);
+                    mediaRecorder.ondataavailable = e => chunks.push(e.data);
+                    mediaRecorder.onstop = () => {
+                        const blob = new Blob(chunks, { type: 'audio/ogg; codecs=opus' });
+                        chunks = [];
+                        if(conn) conn.send({ type: 'voice', content: blob });
+                        addVoiceBubble('me', blob);
+                    };
 
-                // 绑定按钮事件
-                btnVoice.onmousedown = btnVoice.ontouchstart = (e) => {
-                    e.preventDefault();
-                    if(mediaRecorder.state === 'inactive') {
-                        mediaRecorder.start();
-                        btnVoice.classList.add('recording');
-                    }
-                };
-                
-                btnVoice.onmouseup = btnVoice.ontouchend = (e) => {
-                    e.preventDefault();
-                    if(mediaRecorder.state === 'recording') {
-                        mediaRecorder.stop();
-                        btnVoice.classList.remove('recording');
-                    }
-                };
-            }).catch(err => console.log('语音权限获取失败', err));
+                    btnVoice.onmousedown = btnVoice.ontouchstart = (e) => {
+                        e.preventDefault();
+                        if(mediaRecorder.state === 'inactive') {
+                            mediaRecorder.start();
+                            btnVoice.classList.add('recording');
+                        }
+                    };
+                    btnVoice.onmouseup = btnVoice.ontouchend = (e) => {
+                        e.preventDefault();
+                        if(mediaRecorder.state === 'recording') {
+                            mediaRecorder.stop();
+                            btnVoice.classList.remove('recording');
+                        }
+                    };
+                }).catch(e => {
+                    console.log("语音权限获取失败 (可能是http环境):", e);
+                    btnVoice.style.opacity = 0.5; // 变灰提示不可用
+                });
+            } else {
+                console.log("浏览器不支持录音");
+                btnVoice.style.display = 'none';
+            }
+        } catch (e) {
+            console.log("语音模块初始化错误", e);
         }
 
         function playVoice(blob) {
@@ -321,15 +382,18 @@
             const audio = document.createElement('audio');
             audio.controls = true;
             audio.src = url;
-            addLog(who, audio.outerHTML); // 简单粗暴插入
+            addLog(who, audio.outerHTML);
         }
 
         // === 6. UI 辅助 ===
-        function addLog(who, htmlContent) {
+        function addLog(who, content) {
             const box = document.getElementById('chatBox');
+            // 清除“暂无消息”提示
+            if(box.innerText.includes('暂无消息')) box.innerHTML = '';
+            
             const div = document.createElement('div');
-            div.className = `msg-row ${who}`;
-            div.innerHTML = `<div class="bubble ${who}">${htmlContent}</div>`;
+            div.className = `msg-row ${who === 'me' ? 'me' : ''}`;
+            div.innerHTML = `<div class="bubble ${who === 'me' ? 'me' : 'friend'}">${content}</div>`;
             box.appendChild(div);
             box.scrollTop = box.scrollHeight;
         }
@@ -343,21 +407,13 @@
             if(targetId === 'p1' && navigator.vibrate) navigator.vibrate(100);
         }
 
-        function togglePanel(name) {
-            document.querySelectorAll('.overlay-panel').forEach(p => p.classList.remove('show'));
-            const p = document.getElementById('panel' + name.charAt(0).toUpperCase() + name.slice(1));
-            if(p && p.style.transform !== 'translateY(0px)') p.classList.add('show');
-        }
-
         function copyId() {
-            navigator.clipboard.writeText(document.getElementById('myId').innerText);
-            alert('ID已复制');
+            const val = document.getElementById('myId').innerText;
+            if(val.includes('错误') || val.includes('生成中')) return;
+            navigator.clipboard.writeText(val);
+            alert('ID 已复制！');
         }
 
-        // 背景动画
-        const bgContainer = document.getElementById('bgFloat');
-        const icons = ['✨', '🌸', '🎀', '🧸'];
-        // (此处省略了重复的生成飘浮物代码，和之前一样即可，或者你可以自己加)
     </script>
 </body>
 </html>
