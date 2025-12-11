@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>🌸 LOPPY 乐园 🌸</title>
-    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <title>🌸 LOPPY 乐园大厅 🌸</title>
+    <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Fredoka+One&display=swap" rel="stylesheet">
     <style>
-        /* === 1. 全局字体与设置 === */
         @font-face {
             font-family: 'MyCutieFont';
             src: url('https://files.catbox.moe/cweam3.ttf') format('truetype');
@@ -14,330 +13,178 @@
         }
 
         :root {
-            --bg-start: #fff1eb;
-            --bg-end: #ace0f9;
-            --card-bg: rgba(255, 255, 255, 0.9);
-            --main-pink: #ff9a9e;
-            --soft-pink: #fecfef;
-            --text-color: #885a5a;
-            --btn-blue: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%);
-            --btn-pink: linear-gradient(120deg, #fccb90 0%, #d57eeb 100%);
+            --pink-shadow: rgba(255, 154, 158, 0.5);
+            --blue-shadow: rgba(161, 196, 253, 0.5);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
         body {
-            font-family: 'MyCutieFont', 'Microsoft YaHei', sans-serif;
-            height: 100vh;
-            overflow: hidden;
-            background: linear-gradient(135deg, #fff1eb 0%, #ace0f9 100%);
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            font-family: 'MyCutieFont', 'ZCOOL KuaiLe', sans-serif;
+            height: 100vh; overflow: hidden;
+            background: linear-gradient(-45deg, #ff9a9e, #fad0c4, #ffd1ff, #a18cd1, #fbc2eb);
+            background-size: 400% 400%; animation: gradientBG 15s ease infinite;
+            display: flex; justify-content: center; align-items: center;
         }
 
-        /* === 2. 背景飘浮特效 === */
-        .floating-container {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; z-index: 0; overflow: hidden;
-        }
-        .floating-item {
-            position: absolute; bottom: -50px; font-size: 24px; opacity: 0.7;
-            animation: floatUp 15s linear infinite;
-            filter: drop-shadow(0 2px 3px rgba(255, 182, 193, 0.4));
-        }
-        @keyframes floatUp {
-            0% { transform: translateY(0) rotate(0deg) scale(0.8); opacity: 0; }
-            100% { transform: translateY(-110vh) rotate(360deg) scale(1.1); opacity: 0; }
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; }
         }
 
-        /* === 3. 通用卡片容器 === */
-        .view-container {
-            width: 340px;
-            padding: 30px;
-            background: var(--card-bg);
-            border-radius: 30px;
-            border: 4px solid #fff;
-            outline: 2px dashed var(--main-pink);
-            outline-offset: -10px;
-            box-shadow: 0 20px 50px rgba(255, 154, 158, 0.2), inset 0 0 20px rgba(255, 255, 255, 0.8);
-            text-align: center;
-            position: relative;
-            z-index: 10;
-            display: none; /* 默认隐藏，通过JS控制显示 */
-            animation: popIn 0.4s ease-out;
-        }
-        
-        /* 激活的视图显示 */
-        .view-container.active { display: block; }
+        /* 背景装饰 */
+        .floating-container { position: absolute; width: 100%; height: 100%; pointer-events: none; }
+        .float-item { position: absolute; bottom: -50px; font-size: 24px; opacity: 0.6; animation: floatUp 15s linear infinite; }
+        @keyframes floatUp { 0% { transform: translateY(0); opacity: 0; } 100% { transform: translateY(-110vh); opacity: 0.8; } }
 
-        @keyframes popIn {
-            0% { transform: scale(0.9); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
+        /* === 主大厅卡片 === */
+        .main-card {
+            width: 320px; padding: 30px;
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(20px); border-radius: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+            text-align: center; position: relative; z-index: 10;
+            transition: transform 0.3s;
         }
 
-        /* 顶部装饰结 */
-        .card-bow {
-            position: absolute; top: -25px; left: 50%; transform: translateX(-50%);
-            font-size: 40px; filter: drop-shadow(0 5px 5px rgba(0,0,0,0.1)); z-index: 20;
+        h1 {
+            font-size: 36px; background: linear-gradient(to right, #ff758c, #a29bfe);
+            -webkit-background-clip: text; color: transparent; margin: 10px 0;
         }
+        .subtitle { color: #888; font-size: 14px; background: #fff; padding: 5px 15px; border-radius: 20px; margin-bottom: 30px; display: inline-block; }
 
-        /* 标题 */
-        h1, h2 { color: var(--text-color); margin-top: 10px; text-shadow: 2px 2px 0px #fff; }
-        h1 { font-size: 36px; margin-bottom: 5px; }
-        h2 { font-size: 28px; margin-bottom: 20px; }
-
-        .subtitle {
-            display: inline-block; font-size: 14px; color: #fff;
-            background: var(--main-pink); padding: 4px 15px;
-            border-radius: 20px; margin-bottom: 30px;
-            box-shadow: 0 4px 10px rgba(255, 154, 158, 0.4);
-        }
-
-        /* === 4. 按钮样式 === */
-        .cute-btn {
-            position: relative; width: 100%; padding: 15px; margin-bottom: 15px;
-            border-radius: 25px; border: 3px solid #fff; color: white;
-            font-size: 18px; font-family: inherit; cursor: pointer;
-            box-shadow: 0 8px 15px rgba(0,0,0,0.1); transition: transform 0.1s;
+        /* 按钮通用样式 */
+        .jelly-btn {
             display: flex; align-items: center; justify-content: center; gap: 10px;
-            text-decoration: none;
+            width: 100%; padding: 16px; margin-bottom: 15px;
+            border-radius: 25px; text-decoration: none; color: white; font-size: 18px;
+            transition: all 0.2s; position: relative; cursor: pointer;
         }
-        .cute-btn:active { transform: scale(0.95); }
-        .btn-blue { background: var(--btn-blue); text-shadow: 1px 1px 2px rgba(74, 144, 226, 0.3); }
-        .btn-pink { background: var(--btn-pink); text-shadow: 1px 1px 2px rgba(214, 82, 129, 0.3); }
-        .btn-disabled { background: #e0e0e0; cursor: not-allowed; opacity: 0.8; }
-
-        /* === 5. 底部链接 === */
-        .divider {
-            margin: 20px 0; height: 1px;
-            background: repeating-linear-gradient(to right, var(--main-pink) 0, var(--main-pink) 5px, transparent 5px, transparent 10px);
-        }
-        .back-link {
-            display: block; color: var(--text-color); text-decoration: none;
-            font-size: 14px; opacity: 0.7; cursor: pointer;
-        }
-        .back-link:hover { text-decoration: underline; text-decoration-style: wavy; text-decoration-color: var(--main-pink); }
-
-        /* === 6. [PVP界面专属] 布局 === */
-        .connect-box {
-            background: #fdfdfd; border-radius: 15px; padding: 12px;
-            border: 2px dashed #a1c4fd; margin-bottom: 15px;
-            display: flex; flex-direction: column; gap: 10px;
-        }
-        .id-display {
-            font-size: 13px; color: #888; cursor: pointer;
-            background: #f0f8ff; padding: 8px; border-radius: 10px;
-            word-break: break-all;
-        }
-        .input-row { display: flex; gap: 8px; width: 100%; align-items: center; }
-        .code-input {
-            flex: 1; min-width: 0; padding: 10px; border-radius: 12px;
-            border: 2px solid #eee; outline: none; font-family: inherit; font-size: 14px;
-        }
-        .btn-connect {
-            flex-shrink: 0; border: none; background: var(--btn-blue); color: white;
-            padding: 10px 15px; border-radius: 12px; cursor: pointer; font-weight: bold; font-size: 14px; white-space: nowrap;
-        }
+        .jelly-btn:active { transform: scale(0.95); }
         
-        .arena { display: flex; justify-content: space-around; align-items: flex-end; height: 110px; position: relative; }
-        .player { transition: transform 0.2s; position: relative; display: flex; flex-direction: column; align-items: center; }
-        .avatar {
-            font-size: 45px; background: #fff; width: 70px; height: 70px;
-            border-radius: 50%; border: 4px solid #fff; box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            display: flex; align-items: center; justify-content: center;
-        }
-        .p-tag { font-size: 12px; color: #fff; background: var(--main-pink); padding: 2px 8px; border-radius: 10px; margin-top: -12px; position: relative; z-index: 2; }
-        .p2 { filter: grayscale(1); opacity: 0.6; transition: 0.5s; }
-        .p2.connected { filter: grayscale(0); opacity: 1; }
+        .btn-blue { background: linear-gradient(to bottom, #89f7fe, #66a6ff); box-shadow: 0 8px 15px var(--blue-shadow); }
+        .btn-pink { background: linear-gradient(to bottom, #ff9a9e, #f687b3); box-shadow: 0 8px 15px var(--pink-shadow); }
+        .back-btn { background: #fff; color: #999; border-radius: 50px; padding: 10px; font-size: 14px; margin-top: 20px; display: inline-block; }
 
-        /* 特效字 */
-        .pop-text {
-            position: absolute; top: -20px; font-size: 24px; font-weight: bold;
-            opacity: 0; pointer-events: none; color: #ff6b81; width: 100%; text-align: center;
-            text-shadow: 2px 2px 0 #fff;
+        /* === 🎮 游戏选择弹窗 (二级菜单) === */
+        .game-menu-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.4); backdrop-filter: blur(5px);
+            z-index: 999; display: none; /* 默认隐藏 */
+            justify-content: center; align-items: center;
+            opacity: 0; transition: opacity 0.3s;
         }
-        @keyframes popUp {
-            0% { transform: scale(0) translateY(20px); opacity: 1; }
-            50% { transform: scale(1.2) translateY(-20px); }
-            100% { transform: scale(1) translateY(-50px); opacity: 0; }
+        .game-menu-modal.show { display: flex; opacity: 1; }
+
+        .menu-box {
+            width: 300px; background: #fff; border-radius: 30px; padding: 25px;
+            border: 4px solid #ffb7c5; text-align: center;
+            transform: scale(0.8); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
+        .game-menu-modal.show .menu-box { transform: scale(1); }
 
-        .action-row { display: flex; gap: 10px; margin-top: 10px; }
-        .game-btn { flex: 1; padding: 12px; border-radius: 15px; border:none; color:white; font-family:inherit; cursor:pointer; font-size:16px; }
+        .menu-title { font-size: 20px; color: #ff9a9e; margin-bottom: 20px; font-weight: bold; }
+        
+        /* 游戏列表项 */
+        .game-item {
+            display: flex; align-items: center; padding: 12px; margin-bottom: 10px;
+            background: #f9f9f9; border-radius: 15px; border: 2px solid #eee;
+            text-decoration: none; color: #555; transition: 0.2s;
+        }
+        .game-item:hover { border-color: #a29bfe; background: #f0f0ff; transform: translateX(5px); }
+        .game-icon { font-size: 24px; margin-right: 10px; }
+        .game-info { text-align: left; }
+        .game-name { font-size: 16px; font-weight: bold; }
+        .game-desc { font-size: 10px; color: #999; }
 
-        /* 返回大厅按钮 (左上角) */
-        .header-back { position: absolute; top: 15px; left: 15px; font-size: 20px; cursor: pointer; text-decoration: none; }
+        .close-menu {
+            margin-top: 15px; border: none; background: #eee; color: #888;
+            padding: 8px 20px; border-radius: 20px; cursor: pointer;
+        }
 
     </style>
 </head>
 <body>
 
-    <div class="floating-container" id="floatContainer"></div>
+    <div class="floating-container" id="bgFloat"></div>
 
-    <div id="view-lobby" class="view-container active">
-        <div class="card-bow">🎀</div>
+    <div class="main-card">
+        <div style="font-size:40px; position:absolute; top:-25px; left:50%; transform:translateX(-50%);">🎀</div>
         <h1>GAME LOPPY</h1>
         <div class="subtitle">✨ 魔法少女竞技场 ✨</div>
 
-        <div class="btn-group">
-            <div class="cute-btn btn-blue" onclick="alert('🐰 人机模式正在开发中...')">
-                <span style="font-size: 22px;">🐰</span> 
-                <span>人机试炼</span>
-            </div>
-
-            <div class="cute-btn btn-pvp btn-pink" onclick="switchView('pvp')">
-                <span style="font-size: 22px;">💕</span> 
-                <span>密友连线</span>
-            </div>
+        <div class="jelly-btn btn-blue" onclick="alert('🐰 人机试炼正在装修中...')">
+            <span>🤖</span> 人机试炼
         </div>
 
-        <div class="divider"></div>
-        <a href="index.html" class="back-link">↩ 回到百宝箱</a>
+        <div class="jelly-btn btn-pink" onclick="openGameMenu()">
+            <span>🎮</span> 密友游戏模式
+        </div>
+
+        <div style="height:1px; background:rgba(0,0,0,0.1); margin:20px 0;"></div>
+
+        <a href="index.html" class="back-btn">↩ 回到百宝箱</a>
     </div>
 
-    <div id="view-pvp" class="view-container">
-        <div class="card-bow">🎀</div>
-        <div class="header-back" onclick="switchView('lobby')">🔙</div>
+    <div class="game-menu-modal" id="gameMenu">
+        <div class="menu-box">
+            <div class="menu-title">✨ 选择一个游戏 ✨</div>
+            
+            <a href="game_pvp.html" class="game-item">
+                <div class="game-icon">💕</div>
+                <div class="game-info">
+                    <div class="game-name">贴贴大作战</div>
+                    <div class="game-desc">2人互动 · 震动特效</div>
+                </div>
+            </a>
 
-        <h2>✨ 密友连线 ✨</h2>
+            <a href="game_doudizhu.html" class="game-item">
+                <div class="game-icon">🃏</div>
+                <div class="game-info">
+                    <div class="game-name">萌萌斗地主</div>
+                    <div class="game-desc">3人打牌 · 在线发牌</div>
+                </div>
+            </a>
 
-        <div class="connect-box" id="connectPanel">
-            <div class="id-display" onclick="copyMyId()">
-                我的频段: <span id="myId" style="color:#ff9a9e; font-weight:bold;">生成中...</span> (点我复制)
+            <div class="game-item" style="opacity:0.5;">
+                <div class="game-icon">🔒</div>
+                <div class="game-info">
+                    <div class="game-name">更多游戏</div>
+                    <div class="game-desc">开发中...</div>
+                </div>
             </div>
-            <div class="input-row">
-                <input type="text" id="friendIdInput" class="code-input" placeholder="粘贴朋友的频段...">
-                <button class="btn-connect" onclick="connectFriend()">🔗 连线</button>
-            </div>
-            <div id="statusMsg" style="font-size:12px; color:#aaa; margin-top:2px;">等待输入...</div>
-        </div>
 
-        <div class="arena">
-            <div class="player p1" id="p1">
-                <div class="pop-text" id="p1Effect"></div>
-                <div class="avatar">🐰</div>
-                <div class="p-tag">我</div>
-            </div>
-            <div style="align-self:center; font-size:24px; color:#ff9a9e;">⚡</div>
-            <div class="player p2" id="p2">
-                <div class="pop-text" id="p2Effect"></div>
-                <div class="avatar">🦊</div>
-                <div class="p-tag">密友</div>
-            </div>
-        </div>
-
-        <div class="action-row">
-            <button class="game-btn btn-pink btn-disabled" id="btn1" onclick="sendAction('hug')" disabled>✨ 贴贴</button>
-            <button class="game-btn btn-blue btn-disabled" id="btn2" onclick="sendAction('feed')" disabled>🍰 投喂</button>
+            <button class="close-menu" onclick="closeGameMenu()">关闭菜单</button>
         </div>
     </div>
 
     <script>
-        // === 1. 背景飘浮物生成 ===
-        const icons = ['🎀', '🌸', '🍓', '🧁', '✨', '🍭', '🧸', '💖'];
-        const container = document.getElementById('floatContainer');
-        for (let i = 0; i < 15; i++) {
+        // 背景动画
+        const icons = ['🍬', '🍓', '🎀', '🧸', '🌸', '✨'];
+        const container = document.getElementById('bgFloat');
+        for(let i=0; i<20; i++) {
             const el = document.createElement('div');
-            el.className = 'floating-item';
+            el.className = 'float-item';
             el.innerText = icons[Math.floor(Math.random() * icons.length)];
             el.style.left = Math.random() * 100 + '%';
-            el.style.fontSize = (Math.random() * 16 + 16) + 'px';
-            el.style.animationDuration = (Math.random() * 10 + 8) + 's';
-            el.style.animationDelay = (Math.random() * 5) + 's';
+            el.style.animationDuration = (Math.random() * 10 + 10) + 's';
+            el.style.fontSize = (Math.random() * 20 + 15) + 'px';
             container.appendChild(el);
         }
 
-        // === 2. 界面切换逻辑 (核心) ===
-        function switchView(viewName) {
-            // 隐藏所有视图
-            document.querySelectorAll('.view-container').forEach(el => el.classList.remove('active'));
-            // 显示目标视图
-            document.getElementById('view-' + viewName).classList.add('active');
-            
-            // 如果是进入PVP模式，且Peer还没初始化，这里可以做检查（目前代码是自动初始化的，无需额外操作）
+        // 菜单开关逻辑
+        function openGameMenu() {
+            const modal = document.getElementById('gameMenu');
+            modal.style.display = 'flex';
+            // 延时加 opacity 触发动画
+            setTimeout(() => modal.classList.add('show'), 10);
         }
 
-        // === 3. 联机核心逻辑 (PeerJS) ===
-        let peer = null;
-        let conn = null;
-        const myIdEl = document.getElementById('myId');
-        const statusEl = document.getElementById('statusMsg');
-        const p2El = document.getElementById('p2');
-        const btn1 = document.getElementById('btn1');
-        const btn2 = document.getElementById('btn2');
-
-        // 初始化 Peer
-        peer = new Peer(null, { debug: 2 });
-
-        peer.on('open', (id) => {
-            myIdEl.innerText = id;
-            statusEl.innerText = "✅ 频段已生成，快发给朋友！";
-        });
-
-        peer.on('connection', (connection) => { setupConnection(connection); });
-        peer.on('error', (err) => { statusEl.innerText = "❌ 错误: " + err.type; });
-
-        function connectFriend() {
-            const friendId = document.getElementById('friendIdInput').value.trim();
-            if (!friendId) return alert('请粘贴朋友的ID！');
-            statusEl.innerText = "⏳ 连接中...";
-            const connection = peer.connect(friendId);
-            setupConnection(connection);
-        }
-
-        function setupConnection(connection) {
-            conn = connection;
-            conn.on('open', () => {
-                statusEl.innerText = "❤️ 密友已连接！";
-                statusEl.style.color = "#ff9a9e";
-                p2El.classList.add('connected');
-                document.getElementById('connectPanel').style.display = 'none'; // 隐藏输入框
-                
-                // 激活按钮
-                btn1.disabled = false; btn1.classList.remove('btn-disabled');
-                btn2.disabled = false; btn2.classList.remove('btn-disabled');
-            });
-
-            conn.on('data', (data) => {
-                if (data.type === 'hug') triggerEffect('p1', '✨ 贴贴！');
-                if (data.type === 'feed') triggerEffect('p1', '🍰 哇呜！');
-            });
-
-            conn.on('close', () => {
-                alert('💔 对方断开了连接');
-                location.reload(); 
-            });
-        }
-
-        function sendAction(type) {
-            if (!conn) return;
-            conn.send({ type: type });
-            if (type === 'hug') triggerEffect('p2', '✨ 贴贴！');
-            if (type === 'feed') triggerEffect('p2', '🍰 投喂！');
-        }
-
-        function triggerEffect(targetId, text) {
-            const player = document.getElementById(targetId);
-            const effectEl = document.getElementById(targetId + 'Effect');
-            
-            effectEl.innerText = text;
-            effectEl.style.animation = 'none';
-            effectEl.offsetHeight; 
-            effectEl.style.animation = 'popUp 0.8s ease-out';
-
-            if (targetId === 'p1' && navigator.vibrate) navigator.vibrate(50);
-            
-            player.style.transform = "scale(1.2)";
-            setTimeout(() => player.style.transform = "scale(1)", 200);
-        }
-
-        function copyMyId() {
-            const id = myIdEl.innerText;
-            if (id === '生成中...') return;
-            navigator.clipboard.writeText(id).then(() => {
-                statusEl.innerText = "📋 已复制！去发给朋友吧~";
-            });
+        function closeGameMenu() {
+            const modal = document.getElementById('gameMenu');
+            modal.classList.remove('show');
+            // 等动画播完再隐藏
+            setTimeout(() => modal.style.display = 'none', 300);
         }
     </script>
 </body>
