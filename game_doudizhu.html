@@ -20,8 +20,9 @@
         .game-table { flex: 1; position: relative; width: 100%; }
         .player { position: absolute; display: flex; flex-direction: column; align-items: center; width: 80px; transition: 0.3s; }
         .avatar { width: 60px; height: 60px; background: #fff; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.1); font-size: 35px; display: flex; align-items: center; justify-content: center; position: relative; transition: 0.3s; }
-        /* 当前轮次高亮 */
-        .player.active .avatar { border-color: #ff9a9e; box-shadow: 0 0 15px #ff9a9e; transform: scale(1.1); }
+        
+        /* 💡 轮到谁，谁的头像变大发光 */
+        .player.active .avatar { border-color: #ff9a9e; box-shadow: 0 0 20px #ff9a9e; transform: scale(1.15); z-index: 10; }
         
         .crown { position: absolute; top: -20px; right: -10px; font-size: 30px; display: none; animation: bounce 2s infinite; }
         @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
@@ -38,10 +39,10 @@
         .mini-card { width: 35px; height: 50px; background: #fff; border-radius: 4px; border: 1px solid #ccc; display: flex; align-items: center; justify-content: center; font-weight: bold; }
 
         /* 出牌展示区 */
-        .played-area { position: absolute; pointer-events: none; white-space: nowrap; }
-        .pa-left { left: 90px; top: 35%; transform: scale(0.7); transform-origin: left center; }
-        .pa-right { right: 90px; top: 35%; transform: scale(0.7); transform-origin: right center; display: flex; justify-content: flex-end; }
-        .pa-center { bottom: 120px; left: 50%; transform: translateX(-50%) scale(0.8); }
+        .played-area { position: absolute; pointer-events: none; white-space: nowrap; height: 60px; display: flex; align-items: center; }
+        .pa-left { left: 100px; top: 35%; transform: scale(0.7); transform-origin: left center; }
+        .pa-right { right: 100px; top: 35%; transform: scale(0.7); transform-origin: right center; justify-content: flex-end; }
+        .pa-center { bottom: 120px; left: 50%; transform: translateX(-50%) scale(0.8); justify-content: center; }
 
         /* 手牌 */
         .my-hand { position: absolute; bottom: 10px; width: 100%; height: 140px; display: flex; justify-content: center; align-items: flex-end; padding: 0 20px; }
@@ -135,7 +136,9 @@
         let myId = null, myIdx = -1; 
         let myCards = [], diPai = [];
         let landlordIdx = -1;
-        let isMyTurn = false;
+        
+        // 🔥 核心状态：'bidding' (抢地主) 或 'playing' (出牌)
+        let gamePhase = 'idle'; 
 
         // 1. 初始化
         try {
@@ -143,7 +146,7 @@
             peer.on('open', id => {
                 myId = id;
                 document.getElementById('roomIdTxt').innerText = id;
-                document.getElementById('statusText').innerText = "服务就绪";
+                document.getElementById('statusText').innerText = "联机服务已就绪";
             });
             peer.on('error', err => alert('联机出错: ' + err.type));
         } catch(e) { alert('组件加载失败'); }
@@ -183,7 +186,7 @@
             hostConn.on('close', () => { alert('房主断开'); location.reload(); });
         }
 
-        // 4. 消息处理 (核心)
+        // 4. 消息处理 (最核心的分流)
         function handleData(data) {
             console.log('收到:', data);
             
@@ -196,15 +199,14 @@
                 myCards = data.hands[myIdx];
                 sortAndRenderHand();
                 updateCounts();
-                document.getElementById('statusText').innerText = "游戏开始！";
                 
-                // 所有人清空桌面
-                clearTable();
+                // 🔥 设置阶段为抢地主
+                gamePhase = 'bidding';
+                document.getElementById('statusText').innerText = "抢地主阶段...";
                 
-                // 如果是第一个人（房主），开始抢地主
                 if(data.turn === myIdx) {
-                    highlightPlayer(0);
                     showBtns(['btnCall', 'btnNoCall']);
+                    highlightPlayer(0);
                 } else {
                     highlightPlayer(getRelativeIdx(data.turn));
                 }
@@ -213,8 +215,8 @@
                 handleRemoteAction(data);
             } else if(data.type === 'LANDLORD') {
                 setLandlord(data.idx);
+                gamePhase = 'playing'; // 🔥 切换为出牌阶段
             } else if(data.type === 'TURN') {
-                // 🔥🔥🔥 收到轮次信号
                 handleTurn(data);
             }
         }
@@ -234,7 +236,7 @@
             connList.forEach(c => c.send(msg));
         }
 
-        // 6. 出牌/操作
+        // 6. 操作逻辑
         function doAction(act) {
             hideBtns();
             const msg = { type: 'ACTION', idx: myIdx, act: act };
@@ -263,43 +265,53 @@
             }
         }
 
-        // 7. 处理动作反馈 (含轮转逻辑)
+        // 7. 处理动作反馈
         function handleRemoteAction(data) {
             const viewIdx = getRelativeIdx(data.idx);
             const areaId = ['playedMe', 'played1', 'played2'][viewIdx];
             const area = document.getElementById(areaId);
             area.innerHTML = ''; 
 
+            // 清除头像高亮
+            document.querySelectorAll('.player').forEach(p => p.classList.remove('active'));
+
             if(data.act === 'pass_call') {
                 area.innerHTML = '<span style="font-size:20px; color:#aaa; font-weight:bold;">不抢</span>';
-                // 🔥 如果是房主，收到不抢，立刻把权移交给下一个人
+                // 🔥 房主收到“不抢”，立刻叫下一个人
                 if(myIdx === 0) passTurn(data.idx, true);
             } 
             else if(data.act === 'call') {
-                area.innerHTML = '<span style="font-size:24px; color:#ff9a9e; font-weight:bold;">抢地主!</span>';
+                area.innerHTML = '<span style="font-size:20px; color:#ff9a9e; font-weight:bold;">抢地主!</span>';
                 if(myIdx === 0) { 
                     setTimeout(() => {
+                        // 广播地主
                         const msg = { type: 'LANDLORD', idx: data.idx };
                         handleData(msg); connList.forEach(c => c.send(msg));
                         
-                        // 地主诞生后，地主先出牌
+                        // 1秒后让地主出牌
                         setTimeout(() => {
-                            const turnMsg = { type: 'TURN', idx: data.idx, isBid: false };
+                            const turnMsg = { type: 'TURN', idx: data.idx };
                             handleData(turnMsg); connList.forEach(c => c.send(turnMsg));
                         }, 1000);
                     }, 1000);
                 }
             } 
             else if(data.act === 'play') {
+                // 渲染出的牌
                 data.cards.forEach(c => {
                     let div = document.createElement('div');
                     div.style.cssText = "display:inline-block; background:#fff; border:1px solid #ccc; width:40px; height:55px; border-radius:4px; margin-left:-20px; font-size:12px; line-height:55px; text-align:center; box-shadow:1px 1px 3px rgba(0,0,0,0.2);";
-                    div.className = (['♥','♦'].includes(c.s) || c.v>15) ? 'red' : 'black'; // 修正颜色
-                    div.style.color = div.className === 'red' ? '#e74c3c' : '#2d3436';
-                    div.innerText = DISPLAY_MAP[c.r] || c.r;
+                    div.className = (['♥','♦'].includes(c.s) || c.v>15) ? 'red' : 'black';
+                    let txt = DISPLAY_MAP[c.r] || c.r;
+                    div.innerText = txt;
                     area.appendChild(div);
                 });
-                if(viewIdx !== 0) document.getElementById('count' + viewIdx).innerText -= data.cards.length;
+                
+                if(viewIdx !== 0) {
+                    const cntEl = document.getElementById('count' + viewIdx);
+                    cntEl.innerText = parseInt(cntEl.innerText) - data.cards.length;
+                }
+
                 if(myIdx === 0) passTurn(data.idx, false);
             }
             else if(data.act === 'pass') {
@@ -308,44 +320,46 @@
             }
         }
 
-        // 8. 房主计算轮次
-        function passTurn(current, isBidding) {
+        // 8. 房主控制轮转
+        function passTurn(current, isBiddingPhase) {
             const next = (current + 1) % 3;
-            // 广播下一个是谁
-            const msg = { type: 'TURN', idx: next, isBid: isBidding };
+            // 广播 TURN
+            const msg = { type: 'TURN', idx: next };
             setTimeout(() => {
                 handleData(msg);
                 connList.forEach(c => c.send(msg));
-            }, 800); // 稍微延迟，让大家看清上一个操作
+            }, 800); 
         }
 
-        // 9. 处理轮次信号 (唤醒按钮)
+        // 9. 处理轮次 (弹按钮逻辑)
         function handleTurn(data) {
-            // 高亮当前玩家
-            highlightPlayer(getRelativeIdx(data.idx));
-            
-            // 清空当前行动者的桌面文字 (比如之前的"不抢")
             const viewIdx = getRelativeIdx(data.idx);
-            document.getElementById(['playedMe', 'played1', 'played2'][viewIdx]).innerHTML = '';
+            highlightPlayer(viewIdx);
+
+            // 清空当前行动者之前的文字
+            const areaId = ['playedMe', 'played1', 'played2'][viewIdx];
+            document.getElementById(areaId).innerHTML = '';
 
             // 如果轮到我
             if(data.idx === myIdx) {
                 document.getElementById('statusText').innerText = "轮到你了！";
-                if(navigator.vibrate) navigator.vibrate(200); // 震动提醒
+                if(navigator.vibrate) navigator.vibrate(200);
                 
-                if(data.isBid) {
+                // 🔥 根据阶段显示不同按钮
+                if(gamePhase === 'bidding') {
                     showBtns(['btnCall', 'btnNoCall']);
                 } else {
                     showBtns(['btnOut', 'btnPass']);
                 }
             } else {
-                document.getElementById('statusText').innerText = "等待对方操作...";
+                document.getElementById('statusText').innerText = "对方思考中...";
             }
         }
 
-        // 10. 地主设置
         function setLandlord(idx) {
             landlordIdx = idx;
+            gamePhase = 'playing'; // 切换阶段
+
             const box = document.getElementById('diPaiBox');
             box.style.opacity = 1;
             box.innerHTML = '';
@@ -363,7 +377,7 @@
             } else {
                 document.getElementById('count' + viewIdx).innerText = 20;
             }
-            document.getElementById('statusText').innerText = "地主已定！";
+            document.getElementById('statusText').innerText = "地主已定！决战开始！";
         }
 
         // === 辅助 ===
@@ -401,11 +415,6 @@
         function updateCounts() {
             document.getElementById('count1').style.display = 'block';
             document.getElementById('count2').style.display = 'block';
-        }
-        function clearTable() {
-            document.getElementById('playedMe').innerHTML = '';
-            document.getElementById('played1').innerHTML = '';
-            document.getElementById('played2').innerHTML = '';
         }
         function copyId() { navigator.clipboard.writeText(myId).then(() => alert('房号已复制')); }
 
