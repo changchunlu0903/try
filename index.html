@@ -3187,6 +3187,13 @@
         <div style="text-align:center; font-size:12px; color:#aaa; margin-bottom:10px;">🎡 皇家游乐场</div>
         
         <div class="fun-grid">
+
+<div class="fun-btn" onclick="enterGameLobby()" style="background:linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%); color:white; border:none; grid-column: span 2; font-weight:bold; font-size:14px; box-shadow:0 4px 10px rgba(161, 140, 209, 0.4);">
+    <span class="fun-icon" style="font-size:24px;">🎮</span> 
+    进入联机大厅
+    <div style="font-size:10px; opacity:0.8; font-weight:normal;">(P2P联机 / AI对战)</div>
+</div>
+
             <div class="fun-btn" onclick="openMomentsModal()"><span class="fun-icon">📱</span>朋友圈</div>
             <div class="fun-btn" onclick="checkMailbox()"><span class="fun-icon">📮</span>收信箱</div>
             <div class="fun-btn" onclick="openTheaterModal()"><span class="fun-icon">🎬</span>小剧场</div>
@@ -19241,6 +19248,231 @@ window.openAISettings = function() {
     }, 1000); // 每秒巡视一次
 
 })();
+
+/* ================= 🚑 V23.0 补丁：修复军师“去添加”按钮失效 ================= */
+(function() {
+    console.log("🚀 执行 V23.0：重写跳转导航逻辑...");
+
+    // 覆盖旧的跳转函数
+    window.jumpToCreator = function(btn, type, encodedPrompt) {
+        // 1. 按钮点击反馈 (变色，证明点到了)
+        if (btn) {
+            btn.innerHTML = "⏳ 正在跳转...";
+            btn.style.opacity = "0.7";
+            btn.disabled = true; // 防止连点
+        }
+
+        setTimeout(function() {
+            try {
+                // 2. 解码建议内容
+                var promptText = decodeURIComponent(encodedPrompt);
+                var targetTabId = "";
+                var targetInputId = "";
+                var extraShowId = ""; // 需要额外强制显示的容器
+
+                // --- 🗺️ 重新绘制地图 (适配最新修改的ID) ---
+                
+                if (type === 'world') {
+                    // 世界书
+                    targetTabId = 'tab-world';
+                    targetInputId = 'aiWorldPrompt';
+                } 
+                else if (type === 'frontend') {
+                    // 前端特效
+                    targetTabId = 'tab-regex';
+                    targetInputId = 'aiCodePrompt';
+                    extraShowId = 'uiFrontendMode'; // 强制显示AI面板
+                } 
+                else if (type === 'stat') {
+                    // 属性/逻辑
+                    targetTabId = 'tab-stats';
+                    targetInputId = 'aiStatPrompt';
+                }
+                else if (type === 'desc') {
+                    // 详细设定 (修改建议)
+                    targetTabId = 'tab-preview';
+                    targetInputId = 'refineInput_desc';
+                    extraShowId = 'refineArea_desc'; // 强制显示修改框
+                }
+
+                // --- 🚜 推土机式导航 ---
+
+                // A. 确保写卡器弹窗是开着的
+                var modal = document.getElementById('cardCreatorModal');
+                if (modal) {
+                    modal.classList.add('active');
+                    modal.style.display = 'flex'; 
+                }
+
+                // B. 强制切换 Tab (不依赖 switchCardTab，直接操作 DOM)
+                var allTabs = document.querySelectorAll('.card-tab-content');
+                allTabs.forEach(function(el) { el.style.display = 'none'; }); // 关掉所有
+                
+                var targetTab = document.getElementById(targetTabId);
+                if (targetTab) {
+                    targetTab.style.display = 'block'; // 打开目标
+                } else {
+                    throw new Error("找不到目标页面: " + targetTabId);
+                }
+
+                // C. 激活顶部按钮高亮 (视觉同步)
+                var tabBtns = document.querySelectorAll('.card-tab');
+                tabBtns.forEach(function(b) { b.classList.remove('active'); });
+                // 模糊匹配按钮文字
+                var activeBtn = Array.from(tabBtns).find(b => b.onclick && b.onclick.toString().includes(targetTabId.replace('tab-', '')));
+                if (activeBtn) activeBtn.classList.add('active');
+
+                // D. 处理额外显示的容器 (比如前端面板、修改框)
+                if (extraShowId) {
+                    var extraEl = document.getElementById(extraShowId);
+                    if (extraEl) {
+                        extraEl.style.display = 'block';
+                        // 如果是前端页，还要把 simple 模式关掉
+                        if(type === 'frontend') {
+                            var simpleEl = document.getElementById('uiSimpleMode');
+                            if(simpleEl) simpleEl.style.display = 'none';
+                        }
+                    }
+                }
+
+                // --- 🎯 填入内容并聚焦 ---
+                var inputEl = document.getElementById(targetInputId);
+                if (inputEl) {
+                    inputEl.value = promptText;
+                    inputEl.focus();
+                    
+                    // 滚动到屏幕中间
+                    inputEl.scrollIntoView({behavior: "smooth", block: "center"});
+                    
+                    // 闪烁一下提示用户
+                    var oldBg = inputEl.style.backgroundColor;
+                    inputEl.style.transition = "background 0.3s";
+                    inputEl.style.backgroundColor = "#d4edda"; // 浅绿色高亮
+                    setTimeout(function() { inputEl.style.backgroundColor = oldBg; }, 1000);
+
+                    // 成功提示
+                    if(window.auth && window.auth.toast) window.auth.toast('✅ 建议已填入，请点击生成/修改');
+                    
+                    // 恢复按钮状态
+                    if (btn) {
+                        btn.innerHTML = "✅ 已填入";
+                        btn.style.background = "#d4edda";
+                        btn.style.color = "#155724";
+                    }
+                } else {
+                    throw new Error("找不到输入框: " + targetInputId);
+                }
+
+            } catch (e) {
+                console.error("跳转失败:", e);
+                alert("❌ 跳转出错：" + e.message);
+                // 恢复按钮
+                if (btn) {
+                    btn.innerHTML = "❌ 重试";
+                    btn.disabled = false;
+                    btn.style.opacity = "1";
+                }
+            }
+        }, 100);
+    };
+
+    console.log("✅ V23.0：跳转导航系统已重置");
+})();
+
+/* ================= 🧱 V24.0 补丁：属性页二次编辑框强制归位 ================= */
+(function() {
+    console.log("🚀 执行 V24.0：把属性页的修改框拽到底下来...");
+
+    // 🛠️ 核心工兵：负责搬运或重建
+    function relocateStatRefineBox() {
+        // 1. 找到大输入框 (Stat Editor)
+        var inputEl = document.getElementById('statEditor');
+        
+        // 2. 找到（或新建）修改框
+        var boxEl = document.getElementById('refineArea_stat');
+
+        if (!inputEl) return;
+
+        // 如果框不存在，当场造一个
+        if (!boxEl) {
+            console.log("🛠️ 新建属性页修改框...");
+            boxEl = document.createElement('div');
+            boxEl.id = 'refineArea_stat';
+            boxEl.style.cssText = "display:block; margin-top:5px; margin-bottom:15px; background:#fff7e6; padding:8px; border-radius:8px; border:1px dashed #f39c12;";
+            
+            boxEl.innerHTML = `
+                <div style="display:flex; gap:5px; align-items:center;">
+                    <span style="font-size:12px; color:#d46b08;">🔧 逻辑微调:</span>
+                    <input type="text" id="refineInput_stat" class="visual-input" placeholder="代码哪里不对？(如: 数值改小一点、逻辑太复杂了)..." style="flex:1; padding:5px;">
+                    <button onclick="window.refineResult('stat')" style="background:#f39c12; color:white; border:none; border-radius:5px; cursor:pointer; padding:5px 15px; font-weight:bold;">🔄 让它改</button>
+                </div>
+            `;
+        } else {
+            // 如果存在，把样式也统一一下，显得整齐
+            boxEl.style.cssText = "display:block; margin-top:5px; margin-bottom:15px; background:#fff7e6; padding:8px; border-radius:8px; border:1px dashed #f39c12;";
+        }
+
+        // 3. 🔥 强制搬运：插到 inputEl 的屁股后面
+        if (inputEl.nextElementSibling !== boxEl) {
+            if (inputEl.parentNode) {
+                // 如果后面已经有个“说明书(绿色框)”，插在说明书后面，或者插在输入框后面
+                var guideBox = document.getElementById('statGuideBox');
+                if (guideBox && guideBox.parentNode === inputEl.parentNode) {
+                    inputEl.parentNode.insertBefore(boxEl, guideBox.nextSibling);
+                } else {
+                    inputEl.parentNode.insertBefore(boxEl, inputEl.nextSibling);
+                }
+            }
+        }
+        
+        // 4. 强制显示 (只要有框就显示，方便随时改)
+        boxEl.style.display = 'block';
+    }
+
+    // 立即执行一次
+    setTimeout(relocateStatRefineBox, 800);
+    
+    // 为了保险，每隔 2秒 检查一次位置 (防止被其他刷新逻辑覆盖)
+    setInterval(relocateStatRefineBox, 2000);
+
+    console.log("✅ 属性页编辑框已归位");
+
+})();
+
+// ================= 👑 写卡器代码结束 =================
+
+// =================🎮联机代码开始=================
+
+window.enterGameLobby = function() {
+    // 1. 打包行李（准备数据）
+    // 把当前主页的重要信息存一下，确保新页面能用到
+    const config = JSON.parse(localStorage.getItem('my_ai_config')) || {};
+    
+    // 简单的校验
+    if(!config.apiKey) {
+        if(confirm("⚠️ 尚未配置 API Key，联机大厅的 AI 功能将无法使用。\n要继续吗？")) {
+            // 用户坚持要进，那就进
+        } else {
+            return; // 取消
+        }
+    }
+
+    // 2. 视觉反馈
+    auth.toast('🚀 正在连接量子通道...');
+    
+    // 3. 开启传送门
+    // 'MyGameLobbyWindow' 是窗口的名字。
+    // 如果窗口已经打开，浏览器会直接切过去，而不是新开一个标签页！
+    const lobbyUrl = 'game_lobby.html'; // 确保你的新文件名是这个
+    const win = window.open(lobbyUrl, 'MyGameLobbyWindow');
+    
+    if (win) {
+        win.focus(); // 聚焦到新窗口
+    } else {
+        alert('请允许弹出窗口，否则无法进入大厅！');
+    }
+};
+
 
     </script>
 </body>
