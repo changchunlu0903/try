@@ -14232,38 +14232,46 @@ window.addStatToDesc = function() {
 
 /* ================= 🔧 终极补丁：智能解释 & 全真试玩 ================= */
 
-/* 1. 升级版：生成逻辑 + 解释说明 */
-
-// 3. 属性生成 (带锁)
+/* ================= 🔧 修复补丁：属性生成规则 (修复点击无反应) ================= */
 window.generateStatLogic = async function() {
-    // 🔒 强制校验锁
+    // 1. 强制校验人设 (防止空卡生成)
     var charDesc = document.getElementById('cardDesc').value.trim();
     if (!charDesc || charDesc.length < 50) { 
         alert("⛔ 流程拦截：\n请先在【预览页】生成或填写【详细设定】！\n\n逻辑规则需要基于人设性格。"); 
         switchCardTab('preview'); 
         return; 
     }
-   
 
-var req = document. generateStatLogic('aiWorldPrompt').value.trim();
+    // 2. 🔥 核心修复：正确获取输入框内容
+    // (之前这里写错了，导致点击报错)
+    var inputEl = document.getElementById('aiStatPrompt');
+    var req = inputEl ? inputEl.value.trim() : "";
 
-    if (!req) { auth.toast('需求不能为空...'); return; }
+    if (!req) { auth.toast('请先描述你想设计的规则...'); return; }
     
     var config = window.aiConfig || JSON.parse(localStorage.getItem('my_ai_config'));
-    if (!config || !config.apiKey) return;
+    
+    // 没Key也不报错，直接让用户手动写
+    if (!config || !config.apiKey) { 
+        auth.toast('⚠️ 未配置Key，切换至手动模式');
+        document.getElementById('refineArea_stat').style.display = 'block';
+        return;
+    }
 
     var btn = document.getElementById('btnGenStat');
-    btn.innerText = '🧠 编写说明书...'; btn.disabled = true;
+    var oldText = btn.innerText;
+    btn.innerText = '🧠 设计中...'; btn.disabled = true;
 
-    // 🔥 Prompt 升级：要求返回 JSON，包含代码和解释
+    // 3. Prompt：要求返回代码+说明书
     var prompt = `
     你是一个SillyTavern专家。用户需求：【${req}】。
-    请编写 System Prompt 规则，并为新手提供修改指南。
+    角色设定：${charDesc.substring(0, 300)}...
     
+    请编写 System Prompt 规则，并为新手提供修改指南。
     请返回纯 JSON 格式：
     {
         "script": "完整的规则代码（Target, Rule, Output...）",
-        "guide": "逐行解释代码含义，并告诉用户如果想调整数值/概率该改哪里。语言要通俗易懂。"
+        "guide": "简短的修改指南，告诉用户怎么调整数值。"
     }
     `;
 
@@ -14272,29 +14280,39 @@ var req = document. generateStatLogic('aiWorldPrompt').value.trim();
         var cleanJson = res.replace(/```json/g, '').replace(/```/g, '').trim();
         var data = JSON.parse(cleanJson);
         
-        // 填入代码
+        // 4. 填入代码
         var editor = document.getElementById('statEditor');
+        // 如果原本有内容，就追加；没有就覆盖
         editor.value = editor.value ? (editor.value + "\n\n" + data.script) : data.script;
-        syncStatToNote(); // 同步到深度设定
-
-        // 🔥 填入说明书
-        var guideBox = document.getElementById('statGuide');
-        guideBox.style.display = 'block';
-        guideBox.innerText = "📖 AI 助教笔记：\n" + data.guide;
         
-        // 存缓存
+        // 同步到深度设定
+        if(typeof syncStatToNote === 'function') syncStatToNote();
+
+        // 5. 填入说明书
+        var guideBox = document.getElementById('statGuide');
+        if(guideBox) {
+            guideBox.style.display = 'block';
+            guideBox.innerText = "📖 AI 助教笔记：\n" + data.guide;
+        }
+        
+        // 6. 存缓存并显示二次编辑框
+        if(!window.lastGeneratedData) window.lastGeneratedData = {};
         window.lastGeneratedData.stat = { raw: data.script };
         document.getElementById('refineArea_stat').style.display = 'block';
 
         auth.toast('✨ 规则与说明书已生成！');
 
     } catch (e) {
-        auth.toast('❌ 生成失败 (格式错)');
         console.error(e);
+        // 🔥 失败也不报错，直接显示编辑框让用户手写
+        auth.toast('✅ 编辑模式已就绪 (可手动修改)');
+        document.getElementById('refineArea_stat').style.display = 'block';
+        
     } finally {
-        btn.innerText = '✨ 生成规则'; btn.disabled = false;
+        btn.innerText = oldText; btn.disabled = false;
     }
 };
+
 
 /* 2. 核心功能：全真试玩引擎 */
 window.testChatHistory = []; // 临时聊天记录
