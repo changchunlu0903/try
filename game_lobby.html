@@ -1,1 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>🌸 LOPPY 乐园 🌸</title>
+    <style>
+        /* === 1. 引入你的定制字体 === */
+        @font-face {
+            font-family: 'MyCutieFont';
+            src: url('https://files.catbox.moe/cweam3.ttf') format('truetype');
+            font-display: swap;
+        }
+
+        :root {
+            /* 调色盘：草莓牛奶色系 */
+            --bg-start: #fff1eb;
+            --bg-end: #ace0f9;
+            --card-bg: rgba(255, 255, 255, 0.85);
+            --main-pink: #ff9a9e;
+            --soft-pink: #fecfef;
+            --text-color: #885a5a; /* 像巧克力一样的深棕色，比纯黑更柔和 */
+            --btn-gradient-1: linear-gradient(120deg, #a1c4fd 0%, #c2e9fb 100%); /* 蓝调 */
+            --btn-gradient-2: linear-gradient(120deg, #fccb90 0%, #d57eeb 100%); /* 粉调 */
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'MyCutieFont', 'Microsoft YaHei', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            /* 背景：极度柔和的梦幻渐变 */
+            background: linear-gradient(135deg, #fff1eb 0%, #ace0f9 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* === 背景特效：向上飘的可爱图标 === */
+        .floating-container {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .floating-item {
+            position: absolute;
+            bottom: -50px;
+            font-size: 24px;
+            opacity: 0.7;
+            animation: floatUp 15s linear infinite;
+            filter: drop-shadow(0 2px 3px rgba(255, 182, 193, 0.4));
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(0) rotate(0deg) scale(0.8); opacity: 0; }
+            10% { opacity: 0.8; }
+            90% { opacity: 0.8; }
+            100% { transform: translateY(-110vh) rotate(360deg) scale(1.1); opacity: 0; }
+        }
+
+        /* === 主卡片：奶油质感 === */
+        .game-card {
+            width: 320px;
+            padding: 30px;
+            background: var(--card-bg);
+            /* 边框：双层设计，像蕾丝蛋糕纸 */
+            border-radius: 30px;
+            border: 4px solid #fff;
+            outline: 2px dashed var(--main-pink); /* 虚线外框 */
+            outline-offset: -10px; /* 虚线内缩 */
+            
+            box-shadow: 
+                0 20px 50px rgba(255, 154, 158, 0.2), /* 柔和投影 */
+                inset 0 0 20px rgba(255, 255, 255, 0.8);
+            
+            text-align: center;
+            position: relative;
+            z-index: 10;
+            animation: popIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* 顶部装饰结 */
+        .card-bow {
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 40px;
+            filter: drop-shadow(0 5px 5px rgba(0,0,0,0.1));
+            z-index: 20;
+        }
+
+        /* === 标题 === */
+        h1 {
+            font-size: 36px;
+            color: var(--text-color);
+            margin-top: 10px;
+            margin-bottom: 5px;
+            text-shadow: 2px 2px 0px #fff;
+        }
+
+        .subtitle {
+            display: inline-block;
+            font-size: 14px;
+            color: #fff;
+            background: var(--main-pink);
+            padding: 4px 15px;
+            border-radius: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 10px rgba(255, 154, 158, 0.4);
+        }
+
+        /* === 按钮组 === */
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .cute-btn {
+            position: relative;
+            text-decoration: none;
+            padding: 15px;
+            border-radius: 25px;
+            border: 3px solid #fff; /* 白边 */
+            color: white;
+            font-size: 18px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: transform 0.2s;
+            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        /* 悬停时的Q弹效果 */
+        .cute-btn:active {
+            transform: scale(0.95);
+        }
+        .cute-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 20px rgba(0,0,0,0.15);
+        }
+
+        /* 按钮1：清爽蓝 */
+        .btn-pve {
+            background: var(--btn-gradient-1);
+            text-shadow: 1px 1px 2px rgba(74, 144, 226, 0.3);
+        }
+
+        /* 按钮2：梦幻粉 */
+        .btn-pvp {
+            background: var(--btn-gradient-2);
+            text-shadow: 1px 1px 2px rgba(214, 82, 129, 0.3);
+        }
+
+        /* 分割线 */
+        .divider {
+            margin: 25px 0;
+            height: 1px;
+            background: repeating-linear-gradient(to right, var(--main-pink) 0, var(--main-pink) 5px, transparent 5px, transparent 10px);
+        }
+
+        /* 回到百宝箱 */
+        .back-link {
+            display: block;
+            color: var(--text-color);
+            text-decoration: none;
+            font-size: 14px;
+            opacity: 0.7;
+            transition: opacity 0.3s;
+        }
+        .back-link:hover {
+            opacity: 1;
+            text-decoration: underline;
+            text-decoration-style: wavy; /* 波浪线 */
+            text-decoration-color: var(--main-pink);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="floating-container" id="floatContainer"></div>
+
+    <div class="game-card">
+        <div class="card-bow">🎀</div>
+
+        <h1>GAME LOPPY</h1>
+        <div class="subtitle">✨ 魔法少女竞技场 ✨</div>
+
+        <div class="btn-group">
+            <a href="game_pve.html" class="cute-btn btn-pve" onclick="return playSound()">
+                <span style="font-size: 22px;">🐰</span> 
+                <span>人机试炼</span>
+            </a>
+
+            <a href="game_pvp.html" class="cute-btn btn-pvp" onclick="return playSound()">
+                <span style="font-size: 22px;">💕</span> 
+                <span>密友连线</span>
+            </a>
+        </div>
+
+        <div class="divider"></div>
+
+        <a href="index.html" class="back-link">
+            ↩ 回到百宝箱
+        </a>
+    </div>
+
+    <script>
+        // === 1. 动态生成少女风飘浮图标 ===
+        // 这里是你喜欢的元素库
+        const icons = ['🎀', '🌸', '🍓', '🧁', '✨', '🍭', '🧸', '💖', '🍼', '🍰'];
+        const container = document.getElementById('floatContainer');
+
+        // 生成 20 个飘浮元素
+        for (let i = 0; i < 20; i++) {
+            const el = document.createElement('div');
+            el.className = 'floating-item';
+            
+            // 随机选一个图标
+            el.innerText = icons[Math.floor(Math.random() * icons.length)];
+            
+            // 随机位置 (0% - 100%)
+            el.style.left = Math.random() * 100 + '%';
+            
+            // 随机大小 (16px - 32px)
+            const size = Math.random() * 16 + 16;
+            el.style.fontSize = size + 'px';
+            
+            // 随机动画时长 (8s - 18s)，且有随机延迟，让它们错落有致
+            el.style.animationDuration = (Math.random() * 10 + 8) + 's';
+            el.style.animationDelay = (Math.random() * 5) + 's';
+            
+            container.appendChild(el);
+        }
+
+        // === 2. 点击反馈 (可选) ===
+        function playSound() {
+            // 这里可以加点击音效，如果还没有准备好游戏页面，暂时返回 true 跳转
+            return true;
+        }
+    </script>
+</body>
+</html>
 
