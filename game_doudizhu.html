@@ -40,9 +40,11 @@
 
         /* 出牌展示区 */
         .played-area { position: absolute; pointer-events: none; white-space: nowrap; height: 60px; display: flex; align-items: center; }
-        .pa-left { left: 100px; top: 35%; transform: scale(0.7); transform-origin: left center; }
-        .pa-right { right: 100px; top: 35%; transform: scale(0.7); transform-origin: right center; justify-content: flex-end; }
-        .pa-center { bottom: 120px; left: 50%; transform: translateX(-50%) scale(0.8); justify-content: center; }
+        /* === 修改这几行 (让打出的牌变大) === */
+.pa-left { left: 110px; top: 30%; transform: scale(0.9); transform-origin: left center; z-index: 20; }
+.pa-right { right: 110px; top: 30%; transform: scale(0.9); transform-origin: right center; display: flex; justify-content: flex-end; z-index: 20; }
+.pa-center { bottom: 140px; left: 50%; transform: translateX(-50%) scale(0.9); justify-content: center; z-index: 20; }
+
 
         /* 手牌 */
         .my-hand { position: absolute; bottom: 10px; width: 100%; height: 140px; display: flex; justify-content: center; align-items: flex-end; padding: 0 20px; }
@@ -65,6 +67,70 @@
         .modal-card { background: #fff; padding: 25px; border-radius: 20px; width: 300px; text-align: center; border: 4px solid #ffb7c5; }
         .big-btn { width: 100%; padding: 12px; margin-top: 10px; border: none; border-radius: 12px; font-family: inherit; font-size: 16px; cursor: pointer; color: white; }
         .ipt-room { width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 10px; margin-top: 10px; text-align: center; outline: none; }
+
+/* === 新增：倒计时闹钟 === */
+.timer-clock {
+    position: absolute; top: -45px; left: 50%; transform: translateX(-50%);
+    width: 40px; height: 40px; background: #fff; border: 3px solid #ff7675;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-weight: bold; color: #ff7675; font-size: 18px; 
+    box-shadow: 0 0 10px rgba(255, 118, 117, 0.5); z-index: 100;
+    display: none; /* 默认隐藏 */
+    animation: pulse-red 1s infinite;
+}
+@keyframes pulse-red { 0% { transform: translateX(-50%) scale(1); } 50% { transform: translateX(-50%) scale(1.1); } }
+
+/* === 新增：胜利失败特效 === */
+/* 烟花粒子 */
+.firework { position: absolute; width: 6px; height: 6px; border-radius: 50%; pointer-events: none; z-index: 9999; }
+@keyframes firework-anim { 
+    0% { transform: translate(0,0); opacity: 1; } 
+    100% { transform: translate(var(--x), var(--y)); opacity: 0; } 
+}
+
+/* 下雨特效 */
+.rain-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.3); pointer-events: none; z-index: 900; display: none;
+    backdrop-filter: grayscale(80%); /* 画面变灰 */
+}
+.rain-drop {
+    position: absolute; width: 2px; height: 20px; background: rgba(255,255,255,0.5);
+    top: -20px; animation: rain-fall 0.8s linear infinite;
+}
+@keyframes rain-fall { to { transform: translateY(100vh); } }
+
+/* 结算弹窗文字颜色 */
+.win-text { color: #fab1a0; font-size: 32px; text-shadow: 2px 2px 0 #fff; }
+.lose-text { color: #a29bfe; font-size: 32px; text-shadow: 2px 2px 0 #fff; }
+
+/* === 聊天样式 === */
+.chat-bar {
+    position: absolute; bottom: 220px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 5px; z-index: 80; width: 200px;
+}
+.chat-bar input {
+    flex: 1; padding: 5px 10px; border-radius: 15px; border: 2px solid #fff;
+    outline: none; font-size: 12px; background: rgba(255,255,255,0.8); margin: 0;
+}
+.chat-bar button {
+    border: none; background: #a29bfe; color: white; border-radius: 15px;
+    padding: 5px 10px; cursor: pointer; font-size: 12px;
+}
+
+/* 气泡 */
+.bubble {
+    position: absolute; top: -40px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.7); color: #fff; padding: 5px 10px;
+    border-radius: 8px; font-size: 12px; white-space: nowrap;
+    display: none; z-index: 200; pointer-events: none;
+}
+.bubble::after {
+    content: ''; position: absolute; bottom: -5px; left: 50%; margin-left: -5px;
+    border-width: 5px; border-style: solid;
+    border-color: rgba(0,0,0,0.7) transparent transparent transparent;
+}
+
     </style>
 </head>
 <body>
@@ -94,9 +160,23 @@
         </div>
 
         <div class="player p-me" id="p0">
-            <div class="crown" id="crownMe">👑</div>
-            <div class="played-area pa-center" id="playedMe"></div>
-        </div>
+    <div class="timer-clock" id="myTimer">30</div>
+    
+    <div class="crown" id="crownMe">👑</div>
+    <div class="played-area pa-center" id="playedMe"></div>
+</div>
+
+<div class="modal" id="resultModal">
+    <div class="modal-box">
+        <h2 id="resultTitle" class="result-title">胜利！</h2>
+        <p id="resultText">地主赢了！</p>
+        
+        <button class="modal-btn" style="background:#ff9a9e;" onclick="tryRestart()">再来一局</button>
+    </div>
+</div>
+
+<div class="rain-overlay" id="rainLayer"></div>
+
 
         <div class="control-panel" id="btnArea">
             <button class="game-btn btn-call" id="btnCall" onclick="doAction('call')">抢地主</button>
@@ -104,6 +184,12 @@
             <button class="game-btn btn-play" id="btnOut" onclick="playSelectedCards()">出牌</button>
             <button class="game-btn btn-pass" id="btnPass" onclick="doAction('pass')">不出</button>
         </div>
+
+<div class="chat-bar">
+    <input type="text" id="chatInput" placeholder="聊两句..." onkeydown="if(event.keyCode==13) sendChat()">
+    <button onclick="sendChat()">发送</button>
+</div>
+
 
         <div class="my-hand" id="handArea"></div>
     </div>
@@ -127,6 +213,8 @@
             </div>
         </div>
     </div>
+
+<div class="rain-overlay" id="rainLayer"></div>
 
     <script>
         const RANK_VAL = { '3':3, '4':4, '5':5, '6':6, '7':7, '8':8, '9':9, '10':10, 'J':11, 'Q':12, 'K':13, 'A':14, '2':15, 'S':16, 'B':17 };
@@ -189,39 +277,67 @@
         }
 
         // 4. 消息处理 (最核心的分流)
-        function handleData(data) {
-            console.log('收到:', data);
-            
-            if(data.type === 'WELCOME') {
-                myIdx = data.idx;
-                updateNames();
-            } else if(data.type === 'START') {
-                document.getElementById('lobbyModal').style.display = 'none';
-                diPai = data.diPai;
-                myCards = data.hands[myIdx];
-                sortAndRenderHand();
-                updateCounts();
-                
-                // 🔥 设置阶段为抢地主
-                gamePhase = 'bidding';
-                document.getElementById('statusText').innerText = "抢地主阶段...";
-                
-                if(data.turn === myIdx) {
-                    showBtns(['btnCall', 'btnNoCall']);
-                    highlightPlayer(0);
-                } else {
-                    highlightPlayer(getRelativeIdx(data.turn));
-                }
-
-            } else if(data.type === 'ACTION') {
-                handleRemoteAction(data);
-            } else if(data.type === 'LANDLORD') {
-                setLandlord(data.idx);
-                gamePhase = 'playing'; // 🔥 切换为出牌阶段
-            } else if(data.type === 'TURN') {
-                handleTurn(data);
-            }
+        // === 4. 消息分发 (已集成聊天和重开逻辑) ===
+function handleData(data) {
+    console.log('收到:', data);
+    
+    if(data.type === 'WELCOME') {
+        myIdx = data.idx;
+        updateNames();
+    } 
+    // 👇👇👇 这里是新增的聊天逻辑 👇👇👇
+    else if (data.type === 'CHAT') {
+        // 1. 算出是谁发的 (显示气泡)
+        const viewIdx = getRelativeIdx(data.idx);
+        showBubble(viewIdx, data.content);
+        
+        // 2. 如果我是房主，我要负责转发给另一个人
+        // (因为玩家之间是不直连的，必须通过房主传话)
+        if (myIdx === 0) {
+            connList.forEach(c => {
+                // 简单的防回声：虽然PeerJS通常不会发给自己，但为了保险，
+                // 房主广播时，发送者已经显示了，所以不需要发回给发送者(逻辑上)。
+                // 但这里为了代码简单，直接全广播也没事，客户端收到自己的消息如果不处理就行。
+                // 咱们直接全发，逻辑最稳。
+                c.send(data); 
+            });
         }
+    } 
+    // 👇👇👇 这里是修改过的开始逻辑 (增加了清理桌面) 👇👇👇
+    else if(data.type === 'START') {
+        // 🔥 关键：每次收到开始信号，先清空上一局的残局
+        resetTable(); 
+        
+        document.getElementById('lobbyModal').style.display = 'none';
+        diPai = data.diPai;
+        myCards = data.hands[myIdx];
+        sortAndRenderHand();
+        updateCounts();
+        document.getElementById('statusText').innerText = "游戏开始！";
+        
+        // 设置阶段
+        gamePhase = 'bidding';
+        
+        if(data.turn === myIdx) {
+            showBtns(['btnCall', 'btnNoCall']);
+            highlightPlayer(0); 
+        } else {
+            highlightPlayer(getRelativeIdx(data.turn));
+        }
+
+    } else if(data.type === 'ACTION') {
+        handleRemoteAction(data);
+    } else if(data.type === 'LANDLORD') {
+        setLandlord(data.idx);
+        gamePhase = 'playing'; 
+    } else if(data.type === 'TURN') {
+        handleTurn(data);
+    } else if(data.type === 'GAME_OVER') {
+        // 胜负结算
+        showResult(data);
+    }
+}
+
 
         // 5. 房主发牌
         function startGame() {
@@ -386,61 +502,72 @@ function canBeat(my, enemy) {
         }
 
         // 7. 处理动作反馈
-        function handleRemoteAction(data) {
-            const viewIdx = getRelativeIdx(data.idx);
-            const areaId = ['playedMe', 'played1', 'played2'][viewIdx];
-            const area = document.getElementById(areaId);
-            area.innerHTML = ''; 
+        // === 替换这个函数：处理动作 + 胜负检测 ===
+function handleRemoteAction(data) {
+    const viewIdx = getRelativeIdx(data.idx);
+    const areaId = ['playedMe', 'played1', 'played2'][viewIdx];
+    const area = document.getElementById(areaId);
+    area.innerHTML = ''; 
 
-            // 清除头像高亮
-            document.querySelectorAll('.player').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.player').forEach(p => p.classList.remove('active'));
 
-            if(data.act === 'pass_call') {
-                area.innerHTML = '<span style="font-size:20px; color:#aaa; font-weight:bold;">不抢</span>';
-                // 🔥 房主收到“不抢”，立刻叫下一个人
-                if(myIdx === 0) passTurn(data.idx, true);
-            } 
-            else if(data.act === 'call') {
-                area.innerHTML = '<span style="font-size:20px; color:#ff9a9e; font-weight:bold;">抢地主!</span>';
-                if(myIdx === 0) { 
-                    setTimeout(() => {
-                        // 广播地主
-                        const msg = { type: 'LANDLORD', idx: data.idx };
-                        handleData(msg); connList.forEach(c => c.send(msg));
-                        
-                        // 1秒后让地主出牌
-                        setTimeout(() => {
-                            const turnMsg = { type: 'TURN', idx: data.idx };
-                            handleData(turnMsg); connList.forEach(c => c.send(turnMsg));
-                        }, 1000);
-                    }, 1000);
-                }
-            } 
-            else if(data.act === 'play') {
-                // 渲染出的牌
-                data.cards.forEach(c => {
-                    let div = document.createElement('div');
-                    div.style.cssText = "display:inline-block; background:#fff; border:1px solid #ccc; width:40px; height:55px; border-radius:4px; margin-left:-20px; font-size:12px; line-height:55px; text-align:center; box-shadow:1px 1px 3px rgba(0,0,0,0.2);";
-                    div.className = (['♥','♦'].includes(c.s) || c.v>15) ? 'red' : 'black';
-                    let txt = DISPLAY_MAP[c.r] || c.r;
-                    div.innerText = txt;
-                    area.appendChild(div);
-                });
-                
-                if(viewIdx !== 0) {
-                    const cntEl = document.getElementById('count' + viewIdx);
-                    cntEl.innerText = parseInt(cntEl.innerText) - data.cards.length;
-                }
-
-if(myIdx === 0) lastPlayed = { idx: data.idx, typeInfo: data.typeInfo };
-
-                if(myIdx === 0) passTurn(data.idx, false);
-            }
-            else if(data.act === 'pass') {
-                area.innerHTML = '<span style="font-size:20px; color:#aaa; font-weight:bold;">不出</span>';
-                if(myIdx === 0) passTurn(data.idx, false);
-            }
+    if(data.act === 'pass_call') {
+        area.innerHTML = '<span style="font-size:20px; color:#aaa; font-weight:bold;">不抢</span>';
+        if(myIdx === 0) passTurn(data.idx, true);
+    } 
+    else if(data.act === 'call') {
+        area.innerHTML = '<span style="font-size:20px; color:#ff9a9e; font-weight:bold;">抢地主!</span>';
+        if(myIdx === 0) { 
+            setTimeout(() => {
+                const msg = { type: 'LANDLORD', idx: data.idx };
+                handleData(msg); connList.forEach(c => c.send(msg));
+                setTimeout(() => {
+                    const turnMsg = { type: 'TURN', idx: data.idx, isBid: false };
+                    handleData(turnMsg); connList.forEach(c => c.send(turnMsg));
+                }, 1000);
+            }, 1000);
         }
+    } 
+    else if(data.act === 'play') {
+        // 渲染牌
+        data.cards.forEach(c => {
+            let div = document.createElement('div');
+            div.style.cssText = "display:inline-block; background:#fff; border:1px solid #ccc; width:40px; height:55px; border-radius:4px; margin-left:-20px; font-size:12px; line-height:55px; text-align:center; box-shadow:1px 1px 3px rgba(0,0,0,0.2);";
+            div.className = (['♥','♦'].includes(c.s) || c.v>15) ? 'red' : 'black';
+            let txt = DISPLAY_MAP[c.r] || c.r;
+            div.innerText = txt;
+            area.appendChild(div);
+        });
+        
+        // 更新剩余张数 & 检查胜负
+        let currentCount = 0;
+        if(viewIdx !== 0) {
+            const cntEl = document.getElementById('count' + viewIdx);
+            currentCount = parseInt(cntEl.innerText) - data.cards.length;
+            cntEl.innerText = currentCount;
+        } else {
+            currentCount = myCards.length; // 如果是我自己
+        }
+
+        // 🔥🔥🔥 胜负判定点 🔥🔥🔥
+        if (currentCount <= 0) {
+            // 游戏结束！
+            // 如果我是房主，广播 GAME_OVER
+            if(myIdx === 0) {
+                const overMsg = { type: 'GAME_OVER', winnerIdx: data.idx };
+                handleData(overMsg);
+                connList.forEach(c => c.send(overMsg));
+            }
+            return; // 结束了就不往下走了
+        }
+
+        if(myIdx === 0) passTurn(data.idx, false);
+    }
+    else if(data.act === 'pass') {
+        area.innerHTML = '<span style="font-size:20px; color:#aaa; font-weight:bold;">不出</span>';
+        if(myIdx === 0) passTurn(data.idx, false);
+    }
+}
 
         // 8. 房主控制轮转
         function passTurn(current, isBiddingPhase) {
@@ -464,7 +591,7 @@ if(myIdx === 0) lastPlayed = { idx: data.idx, typeInfo: data.typeInfo };
 
             // 如果轮到我
             if(data.idx === myIdx) {
-                document.getElementById('statusText').innerText = "轮到你了！";
+                startTimer(30); document.getElementById('statusText').innerText = "轮到你了！";
                 if(navigator.vibrate) navigator.vibrate(200);
                 
                 // 🔥 根据阶段显示不同按钮
@@ -529,7 +656,9 @@ if(myIdx === 0) lastPlayed = { idx: data.idx, typeInfo: data.typeInfo };
             if(vIdx===2) document.getElementById('p2').classList.add('active');
         }
         function showBtns(ids) { ids.forEach(id => document.getElementById(id).style.display = 'block'); }
-        function hideBtns() { document.querySelectorAll('.game-btn').forEach(b => b.style.display = 'none'); }
+        function hideBtns() { 
+stopTimer();
+document.querySelectorAll('.game-btn').forEach(b => b.style.display = 'none'); }
         function updateNames() {
             document.getElementById('name1').innerText = "上家";
             document.getElementById('name2').innerText = "下家";
@@ -539,6 +668,256 @@ if(myIdx === 0) lastPlayed = { idx: data.idx, typeInfo: data.typeInfo };
             document.getElementById('count2').style.display = 'block';
         }
         function copyId() { navigator.clipboard.writeText(myId).then(() => alert('房号已复制')); }
+
+// === 新增：倒计时系统 ===
+let timerInterval = null;
+
+function startTimer(seconds) {
+    clearInterval(timerInterval); // 清除旧的
+    const timerEl = document.getElementById('myTimer');
+    timerEl.style.display = 'flex';
+    timerEl.innerText = seconds;
+
+    timerInterval = setInterval(() => {
+        seconds--;
+        timerEl.innerText = seconds;
+        
+        // 倒计时结束
+        if (seconds <= 0) {
+            clearInterval(timerInterval);
+            timerEl.style.display = 'none';
+            handleTimeout(); // 触发超时操作
+        }
+    }, 1000);
+}
+
+function stopTimer() {
+    clearInterval(timerInterval);
+    document.getElementById('myTimer').style.display = 'none';
+}
+
+function handleTimeout() {
+    // 超时自动操作
+    if (gamePhase === 'bidding') {
+        doAction('pass_call'); // 抢地主阶段：自动不抢
+        // 提示一下
+        const bubble = document.getElementById('playedMe');
+        bubble.innerHTML = '<span style="font-size:16px;color:#aaa">超时不抢</span>';
+    } else {
+        // 出牌阶段：
+        // 如果是必须出牌(isFreeTurn)，系统随便出一张最小的；如果是管牌，自动不出
+        const isFreeTurn = (lastPlayed.idx === -1 || lastPlayed.idx === myIdx);
+        
+        if (isFreeTurn) {
+            // 随便出一张最小的牌防止卡死
+            if(myCards.length > 0) {
+                const card = myCards[0]; // 最小的一张
+                // 模拟选中并出牌
+                const cardEl = document.querySelector('.poker'); // 找第一张DOM
+                if(cardEl) {
+                    // 手动模拟数据结构，因为此时UI可能没选中
+                    const selected = [card]; 
+                    // ... 这里直接调用发送逻辑简写 ...
+                    myCards.shift(); // 移除第一张
+                    sortAndRenderHand();
+                    hideBtns();
+                    const msg = { type: 'ACTION', idx: myIdx, act: 'play', cards: selected, typeInfo: getCardType(selected) };
+                    sendMsg(msg);
+                    if(myIdx===0) lastPlayed = { idx: myIdx, typeInfo: msg.typeInfo };
+                }
+            }
+        } else {
+            doAction('pass'); // 管不起/不想管：自动不出
+        }
+    }
+}
+
+// === 补全：游戏结束处理 ===
+function showResult(data) {
+    const winnerIdx = data.winnerIdx;
+    
+    // 判断谁赢了
+    // 逻辑：如果赢家是地主，且我是地主 -> 我赢
+    //      如果赢家是地主，且我不是 -> 我输
+    //      如果赢家是农民，且我是农民 -> 我赢
+    const isLandlordWin = (winnerIdx === landlordIdx);
+    const amILandlord = (myIdx === landlordIdx);
+    
+    // 只要阵营相同就赢
+    const iWin = (isLandlordWin && amILandlord) || (!isLandlordWin && !amILandlord);
+
+    // 显示弹窗
+    const modal = document.getElementById('resultModal');
+    const title = document.getElementById('resultTitle');
+    const text = document.getElementById('resultText');
+    
+    modal.style.display = 'flex';
+
+    if (iWin) {
+        title.innerText = "🎉 胜利！";
+        title.className = "result-title win-text";
+        text.innerText = isLandlordWin ? "地主获得胜利！" : "农民获得胜利！";
+        createFireworks(); // 放烟花
+    } else {
+        title.innerText = "😭 惜败...";
+        title.className = "result-title lose-text";
+        text.innerText = "胜败乃兵家常事...";
+        startRain(); // 下雨
+    }
+}
+
+// === 特效：放烟花 ===
+function createFireworks() {
+    const colors = ['#ff7675', '#74b9ff', '#55efc4', '#ffeaa7', '#a29bfe'];
+    for(let i=0; i<30; i++) {
+        setTimeout(() => {
+            const x = Math.random() * window.innerWidth;
+            const y = Math.random() * window.innerHeight * 0.8;
+            spawnExplosion(x, y, colors[Math.floor(Math.random()*colors.length)]);
+        }, i * 150);
+    }
+}
+
+function spawnExplosion(x, y, color) {
+    for(let i=0; i<15; i++) {
+        const p = document.createElement('div');
+        p.className = 'firework';
+        p.style.backgroundColor = color;
+        p.style.left = x + 'px';
+        p.style.top = y + 'px';
+        
+        const angle = Math.random() * Math.PI * 2;
+        const vel = Math.random() * 100 + 50;
+        const tx = Math.cos(angle) * vel + 'px';
+        const ty = Math.sin(angle) * vel + 'px';
+        
+        p.style.setProperty('--x', tx);
+        p.style.setProperty('--y', ty);
+        p.style.animation = 'firework-anim 1s ease-out forwards';
+        document.body.appendChild(p);
+        setTimeout(() => p.remove(), 1000);
+    }
+}
+
+// === 特效：下雨 ===
+function startRain() {
+    // 动态创建雨层
+    let layer = document.getElementById('rainLayer');
+    if(!layer) {
+        layer = document.createElement('div');
+        layer.className = 'rain-overlay';
+        layer.id = 'rainLayer';
+        document.body.appendChild(layer);
+    }
+    layer.style.display = 'block';
+    
+    // 生成雨滴
+    for(let i=0; i<30; i++) {
+        const drop = document.createElement('div');
+        drop.className = 'rain-drop';
+        drop.style.left = Math.random() * 100 + '%';
+        drop.style.animationDuration = (Math.random() * 0.5 + 0.5) + 's';
+        drop.style.animationDelay = Math.random() * 2 + 's';
+        layer.appendChild(drop);
+    }
+}
+
+// ==================== 新增功能区 ====================
+
+// 1. 再来一局 (不刷新网页)
+function tryRestart() {
+    document.getElementById('resultModal').style.display = 'none';
+    
+    // 如果我是房主，我来重新发牌
+    if (myIdx === 0) {
+        resetTable(); 
+        startGame(); // 这会发送新的 START 信号
+    } else {
+        resetTable();
+        document.getElementById('statusText').innerText = "等待房主重新发牌...";
+    }
+}
+
+// 清理桌面 (重置所有状态)
+function resetTable() {
+    // 清空手牌、出牌、底牌UI
+    document.getElementById('handArea').innerHTML = '';
+    document.getElementById('diPaiBox').style.opacity = 0;
+    document.getElementById('diPaiBox').innerHTML = '';
+    ['playedMe', 'played1', 'played2'].forEach(id => document.getElementById(id).innerHTML = '');
+    
+    // 隐藏皇冠
+    document.querySelectorAll('.crown').forEach(el => el.style.display = 'none');
+    
+    // 重置变量
+    myCards = [];
+    diPai = [];
+    landlordIdx = -1;
+    gamePhase = 'idle';
+    // 这里的 lastPlayed 记得在上面定义过，如果没有就加上：let lastPlayed = {idx:-1};
+    if(typeof lastPlayed !== 'undefined') lastPlayed = { idx: -1, typeInfo: null };
+}
+
+// 2. 聊天功能
+function sendChat() {
+    const input = document.getElementById('chatInput');
+    const text = input.value.trim();
+    if(!text) return;
+    
+    // 显示自己的气泡
+    showBubble(0, text);
+    
+    // 发送给别人
+    const msg = { type: 'CHAT', idx: myIdx, content: text };
+    if(myIdx === 0) { // 房主广播
+        connList.forEach(c => c.send(msg));
+    } else { // 玩家发给房主
+        hostConn.send(msg);
+    }
+    
+    input.value = '';
+}
+
+// 显示气泡 (自动创建元素)
+function showBubble(viewIdx, text) {
+    // 找到对应的玩家头像容器
+    const playerIds = ['p0', 'p1', 'p2']; // 0我, 1左, 2右
+    const playerEl = document.getElementById(playerIds[viewIdx]);
+    
+    // 看看有没有气泡，没有就造一个
+    let b = playerEl.querySelector('.bubble');
+    if(!b) {
+        b = document.createElement('div');
+        b.className = 'bubble';
+        playerEl.appendChild(b);
+    }
+    
+    b.innerText = text;
+    b.style.display = 'block';
+    
+    // 3秒后消失
+    setTimeout(() => { b.style.display = 'none'; }, 3000);
+}
+
+// 3. 拦截消息处理 (为了兼容 CHAT 消息)
+// 我们需要稍微修改一下 handleData，或者在这里做一个补丁
+// 请找到原来的 handleData 函数，在里面加上这就行：
+/*
+    else if(data.type === 'CHAT') {
+        const viewIdx = getRelativeIdx(data.idx);
+        showBubble(viewIdx, data.content);
+        // 如果我是房主，还要转发给另一个人
+        if(myIdx === 0) {
+            connList.forEach(c => {
+                // 别发回给发送者
+                // 这里简单粗暴全发也行，客户端自己过滤，或者就这样
+                if(c.peer !== data.from) c.send(data); 
+            });
+        }
+    }
+*/
+
+
 
     </script>
 </body>
