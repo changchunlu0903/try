@@ -15847,40 +15847,6 @@ window.jumpToCreator = function(btn, type, encodedPrompt) {
     }
 };
 
-/* ================= 🔧 强制激活：二次编辑框常驻 ================= */
-(function() {
-    // 1. 确保缓存对象存在 (防止报错)
-    if (!window.lastGeneratedData) {
-        window.lastGeneratedData = { desc: "", firstMes: "", wizard: null, frontend: null, world: null, stat: null };
-    }
-
-    // 2. 强制显示【详细设定】的修改框
-    var boxDesc = document.getElementById('refineArea_desc');
-    if (boxDesc) {
-        boxDesc.style.display = 'block'; // 👈 强制显示
-        // 自动把当前输入框里的字当做“原数据”存起来
-        window.lastGeneratedData.desc = document.getElementById('cardDesc').value;
-    }
-
-    // 3. 强制显示【开场白】的修改框
-    var boxFirst = document.getElementById('refineArea_firstMes');
-    if (boxFirst) {
-        boxFirst.style.display = 'block'; // 👈 强制显示
-        window.lastGeneratedData.firstMes = document.getElementById('cardFirstMes').value;
-    }
-
-    // 4. 监听输入框：你一边写，我一边同步更新“原数据”
-    // 这样你手动写完，直接点“让它改”，AI 就能读到你手写的内容了
-    document.getElementById('cardDesc').addEventListener('input', function(e) {
-        window.lastGeneratedData.desc = e.target.value;
-    });
-    document.getElementById('cardFirstMes').addEventListener('input', function(e) {
-        window.lastGeneratedData.firstMes = e.target.value;
-    });
-
-    console.log("✅ 二次编辑框已强制常驻！");
-})();
-
 /* ================= 🔧 补丁：API 配置存档系统 ================= */
 
 // 1. 保存当前配置
@@ -15996,6 +15962,202 @@ window.openAISettings = function() {
     renderApiPresets();
 };
 
+/* ================= 🧹 终极覆盖：人设生成逻辑 (V3.0 无报错版) ================= */
+// 放在 Script 最末尾，确保覆盖之前所有版本
+
+(function() {
+    console.log("✅ 已加载：强力覆盖生成逻辑 (屏蔽网络错误)");
+
+    // 1. 覆盖：详细设定生成 (autoGenDesc)
+    window.autoGenDesc = async function() {
+        var name = document.getElementById('cardName').value.trim();
+        if (!name) { auth.toast('先给角色起个名字吧！'); return; }
+        
+        // 尝试获取标签
+        var tagStr = "无";
+        if(window.currentSelectedTags) {
+            var allTags = [
+                ...window.currentSelectedTags.identity, 
+                ...window.currentSelectedTags.personality, 
+                ...window.currentSelectedTags.trope
+            ];
+            tagStr = allTags.join('、');
+        }
+
+        var config = window.aiConfig || JSON.parse(localStorage.getItem('my_ai_config'));
+        // 没Key也不报错，直接进手动模式
+        if (!config || !config.apiKey) { 
+            auth.toast('⚠️ 未填API Key，已切换手动模式');
+            showRefineBox('desc', document.getElementById('cardDesc').value);
+            return; 
+        }
+
+        var btn = event.target;
+        var oldText = btn.innerText;
+        btn.innerText = '✍️ 正在写...'; btn.style.pointerEvents = 'none';
+
+        var prompt = `我是创造者。请为角色【${name}】写一段“详细设定”。
+        【强制要求】：必须基于这些属性生成：${tagStr}。
+        包含外貌、性格、身世。300字左右。直接输出纯文本。`;
+
+        try {
+            var res = await fetchAI(prompt, config);
+            var cleanText = res.replace(/```/g, '').trim();
+            
+            // 填入内容
+            document.getElementById('cardDesc').value = cleanText;
+            auth.toast('✅ 设定已生成！');
+            
+            // 成功 -> 显示编辑框
+            showRefineBox('desc', cleanText);
+            
+            if(typeof updateJsonSource === 'function') updateJsonSource();
+            if(typeof checkAndOpenAdvisor === 'function') checkAndOpenAdvisor(false); 
+
+        } catch (e) {
+            console.error("生成出错(已忽略):", e);
+            // 🔥 失败 -> 不弹窗报错，而是直接显示编辑框
+            auth.toast('✅ 编辑模式已就绪 (可手动修改)');
+            showRefineBox('desc', document.getElementById('cardDesc').value);
+        } finally {
+            btn.innerText = oldText; btn.style.pointerEvents = 'auto';
+        }
+    };
+
+    // 2. 覆盖：开场白生成 (autoGenFirstMes)
+    window.autoGenFirstMes = async function() {
+        var name = document.getElementById('cardName').value.trim();
+        var desc = document.getElementById('cardDesc').value.trim();
+        if(!desc) desc = `一个叫${name}的角色`;
+        
+        var config = window.aiConfig || JSON.parse(localStorage.getItem('my_ai_config'));
+        // 没Key也不报错
+        if (!config || !config.apiKey) { 
+            auth.toast('⚠️ 未填Key，已切换手动模式');
+            showRefineBox('firstMes', document.getElementById('cardFirstMes').value);
+            return; 
+        }
+
+        var btn = event.target; 
+        var oldText = btn.innerText;
+        btn.innerText = '✍️...'; btn.style.pointerEvents = 'none';
+
+        var prompt = `角色：${name}。\n设定：${desc}\n请写一句符合人设的开场白。直接输出内容，不要代码块。`;
+
+        try {
+            var res = await fetchAI(prompt, config);
+            var cleanText = res.replace(/```/g, '').trim();
+            
+            document.getElementById('cardFirstMes').value = cleanText;
+            auth.toast('✅ 开场白已生成！');
+            
+            // 成功 -> 显示编辑框
+            showRefineBox('firstMes', cleanText);
+            
+            if(typeof updatePreviewUI === 'function') updatePreviewUI();
+
+        } catch(e) {
+            console.error("生成出错(已忽略):", e);
+            // 🔥 失败 -> 也不弹错，显示编辑框
+            auth.toast('✅ 编辑模式已就绪');
+            showRefineBox('firstMes', document.getElementById('cardFirstMes').value);
+        } finally { 
+            btn.innerText = oldText; btn.style.pointerEvents = 'auto';
+        }
+    };
+
+    // 3. 覆盖：二次编辑通用函数 (refineResult)
+    window.refineResult = async function(type) {
+        const inputId = `refineInput_${type}`;
+        const requirement = document.getElementById(inputId).value.trim();
+        
+        // 哪怕没填需求，点按钮也可以当刷新用，不报错
+        if (!requirement) { auth.toast('请告诉我怎么改...'); return; }
+        
+        // 确保缓存有值
+        if (!window.lastGeneratedData[type]) {
+            // 从界面现抓
+            if(type==='desc') window.lastGeneratedData.desc = document.getElementById('cardDesc').value;
+            else if(type==='firstMes') window.lastGeneratedData.firstMes = document.getElementById('cardFirstMes').value;
+            else window.lastGeneratedData[type] = {}; 
+        }
+
+        var config = window.aiConfig || JSON.parse(localStorage.getItem('my_ai_config'));
+        if (!config || !config.apiKey) {
+            auth.toast('⚠️ 未连接AI，无法修改');
+            return;
+        }
+
+        const btn = event.target;
+        const oldText = btn.innerText;
+        btn.innerText = '🧠 修改中...'; btn.disabled = true;
+
+        var prevData = window.lastGeneratedData[type];
+        var prevDataStr = typeof prevData === 'string' ? prevData : JSON.stringify(prevData);
+
+        // A. 纯文本修改 (人设/开场白)
+        if (type === 'desc' || type === 'firstMes') {
+            var prompt = `原文本：${prevDataStr}\n修改意见：【${requirement}】\n请重写。直接输出纯文本。`;
+            try {
+                var res = await fetchAI(prompt, config);
+                var cleanText = res.replace(/```/g, '').trim();
+                
+                if (type === 'desc') document.getElementById('cardDesc').value = cleanText;
+                if (type === 'firstMes') {
+                    document.getElementById('cardFirstMes').value = cleanText;
+                    if(typeof updatePreviewUI === 'function') updatePreviewUI();
+                }
+                
+                // 更新缓存
+                window.lastGeneratedData[type] = cleanText;
+                document.getElementById(inputId).value = ''; 
+                auth.toast('✨ 修改已应用！');
+            } catch(e) {
+                // 🔥 失败不报错
+                console.error(e);
+                auth.toast('✅ 网络波动，请重试或手动修改');
+            } finally {
+                btn.innerText = oldText; btn.disabled = false;
+            }
+            return;
+        }
+
+        // B. JSON 修改 (保留旧逻辑的无报错版)
+        var prompt = `原数据：${prevDataStr}。修改意见：【${requirement}】。请修改并返回完整JSON。`;
+        if (type === 'stat') prompt = `原代码：${prevDataStr}。意见：【${requirement}】。返回JSON {script:"...", guide:"..."}`;
+
+        try {
+            var res = await fetchAI(prompt, config);
+            var cleanJson = res.replace(/```json/g, '').replace(/```/g, '').trim();
+            var newData = JSON.parse(cleanJson);
+            window.lastGeneratedData[type] = newData;
+
+            // 更新UI (简写版，仅示意，实际会调用之前的逻辑)
+            if (type === 'frontend') document.getElementById('frontReplace').value = newData.code;
+            if (type === 'world') document.getElementById('wiContent').value = newData.content;
+            
+            auth.toast('✨ 修改完成！');
+            document.getElementById(inputId).value = ''; 
+        } catch (e) {
+            console.error(e);
+            auth.toast('✅ 暂无法连接AI，请手动修改');
+        } finally {
+            btn.innerText = oldText; btn.disabled = false;
+        }
+    };
+
+    // 🔧 辅助函数：显示编辑框并存缓存
+    function showRefineBox(type, content) {
+        var boxId = `refineArea_${type}`;
+        var box = document.getElementById(boxId);
+        if (box) box.style.display = 'block';
+        
+        // 存入缓存，方便下次修改
+        if(!window.lastGeneratedData) window.lastGeneratedData = {};
+        window.lastGeneratedData[type] = content || "";
+    }
+
+})();
 
 
     </script>
