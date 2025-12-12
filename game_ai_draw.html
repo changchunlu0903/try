@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>🤖 AI 灵魂画手</title>
+    <style>
+        @font-face { font-family: 'MyCutieFont'; src: url('https://files.catbox.moe/cweam3.ttf') format('truetype'); font-display: swap; }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; touch-action: none; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            font-family: 'MyCutieFont', sans-serif;
+            background: linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%);
+            height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+        }
+
+        /* 顶部 */
+        .top-bar {
+            padding: 15px; background: rgba(255,255,255,0.9); display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 3px solid #a29bfe; z-index: 100;
+        }
+        .back-btn { text-decoration: none; font-size: 24px; cursor: pointer; }
+        .score-board { font-size: 18px; color: #6c5ce7; font-weight: bold; }
+
+        /* 游戏区 */
+        .main-area { flex: 1; display: flex; flex-direction: column; padding: 10px; gap: 10px; position: relative; }
+        
+        /* AI形象区 */
+        .ai-status {
+            display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.6); 
+            padding: 10px; border-radius: 15px; border: 2px solid #fff;
+        }
+        .ai-avatar { width: 50px; height: 50px; border-radius: 50%; background: #fff; border: 2px solid #a29bfe; overflow: hidden; }
+        .ai-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .ai-bubble { background: #fff; padding: 5px 10px; border-radius: 10px; font-size: 14px; position: relative; color: #555; }
+        .ai-bubble::after { content:''; position:absolute; left:-6px; top:50%; margin-top:-6px; border-width:6px; border-style:solid; border-color:transparent #fff transparent transparent; }
+
+        /* 画板 */
+        .canvas-box {
+            flex: 1; background: #fff; border-radius: 20px; border: 4px solid #a29bfe;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1); position: relative;
+            display: flex; justify-content: center; align-items: center;
+        }
+        canvas { width: 100%; height: 100%; border-radius: 15px; }
+
+        /* 猜题区 */
+        .guess-area {
+            display: flex; gap: 10px; padding: 5px;
+        }
+        .ipt { flex: 1; padding: 12px; border-radius: 20px; border: 2px solid #fff; outline: none; font-family: inherit; font-size: 16px; background: rgba(255,255,255,0.8); }
+        .btn { padding: 0 20px; border-radius: 20px; border: none; background: #a29bfe; color: white; font-weight: bold; cursor: pointer; }
+
+        /* 角色选择弹窗 */
+        .modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center;
+            z-index: 1000; backdrop-filter: blur(5px);
+        }
+        .modal-box {
+            background: #fff; padding: 25px; border-radius: 30px; width: 90%; max-width: 350px;
+            text-align: center; border: 4px solid #a29bfe; max-height: 80vh; display: flex; flex-direction: column;
+        }
+        .char-grid { 
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 20px 0; 
+            overflow-y: auto; padding: 5px;
+        }
+        .char-item { 
+            border: 2px solid #eee; border-radius: 10px; padding: 5px; cursor: pointer; transition: 0.2s;
+        }
+        .char-item:hover, .char-item.selected { border-color: #a29bfe; background: #f3e5f5; transform: scale(1.1); }
+        .char-img { width: 50px; height: 50px; border-radius: 50%; background: #ddd; margin: 0 auto; object-fit: cover; }
+        .char-name { font-size: 12px; margin-top: 5px; color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* 胜利特效 */
+        .confetti { position: absolute; width: 10px; height: 10px; background: #f00; animation: fall 3s linear forwards; pointer-events: none; }
+        @keyframes fall { to { transform: translateY(100vh) rotate(720deg); } }
+
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <a href="game_loppy.html" class="back-btn">🔙</a>
+        <div class="score-board">得分: <span id="scoreVal">0</span></div>
+    </div>
+
+    <div class="main-area">
+        <div class="ai-status">
+            <div class="ai-avatar" id="aiAvatarDisplay">
+                <img src="" id="aiImg" style="display:none">
+                <div id="aiEmoji" style="font-size:30px; line-height:50px; text-align:center;">🤖</div>
+            </div>
+            <div class="ai-bubble" id="aiMsg">正在连接百宝箱数据库...</div>
+        </div>
+
+        <div class="canvas-box">
+            <canvas id="aiCanvas"></canvas>
+        </div>
+
+        <div class="guess-area">
+            <input type="text" class="ipt" id="guessInput" placeholder="它画的是什么？(如: 苹果)" onkeydown="if(event.keyCode==13) checkGuess()">
+            <button class="btn" onclick="checkGuess()">提交</button>
+        </div>
+    </div>
+
+    <div class="modal" id="charModal">
+        <div class="modal-box">
+            <h2 style="color:#a29bfe;">🤖 请翻牌子</h2>
+            <p style="font-size:12px; color:#888;">(从你的百宝箱里选一个画师)</p>
+            
+            <div class="char-grid" id="charList">
+                <div style="color:#ccc; font-size:12px; grid-column:span 3;">正在从百宝箱摇人...</div>
+            </div>
+
+            <button class="btn" style="width:100%; padding:12px;" onclick="startGame()">开始挑战</button>
+        </div>
+    </div>
+
+    <script>
+        // ================= 🎨 笔触数据库 =================
+        const DRAWINGS = {
+            "苹果": [
+                {color: "#ff7675", width: 5, path: [[0.5, 0.3], [0.3, 0.3], [0.2, 0.5], [0.25, 0.7], [0.4, 0.8], [0.5, 0.75], [0.6, 0.8], [0.75, 0.7], [0.8, 0.5], [0.7, 0.3], [0.5, 0.3]]},
+                {color: "#00b894", width: 3, path: [[0.5, 0.3], [0.5, 0.15]]},
+                {color: "#00b894", width: 3, path: [[0.5, 0.15], [0.6, 0.1]]}
+            ],
+            "太阳": [
+                {color: "#fdcb6e", width: 5, path: [[0.5,0.3], [0.3,0.5], [0.5,0.7], [0.7,0.5], [0.5,0.3]]},
+                {color: "#fdcb6e", width: 3, path: [[0.5,0.2], [0.5,0.1]]}, {color: "#fdcb6e", width: 3, path: [[0.5,0.8], [0.5,0.9]]},
+                {color: "#fdcb6e", width: 3, path: [[0.2,0.5], [0.1,0.5]]}, {color: "#fdcb6e", width: 3, path: [[0.8,0.5], [0.9,0.5]]},
+                {color: "#fdcb6e", width: 3, path: [[0.3,0.3], [0.2,0.2]]}, {color: "#fdcb6e", width: 3, path: [[0.7,0.7], [0.8,0.8]]},
+                {color: "#fdcb6e", width: 3, path: [[0.3,0.7], [0.2,0.8]]}, {color: "#fdcb6e", width: 3, path: [[0.7,0.3], [0.8,0.2]]}
+            ],
+            "爱心": [ {color: "#e84393", width: 5, path: [[0.5, 0.8], [0.2, 0.5], [0.2, 0.3], [0.35, 0.2], [0.5, 0.35], [0.65, 0.2], [0.8, 0.3], [0.8, 0.5], [0.5, 0.8]]} ],
+            "树": [
+                {color: "#b76e27", width: 8, path: [[0.5, 0.9], [0.5, 0.6]]},
+                {color: "#2ecc71", width: 10, path: [[0.5, 0.6], [0.3, 0.5], [0.2, 0.4], [0.5, 0.2], [0.8, 0.4], [0.7, 0.5], [0.5, 0.6]]}
+            ],
+            "笑脸": [
+                {color: "#000", width: 3, path: [[0.3, 0.4], [0.3, 0.41]]}, {color: "#000", width: 3, path: [[0.7, 0.4], [0.7, 0.41]]},
+                {color: "#d63031", width: 3, path: [[0.3, 0.7], [0.4, 0.8], [0.6, 0.8], [0.7, 0.7]]},
+                {color: "#0984e3", width: 2, path: [[0.5, 0.1], [0.1, 0.5], [0.5, 0.9], [0.9, 0.5], [0.5, 0.1]]}
+            ],
+            "数字7": [ {color: "#2d3436", width: 5, path: [[0.3, 0.2], [0.7, 0.2], [0.4, 0.8]]} ]
+        };
+
+        // 默认保底角色 (防止数据库空的)
+        const DEFAULT_CHARS = [
+            { name: "呆呆Loppy", avatar: "https://files.catbox.moe/fv8f8p.gif", speed: 20 },
+            { name: "聪明狐狸", avatar: "https://files.catbox.moe/vdvz1m.gif", speed: 10 }
+        ];
+
+        // ================= 💾 数据库连接逻辑 =================
+        const DB_NAME = 'MyMagicDB';
+        const STORE_NAME = 'items';
+
+        // 从百宝箱数据库加载角色
+        function loadCharactersFromTreasureBox() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME); // 打开数据库
+
+                request.onerror = (event) => {
+                    console.log("数据库打开失败 (可能是第一次玩): " + event.target.errorCode);
+                    resolve([]); // 失败就返回空数组，用默认的
+                };
+
+                request.onsuccess = (event) => {
+                    const db = event.target.result;
+                    // 检查有没有 items 表
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        resolve([]);
+                        return;
+                    }
+                    const transaction = db.transaction([STORE_NAME], "readonly");
+                    const objectStore = transaction.objectStore(STORE_NAME);
+                    const getAllRequest = objectStore.getAll();
+
+                    getAllRequest.onsuccess = (event) => {
+                        const items = event.target.result;
+                        // 转换格式：提取名字、头像(封面)、生成速度
+                        const chars = items.map(item => {
+                            let avatar = "https://files.catbox.moe/fv8f8p.gif"; // 默认图
+                            // 尝试找封面图
+                            if (item.resources && item.resources.length > 0) {
+                                const images = item.resources.filter(r => r.type === 'image');
+                                if (images.length > 0) {
+                                    const idx = Math.min(item.coverIndex || 0, images.length - 1);
+                                    avatar = images[idx].content;
+                                }
+                            }
+                            
+                            // 随机分配一个画画速度 (5-25ms)
+                            let speed = Math.floor(Math.random() * 20) + 5; 
+                            
+                            return {
+                                name: item.name,
+                                avatar: avatar,
+                                speed: speed
+                            };
+                        });
+                        resolve(chars);
+                    };
+                };
+                
+                // 如果数据库版本升级 (一般不会触发)
+                request.onupgradeneeded = (e) => {
+                     e.target.transaction.abort();
+                     resolve([]);
+                };
+            });
+        }
+
+        // ================= 游戏逻辑 =================
+        let canvas, ctx;
+        let selectedChar = null;
+        let currentWord = "";
+        let isDrawing = false;
+        let score = 0;
+
+        window.onload = async function() {
+            canvas = document.getElementById('aiCanvas');
+            ctx = canvas.getContext('2d');
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            
+            // 🔥 异步加载角色列表
+            await initCharList();
+            
+            // 默认选中第一个
+            const list = document.getElementById('charList');
+            if(list.children.length > 0) {
+                // 模拟点击第一个
+                list.children[0].click();
+            }
+        };
+
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+        }
+
+        async function initCharList() {
+            const list = document.getElementById('charList');
+            list.innerHTML = '';
+            
+            // 1. 从数据库读
+            const dbChars = await loadCharactersFromTreasureBox();
+            
+            // 2. 合并默认角色 (放在后面当保底)
+            const allChars = [...dbChars, ...DEFAULT_CHARS];
+
+            if (allChars.length === 0) {
+                list.innerHTML = '<div style="grid-column:span 3;text-align:center;color:#999;">百宝箱里空空的...</div>';
+                return;
+            }
+
+            allChars.forEach((char, idx) => {
+                let div = document.createElement('div');
+                div.className = 'char-item';
+                // 绑定点击事件，传入 char 对象
+                div.onclick = () => selectChar(char, div);
+                div.innerHTML = `
+                    <img src="${char.avatar}" class="char-img">
+                    <div class="char-name">${char.name}</div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function selectChar(charObj, el) {
+            document.querySelectorAll('.char-item').forEach(e => e.classList.remove('selected'));
+            el.classList.add('selected');
+            selectedChar = charObj;
+        }
+
+        function startGame() {
+            if (!selectedChar) {
+                alert("请先选一个画手！");
+                return;
+            }
+            document.getElementById('charModal').style.display = 'none';
+            
+            document.getElementById('aiEmoji').style.display = 'none';
+            const img = document.getElementById('aiImg');
+            img.src = selectedChar.avatar;
+            img.style.display = 'block';
+            
+            updateAiMsg(`我是 ${selectedChar.name}，我要开始画了哦！`, 1000);
+            setTimeout(nextRound, 1500);
+        }
+
+        function updateAiMsg(text, delay=0) {
+            setTimeout(() => {
+                document.getElementById('aiMsg').innerText = text;
+            }, delay);
+        }
+
+        function nextRound() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            document.getElementById('guessInput').value = '';
+            
+            const keys = Object.keys(DRAWINGS);
+            currentWord = keys[Math.floor(Math.random() * keys.length)];
+            
+            updateAiMsg(`这局画个简单的... 猜猜看？`);
+            drawWord(currentWord);
+        }
+
+        async function drawWord(word) {
+            const strokes = DRAWINGS[word];
+            if(!strokes) return;
+
+            isDrawing = true;
+            for (let stroke of strokes) {
+                if(!isDrawing) break; 
+                ctx.beginPath();
+                ctx.strokeStyle = stroke.color;
+                ctx.lineWidth = stroke.width;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                const points = stroke.path;
+                if(points.length === 0) continue;
+
+                const w = canvas.width;
+                const h = canvas.height;
+
+                ctx.moveTo(points[0][0] * w, points[0][1] * h);
+
+                for (let i = 1; i < points.length; i++) {
+                    // 🔥 使用角色的 speed 属性来控制速度
+                    // 速度值越小画得越快
+                    await new Promise(r => setTimeout(r, selectedChar.speed)); 
+                    ctx.lineTo(points[i][0] * w, points[i][1] * h);
+                    ctx.stroke();
+                }
+            }
+            updateAiMsg(`画完啦！你知道是啥吗？`);
+        }
+
+        function checkGuess() {
+            const input = document.getElementById('guessInput');
+            const val = input.value.trim();
+            if(!val) return;
+
+            if (val === currentWord) {
+                score += 10;
+                document.getElementById('scoreVal').innerText = score;
+                isDrawing = false; 
+                confettiEffect();
+                updateAiMsg(`🎉 答对了！就是 ${currentWord}！`);
+                input.value = '';
+                setTimeout(nextRound, 2000);
+            } else {
+                updateAiMsg(`不对哦，再猜猜？`);
+                input.value = '';
+                input.style.border = "2px solid red";
+                setTimeout(() => input.style.border = "2px solid #fff", 500);
+            }
+        }
+
+        function confettiEffect() {
+            const colors = ['#f00', '#0f0', '#00f', '#ff0', '#0ff'];
+            for(let i=0; i<30; i++) {
+                let div = document.createElement('div');
+                div.className = 'confetti';
+                div.style.left = Math.random() * 100 + 'vw';
+                div.style.top = '-10px';
+                div.style.background = colors[Math.floor(Math.random()*colors.length)];
+                document.body.appendChild(div);
+                setTimeout(()=>div.remove(), 3000);
+            }
+        }
+    </script>
+</body>
+</html>
