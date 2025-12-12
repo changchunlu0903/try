@@ -20783,86 +20783,152 @@ window.openAISettings = function() {
         chat.scrollTop = chat.scrollHeight;
     };
 
+           // ================= ✒️ 6. 文风模式 (究极深度解构版) =================
 
-    // ================= ✒️ 6. 文风模式 (核心新功能) =================
-
+    // 1. 初始化界面
     window.initStyleMode = function() {
         window.advisorState.mode = 'style';
         var chat = document.getElementById('advisorChat');
         chat.innerHTML = `
-            <div class="advisor-bubble" style="background:#e0f2f1; color:#004d40;">
-                <b>✒️ 文风/语气 调优模式</b><br>
-                我可以帮您重写【详细设定】或【对话样本】。<br>
-                请告诉我您想要的风格：<br>
-                (例如：古龙风、日轻翻译腔、克苏鲁风、莎士比亚风、网络爽文风...)
+            <div class="advisor-bubble" style="background:#fff3e0; color:#e65100;">
+                <b>✒️ 文学级·文风构建台 (Max)</b><br>
+                <small>（已升级：不再使用死板模板，而是生成“分子级”的写作指导圣经，精确控制潜台词与感官层级）</small><br><br>
+                请告诉我您想要的风格关键词：<br>
+                (例如：王家卫式独白、古龙极简主义、克苏鲁不可名状、红楼梦半文白...)
             </div>
         `;
         var input = document.getElementById('advisorInput');
-        input.placeholder = "✒️ 输入您想要的文风...";
-        input.style.border = "2px solid #009688";
+        input.placeholder = "✒️ 输入文风关键词...";
+        input.style.border = "2px solid #ff9800";
     };
 
-    async function runStyleGeneration(styleReq, loadingId) {
+    // 2. 核心生成逻辑：深度解构 Prompt
+    window.runStyleGeneration = async function(styleReq, loadingId) {
         var chat = document.getElementById('advisorChat');
         var config = window.aiConfig || JSON.parse(localStorage.getItem('my_ai_config'));
-        var name = document.getElementById('cardName').value;
-        var firstMes = document.getElementById('cardFirstMes').value || "你好。";
+        var name = document.getElementById('cardName').value || "Char";
         
+        // 🔥 Prompt 终极形态：要求 AI 成为“文学架构师”并动态延伸维度
         var prompt = `
-        我是卡片作者。角色：${name}。
-        当前开场白：${firstMes}
+        角色：Computational Linguist & Senior Literary Architect (计算语言学家 & 资深文学架构师)。
+        任务：为角色【${name}】构建一套**“分子级”的文风指导圣经 (Style Bible)**。
+        目标风格：【${styleReq}】。
         
-        用户希望将文风/语气修改为：【${styleReq}】。
+        🛑 **核心指令：不要被基础模板局限！**
+        你需要深入解构这种文风的底层逻辑。除了基础的句式和用词，你必须**根据该风格的独特性，动态延伸出更深层的规则**。
         
-        请生成 3 个不同版本的【开场白】和对应的【简短对话样本】。
-        必须返回纯 JSON 数组：
+        请设计 3 个方案，每个方案的 content 必须是一篇极其详尽的英文技术文档 (System Prompt)，包含但不限于以下维度：
+
+        1.  **Sentence Architecture (句法架构)**: 
+            - 句子是像迷宫一样复杂，还是像刀锋一样简短？
+            - 是否使用特殊的标点符号节奏？(e.g. Fragments, Run-ons, Ellipses)
+        
+        2.  **Lexical Spectrum (词汇光谱)**:
+            - 核心关键词库是什么？(Keywords)
+            - **Taboo List (禁忌词表)**: 绝对不能出现的词或语气是什么？(例如：古风绝对不能出现现代心理学术语)
+        
+        3.  **Sensory Hierarchy (感官层级)**:
+            - 这种文风最侧重哪个感官？(视觉？嗅觉？痛觉？还是纯粹的逻辑？)
+            - 比如：克苏鲁风侧重“粘稠的触感”和“无法描述的视觉”；古龙风侧重“听觉(风声)”和“瞬间的动作”。
+        
+        4.  **Narrative Distance (叙事距离)**:
+            - 是冷漠的上帝视角，还是极度深陷的主观视角？
+        
+        5.  **Dynamic Extension (动态延伸)**: 
+            - 挖掘该风格特有的机制！(例如：如果是“王家卫风”，请增加“时间与日期的精确执念”；如果是“莎士比亚风”，请增加“隐喻与独白机制”)。
+        
+        6.  **[System Note]**: 最后必须有一段高权重的、总结性的指令，强制 AI 执行上述所有规则。
+        
+        必须返回纯 JSON 数组 (type="world")：
         [
-            { "title": "风格1标题", "first": "修改后的开场白", "example": "User:你好\\nChar:回复..." },
-            ...
+            {
+                "title": "方案1标题 (如: 极简主义·听觉叙事)",
+                "reason": "中文简介：本方案解构了该风格的留白艺术，强制强调听觉描写，禁用形容词堆砌...",
+                "content": "## Style: Minimalist Tension\\n\\n### 1. Sentence Architecture\\n- Rule: Use Staccato rhythm. No sentences over 15 words.\\n- ...\\n\\n### 2. Sensory Focus (Auditory)\\n- Focus on the sound of wind, breathing, and heartbeats...\\n\\n### 3. Dynamic Mechanic: The Silence\\n- Instruction: Use line breaks to indicate silence.\\n\\n### [System Note]\\n[Instruction: Strict adherence to Minimalist Tension style. Avoid flowery language...]"
+            }
         ]
+        注意：content 内容请主要使用 **英文** 编写（这对 AI 的控制力最强，能写出更细腻的规则）。
         `;
 
         try {
             var res = await fetchAI(prompt, config);
-            var data = JSON.parse(res.replace(/```json/g, '').replace(/```/g, '').trim());
-            document.getElementById(loadingId).remove();
+            var cleanJson = res.replace(/```json/g, '').replace(/```/g, '').trim();
+            var data = JSON.parse(cleanJson);
+            
+            if(document.getElementById(loadingId)) document.getElementById(loadingId).remove();
 
-            chat.innerHTML += `<div class="advisor-bubble">✒️ 生成完毕，请选择您喜欢的文风：</div>`;
+            chat.innerHTML += `<div class="advisor-bubble">✒️ 已深度解构风格，生成 3 本【风格圣经】：</div>`;
 
             data.forEach((item, idx) => {
-                var safeFirst = encodeURIComponent(item.first);
-                var safeEx = encodeURIComponent(item.example);
+                var safeObj = encodeURIComponent(JSON.stringify(item));
+                
+                // 预览处理：高亮标题，增加可读性
+                var previewHtml = item.content
+                    .replace(/\n/g, '<br>')
+                    .replace(/###/g, '🔸') 
+                    .replace(/##/g, '🔹')
+                    .substring(0, 250) + "..."; // 预览更长一点
 
                 chat.innerHTML += `
-                    <div class="advisor-bubble" style="border-left:4px solid #009688; padding:10px;">
-                        <b>✒️ ${item.title}</b>
-                        <div style="background:#fff; padding:5px; border:1px dashed #ccc; font-size:11px; margin:5px 0;">
-                            <b>开场：</b>${item.first}
-                        </div>
-                        <div style="font-size:10px; color:#666; white-space:pre-wrap;">${item.example.substring(0, 50)}...</div>
+                    <div class="advisor-bubble" style="border-left:4px solid #e65100; padding:10px;">
+                        <b style="font-size:14px; color:#e65100;">${item.title}</b>
+                        <div style="font-size:12px; color:#666; margin:5px 0 8px 0;">${item.reason}</div>
                         
-                        <button class="advisor-action-btn" style="background:#b2dfdb; color:#004d40;" onclick="applyStyle('${safeFirst}', '${safeEx}')">
-                            ✅ 采用此文风
+                        <div style="background:#fff8e1; color:#3e2723; padding:8px; border-radius:5px; font-size:11px; font-family:'Consolas', monospace; margin-bottom:8px; max-height:150px; overflow-y:auto; border:1px dashed #ffcc80; line-height: 1.5;">
+                            ${previewHtml}
+                        </div>
+                        
+                        <button class="advisor-action-btn" style="background:#ffe0b2; color:#e65100; border:1px solid #ffcc80;" 
+                                onclick="window.addStyleToWorld('${safeObj}')">
+                            ✅ 注入此风格 (存入世界书)
                         </button>
                     </div>
                 `;
             });
+            
             chat.scrollTop = chat.scrollHeight;
 
         } catch(e) {
-            document.getElementById(loadingId).remove();
-            chat.innerHTML += `<div class="advisor-bubble">❌ 润色失败: ${e.message}</div>`;
+            if(document.getElementById(loadingId)) document.getElementById(loadingId).remove();
+            chat.innerHTML += `<div class="advisor-bubble">❌ 深度解构失败: ${e.message}</div>`;
         }
-    }
+    };
 
-    window.applyStyle = function(encFirst, encEx) {
-        document.getElementById('cardFirstMes').value = decodeURIComponent(encFirst);
-        document.getElementById('cardMesExample').value = decodeURIComponent(encEx);
-        
-        if(typeof switchCardTab === 'function') switchCardTab('preview');
-        if(typeof updatePreviewUI === 'function') updatePreviewUI();
-        
-        if(window.auth && window.auth.toast) window.auth.toast('✅ 文风已替换！');
+    // 3. 辅助函数：一键注入世界书 (包含去重与常驻逻辑)
+    // 如果页面其他地方已经定义了 addStyleToWorld，这里会覆盖它，确保逻辑统一
+    window.addStyleToWorld = function(encObj) {
+        try {
+            var item = JSON.parse(decodeURIComponent(encObj));
+            
+            // A. 自动切换到世界书页
+            if(typeof switchCardTab === 'function') switchCardTab('world');
+            
+            // B. 构造高权重条目
+            var newEntry = {
+                id: Date.now(),
+                comment: "✒️ 文风圣经 - " + item.title,
+                keys: ["style", "文风", "system", "writing_style"], // 强力触发词
+                content: item.content, 
+                position: 1, // 放在角色设定之前生效 (底层规则)
+                enabled: true,
+                constant: true, // 🔥 核心：设为常驻，让风格像空气一样无处不在
+                insertion_position: 1 
+            };
+            
+            // C. 注入数据
+            if (!window.currentWorldInfo) window.currentWorldInfo = { entries: [] };
+            window.currentWorldInfo.entries.push(newEntry);
+            
+            // D. 刷新列表并选中
+            if (typeof renderWorldList === 'function') renderWorldList();
+            if (typeof selectEntry === 'function') selectEntry(window.currentWorldInfo.entries.length - 1);
+            
+            if(window.auth && window.auth.toast) window.auth.toast('✅ 深度文风设定已挂载 (常驻生效)');
+            
+        } catch(e) { 
+            console.error(e);
+            alert("添加失败：" + e.message); 
+        }
     };
 
 
@@ -20925,6 +20991,7 @@ window.openAISettings = function() {
     };
 
 })();
+
 
 /* ================= 🔍 V38.0 补丁：美化方案全屏预览 ================= */
 (function() {
@@ -22164,6 +22231,466 @@ ${styleGuideContent.substring(0, 3000)}
 
 })();
 
+/* ================= 📝 V56.0 补丁：强制模板化生成引擎 ================= */
+(function() {
+    console.log("🚀 执行 V56.0：已加载【莫惊棠同款】高阶人设模板...");
+
+    // 1. 定义标准模板结构 (作为 Prompt 的一部分)
+    const STANDARD_TEMPLATE = `
+<character_information character="角色名">
+基本信息：
+名称: [Name]
+性别: [Gender]
+年龄: [Age]
+身份:
+- 公开身份: [Public Identity]
+- 真实身份: [Hidden Identity]
+
+外貌与形象 (Appearance)
+整体气质：[Describe Aura]
+五官与神态：
+- 面容: [Face details]
+- 眼睛: [Eye details]
+- 眉骨与眉形: [Eyebrow details]
+- 唇形: [Lip details]
+体态与身形：
+- 身高: [Height]
+- 体型: [Body Type]
+- 皮肤: [Skin]
+- 手: [Hand details]
+发型与发色：
+- 长度与质感: [Hair details]
+- 日常造型: [Daily Style]
+- 私下风格: [Private Style]
+标志性特征：
+- [Feature 1]
+- [Feature 2]
+
+服饰偏好 (Aesthetic)
+公开场合: [Public Outfit Style]
+- 风格定位: [Style keywords]
+- 色彩偏好: [Colors]
+- 款式特点: [Outfit details]
+- 配饰选择: [Accessories]
+私密场合: [Private Outfit Style]
+- 风格定位: [Style keywords]
+- 色彩偏好: [Colors]
+- 款式特点: [Outfit details]
+- 配饰选择: [Accessories]
+
+性格特征 (Personality)
+- 表层人格 (Persona): [Public Persona keywords]
+  - [Trait 1]: [Description]
+  - [Trait 2]: [Description]
+- 深层内核 (Inner Self): [True Self keywords]
+  - [Trait 1]: [Description]
+  - [Trait 2]: [Description]
+- 特殊心理机制 (选填): [Special Psychology, e.g. Masochism/Obsession]
+
+语言风格 (Speaking Style)
+- 公众面前: [Public Tone]
+- 与{{user}}独处: [Private Tone]
+- 常用句式:
+  - [Type 1]: "Example dialogue..."
+  - [Type 2]: "Example dialogue..."
+
+背景经历 (Background)
+- 第一幕: [Early Life]
+- 第二幕: [Key Trauma/Event]
+- 转折点: [Turning Point involving {{user}}]
+- 第三幕: [Current Situation]
+
+对User的态度与关系 (Relationship with User)
+- 核心情感: [Core Emotion keywords]
+1. [Emotion 1]: [Description]
+2. [Emotion 2]: [Description]
+- 日常相处模式:
+  - 公众场合: [Behavior]
+  - 私下独处: [Behavior]
+</character_information>
+    `;
+
+    // 2. 覆盖：单人一键生成 (autoGenDesc)
+    window.autoGenDesc = async function() {
+        var name = document.getElementById('cardName').value.trim();
+        if (!name) { 
+            if(window.auth && window.auth.toast) window.auth.toast('先给角色起个名字吧！'); 
+            return; 
+        }
+        
+        // 获取标签
+        var tagStr = "无";
+        if(window.currentSelectedTags) {
+            var allTags = [
+                ...window.currentSelectedTags.identity, 
+                ...window.currentSelectedTags.personality, 
+                ...window.currentSelectedTags.trope
+            ];
+            tagStr = allTags.join('、');
+        }
+
+        var config = window.aiConfig || JSON.parse(localStorage.getItem('my_ai_config'));
+        if (!config || !config.apiKey) { 
+            if(window.auth && window.auth.toast) window.auth.toast('⚠️ 未填API Key，已切换手动模式');
+            // 显示编辑框让用户自己写
+            var refineBox = document.getElementById('refineArea_desc');
+            if(refineBox) refineBox.style.display = 'block';
+            return; 
+        }
+
+        var btn = event.target;
+        var oldText = btn.innerText;
+        btn.innerText = '📝 正在套用模板生成...'; btn.style.pointerEvents = 'none';
+
+        // 🔥 Prompt：强制使用模板
+        var prompt = `
+        我是创造者。请为角色【${name}】写一段详细设定。
+        【强制要求】：
+        1. 必须严格遵守以下 XML 模板格式，保留所有标签和结构。
+        2. 基于标签：${tagStr}。
+        3. 内容要极其详尽，描写细腻，模仿文学小说风格。
+        
+        【模板】：
+        ${STANDARD_TEMPLATE}
+        `;
+
+        try {
+            var res = await fetchAI(prompt, config);
+            var cleanText = res.replace(/```xml/g, '').replace(/```/g, '').trim();
+            
+            // 填入
+            document.getElementById('cardDesc').value = cleanText;
+            
+            // 存入缓存
+            if (!window.lastGeneratedData) window.lastGeneratedData = {};
+            window.lastGeneratedData.desc = cleanText;
+            
+            // 显示编辑框
+            var refineBox = document.getElementById('refineArea_desc');
+            if(refineBox) refineBox.style.display = 'block';
+
+            if(typeof updateJsonSource === 'function') updateJsonSource();
+            
+            // 提示去确认
+            if(window.auth && window.auth.toast) window.auth.toast('✅ 设定已生成 (标准模板格式)');
+            
+            // 高亮确定按钮
+            var confirmBtn = document.getElementById('btnConfirmDesc');
+            if(confirmBtn) {
+                confirmBtn.innerHTML = "✨ 请点击此处确认";
+                confirmBtn.style.transform = "scale(1.1)";
+                setTimeout(() => {
+                    confirmBtn.innerHTML = "✅ 确定设定 (并生成世界书)";
+                    confirmBtn.style.transform = "scale(1)";
+                }, 2000);
+            }
+
+        } catch (e) {
+            console.error(e);
+            if(window.auth && window.auth.toast) window.auth.toast('❌ 生成出错，请重试');
+        } finally {
+            btn.innerText = oldText; btn.style.pointerEvents = 'auto';
+        }
+    };
+
+    // 3. 覆盖：多人模式生成 (generateCharSettings)
+    // 逻辑：在 V31.1 的基础上，把 Prompt 换成模板版
+    
+    // 我们不需要完全重写 V31.1，只需要劫持它的 fetchAI 调用前的 prompt 即可
+    // 但为了稳妥，我们直接覆盖 generateCharSettings 的核心发送部分
+    
+    // 由于 V31.1 把逻辑写在了 sendAdvisorMsg 里，我们需要覆盖 sendAdvisorMsg
+    // 这是一个比较大的手术，为了保证兼容性，我们只修改 prompt 变量
+    
+    var _oldSendV31 = window.sendAdvisorMsg;
+    
+    window.sendAdvisorMsg = async function() {
+        // 如果是多人模式且有等待角色
+        if (window.pendingMultiCharName) {
+            var input = document.getElementById('advisorInput');
+            var text = input.value.trim();
+            if (!text) return;
+
+            // 显示用户消息
+            var chat = document.getElementById('advisorChat');
+            chat.innerHTML += `<div style="text-align:right; margin:5px 0; color:#1565c0; font-size:12px; padding:5px; background:#e3f2fd; border-radius:8px; display:inline-block; margin-left:auto;">${text}</div><div style="clear:both;"></div>`;
+            input.value = '';
+            input.placeholder = "等待指令...";
+            input.style.border = "";
+
+            var targetName = window.pendingMultiCharName;
+            window.pendingMultiCharName = null;
+
+            chat.insertAdjacentHTML('beforeend', `<div id="multi-loading" class="ai-loading">📝 正在按标准模板撰写【${targetName}】...</div>`);
+            chat.scrollTop = chat.scrollHeight;
+
+            var config = window.aiConfig || JSON.parse(localStorage.getItem('my_ai_config'));
+            if (!config || !config.apiKey) { alert("请先配置 API Key"); return; }
+
+            // 🔥 核心修改：多人模式也用模板 Prompt
+            var prompt = `
+            我是创造者。
+            请为多人剧本中的角色【${targetName}】写一段详细设定。
+            
+            【用户要求】：${text}
+            
+            【强制要求】：
+            1. 必须严格遵守以下 XML 模板格式。
+            2. 内容要详尽。
+            
+            【模板】：
+            ${STANDARD_TEMPLATE}
+            `;
+
+            try {
+                var res = await fetchAI(prompt, config);
+                var cleanText = res.replace(/```xml/g, '').replace(/```/g, '').trim();
+                
+                document.getElementById('multi-loading').remove();
+                document.getElementById('cardDesc').value = cleanText;
+                
+                chat.innerHTML += `
+                    <div class="advisor-bubble">
+                        ✅ 【${targetName}】设定已填入！<br>
+                        <button class="advisor-action-btn" onclick="confirmCharAndGenLore('${targetName}')">
+                            💾 确定 (并生成专属世界书)
+                        </button>
+                    </div>
+                `;
+                chat.scrollTop = chat.scrollHeight;
+                if(typeof switchCardTab === 'function') switchCardTab('preview');
+
+            } catch (e) {
+                console.error(e);
+                if(document.getElementById('multi-loading')) document.getElementById('multi-loading').remove();
+                chat.innerHTML += `<div class="advisor-bubble">❌ 生成失败：${e.message}</div>`;
+            }
+            return; // 拦截结束
+        }
+
+        // 其他情况走旧逻辑
+        if (_oldSendV31) _oldSendV31();
+    };
+
+    // 4. 覆盖：点击确认后的生成逻辑 (confirmDescAndGenLore)
+    // 逻辑：直接把设定框里的内容（已经是 XML 格式了）做成世界书
+    window.confirmDescAndGenLore = function(arg) {
+        // 兼容多人模式传参 (arg 是名字) 或 按钮点击 (arg 是 event)
+        var name = (typeof arg === 'string') ? arg : document.getElementById('cardName').value.trim();
+        var desc = document.getElementById('cardDesc').value.trim();
+
+        // 简单校验是否是 XML
+        if (!desc.includes('<character_information')) {
+            if (!confirm("⚠️ 检测到当前设定不是标准模板格式。\n是否继续生成世界书？(生成效果可能受影响)")) return;
+        }
+
+        // 视觉反馈
+        var descBox = document.getElementById('cardDesc');
+        var oldBg = descBox.style.backgroundColor;
+        descBox.style.transition = "background 0.3s";
+        descBox.style.backgroundColor = "#d4edda"; 
+        setTimeout(() => descBox.style.backgroundColor = oldBg, 500);
+
+        if (confirm(`✅ 设定已确认！\n\n是否立即基于【${name}】的这段设定，生成专属的【人设世界书】？`)) {
+            // 跳转
+            if(typeof switchCardTab === 'function') switchCardTab('world');
+            
+            // 🔥 核心逻辑：直接把 XML 设定塞进世界书
+            // 不需要再让 AI 总结了，因为 XML 本身就是最好的格式！
+            
+            // 构造新的世界书条目
+            var newEntry = {
+                id: Date.now(),
+                comment: `${name} - 核心设定 (XML)`,
+                keys: [name, "你", "我", "user"], // 强力触发
+                content: desc, // 直接用设定全文！
+                position: 1,
+                enabled: true,
+                constant: false, // 非常驻，按需触发
+                insertion_position: 1
+            };
+            
+            // 注入
+            if (!window.currentWorldInfo) window.currentWorldInfo = { entries: [] };
+            window.currentWorldInfo.entries.push(newEntry);
+            
+            // 刷新列表
+            if (typeof renderWorldList === 'function') renderWorldList();
+            if (typeof selectEntry === 'function') selectEntry(window.currentWorldInfo.entries.length - 1);
+            
+            // 提示
+            if(window.auth && window.auth.toast) window.auth.toast('✅ 设定已直接存入世界书！');
+            
+            // 自动保存到多人花名册 (如果是多人模式)
+            if (typeof saveCurrentCharToCache === 'function') saveCurrentCharToCache();
+            if (typeof renderMultiCharMenu === 'function') renderMultiCharMenu();
+        }
+    };
+
+    console.log("✅ V56.0：模板化生成引擎已启动");
+
+})();
+
+/* ================= 🌹 V58.0 补丁：极致女性向世界观 (感官与羁绊版) ================= */
+(function() {
+    console.log("🚀 执行 V58.0：世界观引擎已升级为【AAA级乙女游戏】规格...");
+
+    // 1. 覆盖：初始化界面 (更新提示语)
+    window.initWorldViewMode = function() {
+        window.advisorState.mode = 'world_view';
+        var chat = document.getElementById('advisorChat');
+        chat.innerHTML = `
+            <div class="advisor-bubble" style="background:#fff0f5; color:#880e4f; border-left: 4px solid #f06292;">
+                <b>🌹 极致女性向 · 世界观构建</b><br>
+                <small>（已升级：微米级细节，侧重光影、气味、宿命感与恋爱法则）</small><br><br>
+                请告诉我您想要的题材：<br>
+                (例如：维多利亚哥特、赛博修仙、ABO星际、西幻人鱼...)<br>
+                <br>
+                我会为您生成 3 套包含<b>【视觉美学、恋爱契约、阶级禁忌】</b>的深度设定书。
+            </div>
+        `;
+        var input = document.getElementById('advisorInput');
+        input.placeholder = "🌹 输入题材 (越具体越好)...";
+        input.style.border = "2px solid #f48fb1";
+    };
+
+    // 2. 覆盖：发送逻辑 (使用终极细化模板)
+    var _oldSendV58 = window.sendAdvisorMsg;
+
+    window.sendAdvisorMsg = async function() {
+        if (window.advisorState.mode === 'world_view') {
+            var input = document.getElementById('advisorInput');
+            var text = input.value.trim();
+            if(!text) return;
+            
+            // 用户上屏
+            var chat = document.getElementById('advisorChat');
+            chat.innerHTML += `<div style="text-align:right; margin:5px; padding:8px; background:#fce4ec; color:#880e4f; border-radius:10px; display:inline-block; margin-left:auto; border:1px solid #f8bbd0;">${text}</div><div style="clear:both"></div>`;
+            input.value = '';
+            
+            chat.insertAdjacentHTML('beforeend', `<div id="world-loading" class="ai-loading">✨ 正在像画油画一样构筑世界细节...</div>`);
+            chat.scrollTop = chat.scrollHeight;
+            
+            var config = window.aiConfig || JSON.parse(localStorage.getItem('my_ai_config'));
+            if (!config || !config.apiKey) {
+                document.getElementById('world-loading').remove();
+                alert("请先配置 API Key");
+                return;
+            }
+            
+            // 🔥 Prompt 核心：极致细化的女性向模板
+            var prompt = `
+            你是一位顶级的女性向游戏（Otome Game）世界观架构师。
+            用户想要的题材：【${text}】。
+            
+            请构建 3 个极具**“氛围感”**和**“张力”**的世界观方案。
+            **必须严格遵守以下 XML 结构**，内容必须极其详细、华丽、不仅要有逻辑，更要有美感。
+            
+            【模板结构】：
+            <otome_world_matrix genre="${text}">
+                <aesthetics>
+                    <color_palette>[核心色调]: (例如：灰蓝与香槟金 / 赛博霓虹与废土黄沙)</color_palette>
+                    <lighting>[光影特征]: (例如：永不落下的绯红夕阳 / 终年被极光笼罩的极夜)</lighting>
+                    <scent>[空气的味道]: (例如：铁锈与玫瑰 / 昂贵的焚香与腐烂的木头)</scent>
+                    <architecture>[建筑美学]: (细节描写，如：悬浮的琉璃宫殿 / 爬满机械藤蔓的教堂)</architecture>
+                    <fashion>[服饰风尚]: (贵族穿什么？材质是丝绸还是液态金属？配饰有何深意？)</fashion>
+                </aesthetics>
+
+                <romance_mechanics>
+                    <social_hierarchy>[阶级与权力]: (谁是支配者？男主通常处于什么地位？)</social_hierarchy>
+                    <marriage_laws>[婚恋法则]: (是否存在政治联姻？基因匹配？血之契约？)</marriage_laws>
+                    <courtship>[求爱仪式]: (这个世界的人如何表达爱意？送龙鳞？交换数据流？)</courtship>
+                    <taboos>[绝对禁忌]: (触犯了会怎样的底线？例如：人神不可对视 / 阶级不可跨越)</taboos>
+                    <soul_bind>[命定机制]: (是否存在灵魂伴侣、刻印、共感等强制绑定设定？)</soul_bind>
+                </romance_mechanics>
+
+                <power_system>
+                    <source>[力量来源]: (血统？情感？星辰？)</source>
+                    <visuals>[施法特效]: (魔法释放时好不好看？是光翼展开还是瞳孔变色？)</visuals>
+                    <cost>[代价与副作用]: (🔥重点：使用力量是否会伴随痛苦、失忆、或者情感剥离？这是虐点来源)</cost>
+                </power_system>
+
+                <world_conflict>
+                    [表层冲突]: (战争？瘟疫？)</world_conflict>
+                    [深层暗涌]: (古神的苏醒？皇室的阴谋？)</world_conflict>
+                </world_conflict>
+            </otome_world_matrix>
+
+            请返回纯 JSON 数组，每个方案包含 title 和 content (即上面的XML全文)：
+            [
+                { 
+                    "title": "方案1：[极具氛围感的名字]", 
+                    "content": "<otome_world_matrix>...</otome_world_matrix>" 
+                },
+                ...
+            ]
+            `;
+            
+            try {
+                var res = await fetchAI(prompt, config);
+                var cleanJson = res.replace(/```json/g, '').replace(/```/g, '').trim();
+                var data = JSON.parse(cleanJson);
+                
+                document.getElementById('world-loading').remove();
+                
+                chat.innerHTML += `<div class="advisor-bubble">🌹 已设计 3 套深度女性向世界观，请选择：</div>`;
+                
+                data.forEach(item => {
+                    var safeContent = encodeURIComponent(item.content);
+                    
+                    // 预览提取：提取最吸引人的“色调”和“禁忌”
+                    var color = item.content.match(/<color_palette>([\s\S]*?)<\/color_palette>/)?.[1] || "";
+                    var taboo = item.content.match(/<taboos>([\s\S]*?)<\/taboos>/)?.[1] || "";
+                    var bind = item.content.match(/<soul_bind>([\s\S]*?)<\/soul_bind>/)?.[1] || "";
+
+                    chat.innerHTML += `
+                        <div class="advisor-bubble" style="border-left:4px solid #ec407a; padding:10px;">
+                            <b style="color:#c2185b; font-size:14px;">🌏 ${item.title}</b>
+                            <div style="background:#fff0f5; padding:8px; border-radius:5px; margin:8px 0; font-size:11px; line-height:1.6; color:#555;">
+                                🎨 <b>色调：</b>${color.substring(0,50)}...<br>
+                                🚫 <b>禁忌：</b>${taboo.substring(0,50)}...<br>
+                                🔗 <b>羁绊：</b>${bind.substring(0,50)}...
+                            </div>
+                            <button class="advisor-action-btn" style="background:#f48fb1; color:#fff; font-weight:bold; border:none;" onclick="applyWorldView('${safeContent}')">
+                                👉 采用此设定 (生成世界书)
+                            </button>
+                        </div>
+                    `;
+                });
+                chat.scrollTop = chat.scrollHeight;
+                
+            } catch(e) {
+                if(document.getElementById('world-loading')) document.getElementById('world-loading').remove();
+                chat.innerHTML += `<div class="advisor-bubble">❌ 生成失败: ${e.message}</div>`;
+            }
+            return; // 拦截结束
+        }
+        
+        // 其他模式走旧逻辑
+        if (_oldSendV58) _oldSendV58();
+    };
+
+    // 3. 覆盖：应用世界观函数 (直接填入)
+    window.applyWorldView = function(encodedContent) {
+        var content = decodeURIComponent(encodedContent);
+        
+        // 跳转到世界书页
+        if(typeof switchCardTab === 'function') switchCardTab('world');
+        
+        // 填入
+        document.getElementById('aiWorldPrompt').value = `请创建一个【核心世界观】条目。\n请严格保留以下 XML 结构，它是整个世界运行的基石：\n${content}`;
+        
+        // 自动生成
+        if(typeof generateWorldEntry === 'function') generateWorldEntry();
+        
+        if(window.auth && window.auth.toast) window.auth.toast('🌹 正在编织命运的丝线...');
+    };
+
+    console.log("✅ V58.0：女性向世界观引擎 (详细版) 已就绪");
+
+})();
+
+
 
 /* ================= 📦 V50.0 补丁：防卡死双导出系统 (强制复位版) ================= */
 (function() {
@@ -22396,6 +22923,7 @@ ${styleGuideContent.substring(0, 3000)}
     console.log("✅ V50.0 防卡死导出系统已启动");
 
 })();
+
 
 /* ================= 💾 V44.0 补丁：全家桶强力存档系统 (防漏版) ================= */
 (function() {
