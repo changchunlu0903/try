@@ -21998,6 +21998,244 @@ window.openAISettings = function() {
 
 })();
 
+/* ================= 💾 V44.0 补丁：全家桶强力存档系统 (防漏版) ================= */
+(function() {
+    console.log("🚀 执行 V44.0：正在重写存档内核，确保万无一失...");
+
+    // ================= 1. 核心：数据打包机 (搜刮所有变量) =================
+    function collectTotalSnapshot() {
+        // 辅助：获取输入框
+        var getVal = function(id) { var el = document.getElementById(id); return el ? el.value : ""; };
+
+        return {
+            meta: {
+                id: Date.now(),
+                title: getVal('cardName').trim() || "未命名工程",
+                timestamp: new Date().toLocaleString(),
+                version: "V44.0"
+            },
+            // A. 界面输入框 (基础)
+            inputs: {
+                cardName: getVal('cardName'),
+                cardDesc: getVal('cardDesc'),
+                cardFirstMes: getVal('cardFirstMes'),
+                cardMesExample: getVal('cardMesExample'),
+                cardScenario: getVal('cardScenario'),
+                cardNote: getVal('cardNote'),
+                // 编辑器草稿
+                statEditor: getVal('statEditor'), 
+                frontReplace: getVal('frontReplace'),
+                frontPattern: getVal('frontPattern'),
+                aiCodePrompt: getVal('aiCodePrompt'),
+                aiWorldPrompt: getVal('aiWorldPrompt'),
+                aiStatPrompt: getVal('aiStatPrompt')
+            },
+            // B. 核心数据结构 (新旧全包)
+            data: {
+                // 1. 世界书 & 正则
+                worldInfo: window.currentWorldInfo || { entries: [] },
+                regexScripts: window.currentCardRegexes || [],
+                
+                // 2. 标签系统 (含自定义分类)
+                wizardData: window.wizardData || {}, // V29 自定义分类
+                selectedTags: window.currentSelectedTags || {}, // V25 选中状态
+                
+                // 3. 属性/逻辑多模块 (V40)
+                statModules: window.statModules || [],
+                
+                // 4. 多人模式花名册 (V41)
+                projectCharData: window.projectCharData || {},
+                
+                // 5. 军师状态 (V25/V36)
+                advisorState: window.advisorState || { mode: 'menu', multiChars: [] },
+                
+                // 6. 美化规范文件 (V34)
+                styleGuide: window.frontendStyleGuide || "",
+                
+                // 7. 军师聊天记录 (HTML)
+                advisorChat: document.getElementById('advisorChat') ? document.getElementById('advisorChat').innerHTML : ""
+            }
+        };
+    }
+
+    // ================= 2. 核心：数据恢复机 (还原并刷新UI) =================
+    function restoreTotalSnapshot(snapshot) {
+        if (!snapshot || !snapshot.data) {
+            alert("❌ 存档格式过时或损坏，无法完整读取！");
+            return;
+        }
+
+        console.log("📦 正在恢复全量数据...");
+        var d = snapshot.data;
+        var i = snapshot.inputs;
+
+        // A. 恢复输入框
+        function setVal(id, val) { 
+            var el = document.getElementById(id); 
+            if (el) el.value = val || ""; 
+        }
+        for (var key in i) setVal(key, i[key]);
+
+        // B. 恢复全局变量 (深拷贝防止引用)
+        window.currentWorldInfo = JSON.parse(JSON.stringify(d.worldInfo || { entries: [] }));
+        window.currentCardRegexes = JSON.parse(JSON.stringify(d.regexScripts || []));
+        
+        window.wizardData = d.wizardData || window.wizardData; // 恢复自定义分类
+        window.currentSelectedTags = d.selectedTags || { identity:[], personality:[], trope:[] };
+        
+        window.statModules = d.statModules || []; // 恢复属性模块
+        window.projectCharData = d.projectCharData || {}; // 恢复多人数据
+        
+        window.advisorState = d.advisorState || { mode: 'menu', multiChars: [] };
+        window.advisorMode = window.advisorState.mode; // 兼容旧变量
+        
+        window.frontendStyleGuide = d.styleGuide || "";
+
+        // C. 恢复聊天记录
+        var chatBox = document.getElementById('advisorChat');
+        if (chatBox) chatBox.innerHTML = d.advisorChat || "";
+
+        // D. 🔥 核心：触发所有 UI 刷新 (不然数据有了界面没变)
+        
+        // 1. 刷新标签 (会重新生成自定义分类按钮)
+        if (typeof renderWizardTags === 'function') renderWizardTags();
+        
+        // 2. 刷新世界书列表
+        if (typeof renderWorldList === 'function') renderWorldList();
+        
+        // 3. 刷新正则列表
+        if (typeof renderRegexList === 'function') renderRegexList();
+        
+        // 4. 刷新属性模块列表
+        if (typeof renderStatModuleList === 'function') {
+            renderStatModuleList();
+            // 选中第一个
+            if (window.statModules.length > 0 && typeof loadStatModule === 'function') {
+                loadStatModule(0);
+            }
+        }
+        
+        // 5. 刷新多人模式菜单 (如果当前是多人模式)
+        if (window.advisorState.mode === 'multi' && typeof renderMultiCharMenu === 'function') {
+            renderMultiCharMenu();
+        }
+        
+        // 6. 刷新美化文件按钮状态
+        if (window.frontendStyleGuide) {
+            var statusEl = document.getElementById('native_upload_status');
+            if (statusEl) {
+                statusEl.innerHTML = `✅ <b>已从存档恢复美化文件</b> (大小: ${Math.ceil(window.frontendStyleGuide.length/1024)}KB)`;
+                status.style.color = "#00b894";
+            }
+        }
+
+        // 7. 刷新手机预览
+        if (typeof updatePreviewUI === 'function') updatePreviewUI();
+
+        // E. 提示
+        if(window.auth && window.auth.toast) window.auth.toast('📂 完美读档成功！');
+    }
+
+    // ================= 3. 覆盖：新建存档 (Save) =================
+    window.createNewSave = function() {
+        try {
+            var snapshot = collectTotalSnapshot();
+            var saves = JSON.parse(localStorage.getItem('my_creator_saves') || "[]");
+            
+            // 同名覆盖检查
+            var idx = saves.findIndex(s => s.meta.title === snapshot.meta.title);
+            if (idx !== -1) {
+                if (!confirm(`存档【${snapshot.meta.title}】已存在，要覆盖吗？`)) return;
+                saves[idx] = snapshot;
+            } else {
+                saves.unshift(snapshot);
+            }
+
+            localStorage.setItem('my_creator_saves', JSON.stringify(saves));
+            
+            if (typeof renderSaveList === 'function') renderSaveList();
+            if(window.auth && window.auth.toast) window.auth.toast('💾 全量数据已强制保存！');
+
+        } catch (e) {
+            console.error(e);
+            alert("❌ 保存失败 (可能是存储空间不足): " + e.message);
+        }
+    };
+
+    // ================= 4. 覆盖：读取存档 (Load) =================
+    window.loadSave = function(idx) {
+        if (!confirm('⚠️ 确定读取吗？当前未保存的进度将被覆盖。')) return;
+        
+        var saves = JSON.parse(localStorage.getItem('my_creator_saves') || "[]");
+        var save = saves[idx];
+        
+        if (save) {
+            restoreTotalSnapshot(save);
+            document.getElementById('saveManagerModal').style.display = 'none';
+        } else {
+            alert("存档读取错误");
+        }
+    };
+
+    // ================= 5. 覆盖：完结清空 (Clear All) =================
+    window.finishAndClear = function() {
+        if(!confirm('🚨 高危操作：确定要【彻底清空】当前工作台吗？\n\n所有内容（包括多人数据、属性模块、美化文件）都将重置。\n建议先存档！')) return;
+
+        // A. 清空输入框
+        var inputs = document.querySelectorAll('#cardCreatorModal input[type="text"], #cardCreatorModal textarea');
+        inputs.forEach(i => i.value = '');
+
+        // B. 重置所有全局变量 (回到初始状态)
+        window.currentWorldInfo = { entries: [] };
+        window.currentCardRegexes = [];
+        window.wizardData = { // 恢复默认标签
+            identity: { title: "1. 身份/种族", tags: ["皇子", "摄政王", "魔尊", "师尊"] },
+            personality: { title: "2. 性格特点", tags: ["疯批", "清冷", "腹黑", "傲娇"] },
+            trope: { title: "3. 萌点/外貌", tags: ["白毛", "眼镜", "西装", "伤痕"] }
+        };
+        window.currentSelectedTags = { identity:[], personality:[], trope:[] };
+        
+        window.statModules = [];
+        window.currentStatIdx = 0;
+        
+        window.projectCharData = {};
+        window.advisorState = { mode: 'menu', multiChars: [] };
+        window.advisorMode = 'menu';
+        
+        window.frontendStyleGuide = "";
+
+        // C. 清空聊天
+        var chatBox = document.getElementById('advisorChat');
+        if(chatBox) chatBox.innerHTML = "";
+
+        // D. 强制刷新所有 UI
+        if(typeof renderWorldList === 'function') renderWorldList();
+        if(typeof renderRegexList === 'function') renderRegexList();
+        if(typeof renderWizardTags === 'function') renderWizardTags();
+        if(typeof renderStatModuleList === 'function') renderStatModuleList();
+        if(typeof showAdvisorMenu === 'function') showAdvisorMenu(); // 回到军师菜单
+        
+        // E. 重置美化上传状态
+        var statusEl = document.getElementById('native_upload_status');
+        if(statusEl) statusEl.innerHTML = "状态：已重置";
+
+        if(window.auth && window.auth.toast) window.auth.toast('🧹 工作台已彻底扫除干净');
+    };
+
+    // ================= 6. 覆盖：删除存档 (Delete) =================
+    window.deleteSave = function(idx) {
+        if(!confirm('确定永久删除这个存档吗？')) return;
+        var saves = JSON.parse(localStorage.getItem('my_creator_saves') || "[]");
+        saves.splice(idx, 1);
+        localStorage.setItem('my_creator_saves', JSON.stringify(saves));
+        if (typeof renderSaveList === 'function') renderSaveList();
+    };
+
+    console.log("✅ 全家桶存档系统已就绪：什么都丢不了！");
+
+})();
+
+
 // ================= 👑 写卡器代码结束 =================
 
 // =================🎮联机代码开始=================
