@@ -20742,6 +20742,366 @@ ${window.frontendStyleGuide.substring(0, 5000)}
 
 })();
 
+/* ================= 🧠 V36.0 补丁：军师全能进化 (美化/文风/预览) ================= */
+(function() {
+    console.log("🚀 执行 V36.0：军师系统扩容，新增美化预览与文风模式...");
+
+    // 1. 状态扩容
+    if (!window.advisorState) window.advisorState = { mode: 'menu' };
+    window.tempStyleGuide = ""; // 临时存储美化文件内容
+
+    // 2. 🔥 覆盖：重写军师主菜单 (6宫格布局)
+    window.showAdvisorMenu = function() {
+        var box = document.getElementById('aiAdvisorBox');
+        if(box) box.style.display = 'flex';
+        var chat = document.getElementById('advisorChat');
+        
+        var menuHtml = `
+            <div class="advisor-bubble" style="background:#f3f0ff;">
+                <b>🧠 军师已就位，请选择锦囊：</b>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-top:10px;">
+                    <button class="advisor-tool-btn" onclick="setAdvisorMode('normal')" style="background:#e8f5e9; color:#2e7d32;">🟢 1. 普通模式</button>
+                    <button class="advisor-tool-btn" onclick="setAdvisorMode('pro')" style="background:#ffebee; color:#c62828;">🔴 2. 专家模式</button>
+                    <button class="advisor-tool-btn" onclick="initMultiCharUI()" style="background:#e3f2fd; color:#1565c0;">👥 3. 多人模式</button>
+                    <button class="advisor-tool-btn" onclick="initWorldViewMode()" style="background:#fff3e0; color:#ef6c00;">🌏 4. 世界观</button>
+                    <button class="advisor-tool-btn" onclick="initBeautifyMode()" style="background:#f3e5f5; color:#6a1b9a; border:1px solid #e1bee7;">🎨 5. 美化模式</button>
+                    <button class="advisor-tool-btn" onclick="initStyleMode()" style="background:#e0f2f1; color:#00695c; border:1px solid #b2dfdb;">✒️ 6. 文风模式</button>
+                </div>
+            </div>
+        `;
+        chat.innerHTML = menuHtml;
+        window.advisorState.mode = 'menu';
+        
+        // 更新输入框提示
+        var input = document.getElementById('advisorInput');
+        if(input) {
+            input.placeholder = "请点击上方按钮选择功能...";
+            input.value = "";
+            input.style.border = "1px solid #ccc";
+        }
+    };
+
+    // ================= 🎨 5. 美化模式 (核心新功能) =================
+
+    window.initBeautifyMode = function() {
+        window.advisorState.mode = 'beautify';
+        var chat = document.getElementById('advisorChat');
+        
+        chat.innerHTML = `
+            <div class="advisor-bubble" style="background:#f3e5f5; color:#4a148c;">
+                <b>🎨 UI 美化定制</b><br>
+                我可以根据人设为您设计前端特效。<br>
+                如果有《美化规范文件》(CSS/TXT)，请先上传，我会严格遵守。
+                <div style="margin-top:10px; text-align:center;">
+                    <input type="file" id="beautifyFileInput" style="display:none" onchange="handleBeautifyUpload(this)">
+                    <button class="advisor-action-btn" onclick="document.getElementById('beautifyFileInput').click()">
+                        📂 上传美化模板 (可选)
+                    </button>
+                </div>
+            </div>
+            <div class="advisor-bubble">
+                请在下方输入您的要求：<br>
+                (例如：做一个赛博朋克风格的状态栏、或者粉色的气泡样式)
+            </div>
+        `;
+        
+        var input = document.getElementById('advisorInput');
+        input.placeholder = "🎨 想要什么样的界面？(上传文件后在此输入需求)";
+        input.style.border = "2px solid #ce93d8";
+    };
+
+    // 处理文件上传
+    window.handleBeautifyUpload = function(input) {
+        var file = input.files[0];
+        if(!file) return;
+        
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            window.tempStyleGuide = e.target.result;
+            
+            var chat = document.getElementById('advisorChat');
+            chat.innerHTML += `
+                <div class="advisor-bubble">
+                    ✅ 已加载模板：<b>${file.name}</b><br>
+                    (包含 ${window.tempStyleGuide.length} 字符)<br>
+                    接下来请在输入框告诉我，您想基于这个模板做什么？
+                </div>
+            `;
+            chat.scrollTop = chat.scrollHeight;
+        };
+        reader.readAsText(file);
+    };
+
+    // 美化生成逻辑 (三选一 + 预览)
+    async function runBeautifyGeneration(text, loadingId) {
+        var chat = document.getElementById('advisorChat');
+        var config = window.aiConfig || JSON.parse(localStorage.getItem('my_ai_config'));
+        var desc = document.getElementById('cardDesc').value || "通用角色";
+
+        // Prompt
+        var prompt = `
+        你是一个前端UI设计师。
+        用户需求：${text}
+        角色设定：${desc.substring(0, 500)}
+        
+        ${window.tempStyleGuide ? "【强制参考样式规范】:\n" + window.tempStyleGuide.substring(0, 3000) : ""}
+        
+        请设计 3 个不同的 HTML/CSS 方案。
+        必须返回纯 JSON 数组：
+        [
+            {
+                "name": "方案名称 (如: 极简风)",
+                "desc": "设计理念描述",
+                "regex": "/正则/g",
+                "code": "<style>...</style><div>...</div> (完整的HTML代码)"
+            },
+            ...
+        ]
+        `;
+
+        try {
+            var res = await fetchAI(prompt, config);
+            var data = JSON.parse(res.replace(/```json/g, '').replace(/```/g, '').trim());
+            document.getElementById(loadingId).remove();
+
+            if (data.length === 0) throw new Error("生成为空");
+
+            chat.innerHTML += `<div class="advisor-bubble">✨ 设计完成！请查看下方 3 个方案预览：</div>`;
+
+            // 渲染 3 个方案卡片
+            data.forEach((item, idx) => {
+                // 安全转义
+                var safeCode = encodeURIComponent(item.code);
+                var safeRegex = encodeURIComponent(item.regex);
+                
+                // 预览容器 ID
+                var previewId = `preview_box_${Date.now()}_${idx}`;
+
+                chat.innerHTML += `
+                    <div class="advisor-bubble" style="border-left:4px solid #9c27b0; padding:10px;">
+                        <b>🎨 方案 ${idx+1}: ${item.name}</b>
+                        <div style="font-size:11px; color:#666; margin-bottom:5px;">${item.desc}</div>
+                        
+                        <div style="background:#eee; padding:10px; border-radius:5px; margin:5px 0; min-height:60px; overflow:hidden;">
+                            <div id="${previewId}"></div>
+                        </div>
+
+                        <div style="display:flex; gap:5px;">
+                            <button class="advisor-action-btn" style="flex:1; background:#e1bee7; color:#4a148c;" onclick="applyBeautify('${safeCode}', '${safeRegex}')">
+                                ✅ 直接使用
+                            </button>
+                            <button class="advisor-action-btn" style="flex:1; background:#fff; border:1px solid #999; color:#555;" onclick="refineBeautify('${safeCode}', '${item.name}')">
+                                🔧 提意见
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                // 延迟渲染预览内容 (因为 DOM 还没刷新完)
+                setTimeout(() => {
+                    var container = document.getElementById(previewId);
+                    if(container) {
+                        // 使用 ShadowRoot 隔离 CSS
+                        if (!container.shadowRoot) container.attachShadow({mode: 'open'});
+                        container.shadowRoot.innerHTML = item.code;
+                    }
+                }, 100);
+            });
+            
+            chat.scrollTop = chat.scrollHeight;
+
+        } catch(e) {
+            document.getElementById(loadingId).remove();
+            chat.innerHTML += `<div class="advisor-bubble">❌ 生成失败: ${e.message}</div>`;
+        }
+    }
+
+    // 应用美化
+    window.applyBeautify = function(encCode, encRegex) {
+        var code = decodeURIComponent(encCode);
+        var regex = decodeURIComponent(encRegex);
+        
+        // 自动跳转到前端页
+        if(typeof switchCardTab === 'function') switchCardTab('regex');
+        if(typeof switchRegexUI === 'function') switchRegexUI('frontend');
+        
+        document.getElementById('frontReplace').value = code;
+        document.getElementById('frontPattern').value = regex;
+        
+        // 自动填测试词
+        var rawKey = regex.replace(/^\//, '').replace(/\/g[im]*$/, '').replace(/\\/g, '');
+        document.getElementById('regexTestInput').value = rawKey;
+        
+        if(typeof runRegexTest === 'function') runRegexTest();
+        if(typeof syncStatToNote === 'function') syncStatToNote();
+
+        if(window.auth && window.auth.toast) window.auth.toast('✅ 方案已应用！');
+    };
+
+    // 提意见 (进入修改流程)
+    window.refineBeautify = function(encCode, name) {
+        var code = decodeURIComponent(encCode);
+        // 存入缓存
+        if (!window.lastGeneratedData) window.lastGeneratedData = {};
+        window.lastGeneratedData.frontend = { code: code, name: name, regex: "/.*/" }; // regex 暂时不重要
+        
+        // 切换回聊天框提示
+        var input = document.getElementById('advisorInput');
+        input.placeholder = `🔧 对【${name}】有什么修改意见？`;
+        input.focus();
+        input.style.border = "2px solid #e91e63";
+        
+        // 标记状态：下一条消息是修改意见
+        window.advisorState.pendingRefine = 'frontend';
+        
+        var chat = document.getElementById('advisorChat');
+        chat.innerHTML += `<div class="advisor-bubble" style="background:#ffebee; color:#c62828;">👂 请输入您的修改意见 (针对 ${name})...</div>`;
+        chat.scrollTop = chat.scrollHeight;
+    };
+
+
+    // ================= ✒️ 6. 文风模式 (核心新功能) =================
+
+    window.initStyleMode = function() {
+        window.advisorState.mode = 'style';
+        var chat = document.getElementById('advisorChat');
+        chat.innerHTML = `
+            <div class="advisor-bubble" style="background:#e0f2f1; color:#004d40;">
+                <b>✒️ 文风/语气 调优模式</b><br>
+                我可以帮您重写【详细设定】或【对话样本】。<br>
+                请告诉我您想要的风格：<br>
+                (例如：古龙风、日轻翻译腔、克苏鲁风、莎士比亚风、网络爽文风...)
+            </div>
+        `;
+        var input = document.getElementById('advisorInput');
+        input.placeholder = "✒️ 输入您想要的文风...";
+        input.style.border = "2px solid #009688";
+    };
+
+    async function runStyleGeneration(styleReq, loadingId) {
+        var chat = document.getElementById('advisorChat');
+        var config = window.aiConfig || JSON.parse(localStorage.getItem('my_ai_config'));
+        var name = document.getElementById('cardName').value;
+        var firstMes = document.getElementById('cardFirstMes').value || "你好。";
+        
+        var prompt = `
+        我是卡片作者。角色：${name}。
+        当前开场白：${firstMes}
+        
+        用户希望将文风/语气修改为：【${styleReq}】。
+        
+        请生成 3 个不同版本的【开场白】和对应的【简短对话样本】。
+        必须返回纯 JSON 数组：
+        [
+            { "title": "风格1标题", "first": "修改后的开场白", "example": "User:你好\\nChar:回复..." },
+            ...
+        ]
+        `;
+
+        try {
+            var res = await fetchAI(prompt, config);
+            var data = JSON.parse(res.replace(/```json/g, '').replace(/```/g, '').trim());
+            document.getElementById(loadingId).remove();
+
+            chat.innerHTML += `<div class="advisor-bubble">✒️ 生成完毕，请选择您喜欢的文风：</div>`;
+
+            data.forEach((item, idx) => {
+                var safeFirst = encodeURIComponent(item.first);
+                var safeEx = encodeURIComponent(item.example);
+
+                chat.innerHTML += `
+                    <div class="advisor-bubble" style="border-left:4px solid #009688; padding:10px;">
+                        <b>✒️ ${item.title}</b>
+                        <div style="background:#fff; padding:5px; border:1px dashed #ccc; font-size:11px; margin:5px 0;">
+                            <b>开场：</b>${item.first}
+                        </div>
+                        <div style="font-size:10px; color:#666; white-space:pre-wrap;">${item.example.substring(0, 50)}...</div>
+                        
+                        <button class="advisor-action-btn" style="background:#b2dfdb; color:#004d40;" onclick="applyStyle('${safeFirst}', '${safeEx}')">
+                            ✅ 采用此文风
+                        </button>
+                    </div>
+                `;
+            });
+            chat.scrollTop = chat.scrollHeight;
+
+        } catch(e) {
+            document.getElementById(loadingId).remove();
+            chat.innerHTML += `<div class="advisor-bubble">❌ 润色失败: ${e.message}</div>`;
+        }
+    }
+
+    window.applyStyle = function(encFirst, encEx) {
+        document.getElementById('cardFirstMes').value = decodeURIComponent(encFirst);
+        document.getElementById('cardMesExample').value = decodeURIComponent(encEx);
+        
+        if(typeof switchCardTab === 'function') switchCardTab('preview');
+        if(typeof updatePreviewUI === 'function') updatePreviewUI();
+        
+        if(window.auth && window.auth.toast) window.auth.toast('✅ 文风已替换！');
+    };
+
+
+    // ================= 🔄 拦截发送逻辑 (总控台) =================
+    var _oldSendAdvisor = window.sendAdvisorMsg;
+
+    window.sendAdvisorMsg = async function() {
+        var input = document.getElementById('advisorInput');
+        var text = input.value.trim();
+        if(!text) return;
+
+        // A. 拦截“提意见” (Refine) 状态
+        if (window.advisorState.pendingRefine === 'frontend') {
+            window.advisorState.pendingRefine = null; // 清除状态
+            // 调用 V25 的 refineResult (它已经包含了 AI 请求)
+            // 为了复用，我们模拟把 text 填入 refineInput，然后触发 click
+            var refineInput = document.getElementById('refineInput_frontend');
+            if(refineInput) {
+                refineInput.value = text;
+                if(window.refineResult) window.refineResult('frontend');
+            }
+            // 恢复界面
+            input.value = '';
+            input.placeholder = "请点击上方按钮选择功能...";
+            input.style.border = "1px solid #ccc";
+            return;
+        }
+
+        // B. 拦截“美化模式”
+        if (window.advisorState.mode === 'beautify') {
+            var chat = document.getElementById('advisorChat');
+            // 上屏
+            chat.innerHTML += `<div style="text-align:right; margin:5px 0; color:#6a1b9a; font-size:12px; padding:5px; background:#f3e5f5; border-radius:8px; display:inline-block; margin-left:auto;">${text}</div><div style="clear:both;"></div>`;
+            input.value = '';
+            
+            var loadingId = 'loading-' + Date.now();
+            chat.insertAdjacentHTML('beforeend', `<div id="${loadingId}" class="ai-loading">🎨 正在设计 UI 方案...</div>`);
+            chat.scrollTop = chat.scrollHeight;
+            
+            await runBeautifyGeneration(text, loadingId);
+            return;
+        }
+
+        // C. 拦截“文风模式”
+        if (window.advisorState.mode === 'style') {
+            var chat = document.getElementById('advisorChat');
+            chat.innerHTML += `<div style="text-align:right; margin:5px 0; color:#00695c; font-size:12px; padding:5px; background:#e0f2f1; border-radius:8px; display:inline-block; margin-left:auto;">${text}</div><div style="clear:both;"></div>`;
+            input.value = '';
+            
+            var loadingId = 'loading-' + Date.now();
+            chat.insertAdjacentHTML('beforeend', `<div id="${loadingId}" class="ai-loading">✒️ 正在润色文案...</div>`);
+            chat.scrollTop = chat.scrollHeight;
+            
+            await runStyleGeneration(text, loadingId);
+            return;
+        }
+
+        // D. 其他模式 (普通/专家/世界观/多人) 走旧逻辑
+        if (_oldSendAdvisor) _oldSendAdvisor();
+    };
+
+})();
+
 
 // ================= 👑 写卡器代码结束 =================
 
