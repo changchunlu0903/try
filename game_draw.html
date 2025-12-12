@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>🎨 Loppy 灵魂画手</title>
+    <title>🎨 Loppy 灵魂画手 (AI版)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.4.7/peerjs.min.js"></script>
     <style>
         @font-face { font-family: 'MyCutieFont'; src: url('https://files.catbox.moe/cweam3.ttf') format('truetype'); font-display: swap; }
@@ -16,7 +16,7 @@
             height: 100vh; display: flex; flex-direction: column; overflow: hidden;
         }
 
-        /* === 顶部栏 === */
+        /* 顶部 */
         .top-bar {
             padding: 10px; background: rgba(255,255,255,0.8); display: flex; justify-content: space-between; align-items: center;
             border-bottom: 2px dashed #ff9a9e; z-index: 100;
@@ -25,10 +25,10 @@
         .game-info { font-size: 16px; color: #ff6b81; font-weight: bold; }
         .timer { font-size: 20px; color: #a29bfe; font-weight: bold; }
 
-        /* === 游戏主区域 === */
+        /* 主区域 */
         .main-area { flex: 1; display: flex; position: relative; overflow: hidden; }
         
-        /* 左侧：玩家列表/排名 */
+        /* 侧边栏 */
         .sidebar {
             width: 80px; background: rgba(255,255,255,0.5); border-right: 2px dashed #fff;
             overflow-y: auto; padding: 5px; display: flex; flex-direction: column; gap: 5px;
@@ -38,12 +38,12 @@
             transition: 0.3s;
         }
         .player-card.active { border-color: #ff9a9e; transform: scale(1.05); }
-        .player-card.drawer { border-color: #a29bfe; }
+        .player-card.drawer { border-color: #a29bfe; background: #f3e5f5; }
         .p-avatar { font-size: 24px; }
         .p-name { font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .p-score { font-size: 12px; color: #ff7675; font-weight: bold; }
 
-        /* 中间：画板 */
+        /* 画板 */
         .canvas-container {
             flex: 1; position: relative; background: #fff; margin: 10px; border-radius: 20px;
             box-shadow: 0 5px 15px rgba(0,0,0,0.1); border: 4px solid #a29bfe;
@@ -51,29 +51,34 @@
         }
         canvas { touch-action: none; width: 100%; height: 100%; border-radius: 15px; }
         
-        /* 提示词遮罩 */
+        /* 遮罩 & 题库选择 */
         .word-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255,255,255,0.95); display: flex; flex-direction: column; 
+            background: rgba(255,255,255,0.98); display: flex; flex-direction: column; 
             justify-content: center; align-items: center; z-index: 20;
-            display: none; /* 默认隐藏 */
+            display: none; 
         }
-        .word-text { font-size: 40px; color: #ff9a9e; margin-bottom: 20px; text-align: center;}
-
-        /* 右侧/底部：聊天与工具 */
+        .word-text { font-size: 40px; color: #ff9a9e; margin-bottom: 20px; text-align: center; text-shadow: 2px 2px 0 #fff;}
+        
+        .mode-select-box {
+            display: flex; flex-direction: column; gap: 15px; width: 80%; max-width: 300px;
+        }
+        .mode-title { font-size: 18px; color: #888; margin-bottom: 5px; }
+        
+        /* 聊天 */
         .chat-area {
             position: absolute; bottom: 10px; right: 10px; width: 200px; height: 150px;
             background: rgba(255,255,255,0.8); border-radius: 15px; border: 2px solid #fff;
-            display: flex; flex-direction: column; overflow: hidden; pointer-events: none; /* 默认穿透 */
+            display: flex; flex-direction: column; overflow: hidden; pointer-events: none;
         }
         .chat-msgs { flex: 1; overflow-y: auto; padding: 5px; font-size: 12px; pointer-events: auto;}
         .chat-msg { margin-bottom: 2px; }
-        .chat-msg.correct { color: #00b894; font-weight: bold; }
-        .chat-msg.sys { color: #a29bfe; }
+        .chat-msg.correct { color: #00b894; font-weight: bold; background: #e0f2f1; padding: 2px; border-radius: 4px;}
+        .chat-msg.sys { color: #a29bfe; font-style: italic; }
         .chat-input-box { display: flex; padding: 5px; background: #fff; pointer-events: auto; }
         .chat-ipt { flex: 1; border: 1px solid #ddd; border-radius: 5px; padding: 3px; outline: none; }
 
-        /* 画笔工具栏 (仅画画的人可见) */
+        /* 工具栏 */
         .tools-bar {
             position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
             background: #fff; padding: 10px; border-radius: 50px; display: none; gap: 10px;
@@ -83,7 +88,7 @@
         .color-btn.active { transform: scale(1.2); border-color: #555; }
         .tool-btn { font-size: 20px; cursor: pointer; padding: 0 10px; }
 
-        /* === 弹窗 === */
+        /* 弹窗 */
         .modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center;
@@ -96,9 +101,14 @@
         .btn {
             padding: 12px 25px; border-radius: 20px; border: none; font-size: 16px;
             color: white; cursor: pointer; margin-top: 10px; width: 100%; font-family: inherit;
+            transition: transform 0.1s;
         }
-        .btn-pink { background: #ff9a9e; }
-        .btn-blue { background: #74b9ff; }
+        .btn:active { transform: scale(0.95); }
+        .btn-pink { background: linear-gradient(45deg, #ff9a9e, #fad0c4); }
+        .btn-blue { background: linear-gradient(45deg, #a18cd1, #fbc2eb); }
+        .btn-spicy { background: linear-gradient(45deg, #ff758c, #ff7eb3); border: 2px solid #fff; box-shadow: 0 4px 10px rgba(255, 117, 140, 0.4); }
+        .btn-pure { background: linear-gradient(45deg, #84fab0, #8fd3f4); color: #fff; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+        
         .ipt { width: 100%; padding: 10px; border-radius: 10px; border: 2px solid #ddd; margin-bottom: 10px; text-align: center; }
 
     </style>
@@ -112,17 +122,24 @@
     </div>
 
     <div class="main-area">
-        <div class="sidebar" id="playerList">
-            </div>
+        <div class="sidebar" id="playerList"></div>
 
         <div class="canvas-container" id="canvasBox">
             <canvas id="gameCanvas"></canvas>
             
             <div class="word-overlay" id="wordOverlay">
-                <div class="word-text" id="overlayText">等待房主开始...</div>
-                <div id="hostControls" style="display:none; gap:10px;">
-                    <button class="btn btn-blue" onclick="startGame('classic')">🎨 竞速猜画模式</button>
-                    <button class="btn btn-pink" onclick="startGame('relay')">🧩 灵魂接龙模式</button>
+                <div class="word-text" id="overlayText">等待房主选择...</div>
+                
+                <div id="hostControls" style="display:none;" class="mode-select-box">
+                    <div class="mode-title">✨ 请选择 AI 出题风格 ✨</div>
+                    <button class="btn btn-blue" onclick="startGame('normal')">🌈 普通版 (日常快乐)</button>
+                    <button class="btn btn-pure" onclick="startGame('pure')">🌸 纯情版 (甜甜恋爱)</button>
+                    <button class="btn btn-spicy" onclick="startGame('spicy')">💋 刺激版 (脸红心跳)</button>
+                </div>
+                
+                <div id="drawerControls" style="display:none;">
+                    <button class="btn btn-pink" onclick="startDrawing()">🖌️ 开始作画</button>
+                    <button class="btn btn-blue" onclick="skipWord()" style="margin-top:10px; background:#ccc;">🔄 换一个词</button>
                 </div>
             </div>
         </div>
@@ -130,7 +147,7 @@
         <div class="chat-area">
             <div class="chat-msgs" id="chatList"></div>
             <div class="chat-input-box" id="guessInputArea">
-                <input type="text" class="ipt chat-ipt" id="guessInput" placeholder="在此输入答案..." onkeydown="if(event.keyCode==13) sendGuess()">
+                <input type="text" class="ipt chat-ipt" id="guessInput" placeholder="输入答案..." onkeydown="if(event.keyCode==13) sendGuess()">
             </div>
         </div>
     </div>
@@ -159,7 +176,7 @@
 
             <div id="hostWait" style="display:none;">
                 <p>房号: <span id="myRoomId" style="color:#ff6b81; font-weight:bold; user-select:all;" onclick="copyId()">...</span></p>
-                <p style="font-size:12px; color:#888;">(点击复制发给朋友，最少3人)</p>
+                <p style="font-size:12px; color:#888;">(最少3人)</p>
                 <p>当前人数: <span id="waitCount">1</span></p>
                 <button class="btn btn-pink" onclick="enterGame()">进入游戏大厅</button>
             </div>
@@ -167,32 +184,51 @@
     </div>
 
     <script>
-        // ================= 配置与词库 =================
-        const WORDS = ["苹果", "香蕉", "兔子", "奥特曼", "海绵宝宝", "电脑", "下雨", "奶茶", "Loppy", "放屁", "睡觉", "接吻", "彩虹", "冰淇淋", "蜘蛛侠", "马桶", "自行车", "玫瑰花"];
-        
+        // ================= 🔥 AI 词库配置 🔥 =================
+        // 你可以在这里自己加词！越多越好玩！
+        const AI_WORDS = {
+            // 🌈 普通版：日常、搞笑、物品
+            normal: [
+                "苹果", "奥特曼", "马桶", "电脑", "海绵宝宝", "珍珠奶茶", "法拉利", "皮卡丘", "火锅", 
+                "放屁", "秃头", "方便面", "二维码", "小猪佩奇", "仙人掌", "比基尼", "哥斯拉", "挖掘机",
+                "WiFi", "口罩", "自拍", "辣条", "作业", "私房钱", "肌肉男", "广场舞"
+            ],
+            
+            // 🌸 纯情版：恋爱、浪漫、少女心
+            pure: [
+                "初吻", "情书", "壁咚", "摸头杀", "婚礼", "公主抱", "看星星", "摩天轮", "红线", 
+                "一见钟情", "男朋友", "吃醋", "撒娇", "告白气球", "最萌身高差", "烛光晚餐", 
+                "比心", "定情信物", "草莓印", "围巾", "偷偷看你", "早安吻"
+            ],
+            
+            // 💋 刺激版 (Loppy特供)：稍微带点颜色但不过分，适合密友
+            spicy: [
+                "锁骨", "黑丝", "咬耳朵", "女仆装", "皮鞭", "湿身", "捆绑", "种草莓", "大长腿", 
+                "浴室", "钢管舞", "烈焰红唇", "霸道总裁", "深V", "绝对领域", "手铐", "小野猫", 
+                "腹肌", "做坏事", "偷情", "膝枕", "撕丝袜", "浴室play" 
+            ]
+        };
+
+        // ================= 游戏变量 =================
         let peer = null, connList = [], hostConn = null;
         let myId = null, myName = "";
         let isHost = false;
-        let players = []; // {id, name, score, avatar}
+        let players = []; 
         
-        // 游戏状态
-        let currentMode = ''; // 'classic' or 'relay'
+        let currentCategory = 'normal'; // 当前选的题库
         let currentWord = '';
-        let drawerId = null; // 当前画画的人
+        let drawerId = null;
         let isDrawing = false;
         let ctx = null, canvas = null;
-        let timer = null;
+        let hasGuessedRight = false; // 本轮是否猜对过
 
-        // 初始化
         window.onload = () => {
             const savedName = localStorage.getItem('draw_name');
             if(savedName) document.getElementById('myName').value = savedName;
-            
             canvas = document.getElementById('gameCanvas');
             ctx = canvas.getContext('2d');
             resizeCanvas();
             window.addEventListener('resize', resizeCanvas);
-            
             initCanvasEvents();
         };
 
@@ -201,7 +237,7 @@
             canvas.height = canvas.parentElement.clientHeight;
         }
 
-        // ================= 1. 联机基础 =================
+        // ================= 1. 联机 =================
         try {
             peer = new Peer(null, { debug: 2 });
             peer.on('open', id => myId = id);
@@ -209,10 +245,9 @@
         } catch(e) { alert('组件加载失败'); }
 
         function createRoom() {
-            myName = document.getElementById('myName').value.trim() || "画手";
+            myName = document.getElementById('myName').value.trim() || "房主";
             localStorage.setItem('draw_name', myName);
             isHost = true;
-            
             players = [{ id: myId, name: myName, score: 0 }];
             
             document.getElementById('lobbyBtns').style.display = 'none';
@@ -221,22 +256,17 @@
 
             peer.on('connection', conn => {
                 connList.push(conn);
-                conn.on('open', () => {
-                    // 欢迎新玩家
-                    conn.send({ type: 'WELCOME', players: players });
-                });
+                conn.on('open', () => conn.send({ type: 'WELCOME', players: players }));
                 conn.on('data', data => handleData(data, conn));
                 conn.on('close', () => {
-                    // 玩家退出处理
                     players = players.filter(p => p.id !== conn.peer);
                     broadcast({ type: 'UPDATE_PLAYERS', players: players });
-                    addLog('系统', '有人退出了');
                 });
             });
         }
 
         function joinRoom() {
-            myName = document.getElementById('myName').value.trim() || "画手";
+            myName = document.getElementById('myName').value.trim() || "玩家";
             localStorage.setItem('draw_name', myName);
             const hostId = document.getElementById('hostIdInput').value.trim();
             if(!hostId) return alert('请输入房号');
@@ -255,68 +285,51 @@
             initGameUI();
         }
 
-        // ================= 2. 数据处理核心 =================
+        // ================= 2. 数据处理 =================
         function handleData(data, senderConn) {
-            // 房主处理逻辑
             if (isHost) {
                 if (data.type === 'LOGIN') {
-                    // 玩家登录注册
                     players.push({ id: senderConn.peer, name: data.name, score: 0 });
                     document.getElementById('waitCount').innerText = players.length;
                     broadcast({ type: 'UPDATE_PLAYERS', players: players });
                 }
                 else if (data.type === 'DRAW_DATA') {
-                    broadcast(data); // 转发画画数据给所有人
-                    drawOnCanvas(data); // 自己也画
+                    broadcast(data); drawOnCanvas(data);
+                }
+                else if (data.type === 'SKIP_WORD') {
+                    // 画师请求换词
+                    currentWord = getRandomWord();
+                    broadcast({ type: 'UPDATE_WORD', word: currentWord, drawerId: drawerId });
                 }
                 else if (data.type === 'GUESS') {
-                    // 检查答案 (竞速模式)
-                    if (currentMode === 'classic' && data.content === currentWord) {
-                        // 猜对了！
+                    // 猜题逻辑
+                    if (data.content === currentWord) {
                         let p = players.find(x => x.id === data.from);
-                        if(p) p.score += 10; // 猜对加分
                         let d = players.find(x => x.id === drawerId);
-                        if(d) d.score += 5; // 画画的也加分
                         
-                        broadcast({ type: 'CORRECT_GUESS', winner: p.name, answer: currentWord, players: players });
-                        // 结束这一轮
-                        setTimeout(nextRoundClassic, 2000);
+                        // 防止重复加分
+                        if (!data.hasWon) {
+                            if(p) p.score += 10;
+                            if(d) d.score += 5;
+                            broadcast({ type: 'CORRECT_GUESS', winner: p.name, answer: currentWord, players: players });
+                            // 猜对直接下一轮
+                            setTimeout(nextRound, 2000); 
+                        }
                     } else {
-                        // 猜错或者聊天，转发给所有人
                         broadcast({ type: 'CHAT', name: data.name, content: data.content });
                     }
                 }
-                else if (data.type === 'RELAY_DONE') {
-                    // 接龙模式：一个人画完了/猜完了
-                    nextStepRelay();
-                }
             } 
             
-            // 通用逻辑 (所有人都会执行)
-            if (data.type === 'WELCOME') {
-                // 我是新玩家，告诉房主我的名字
-                hostConn.send({ type: 'LOGIN', name: myName });
-            }
-            else if (data.type === 'UPDATE_PLAYERS') {
-                players = data.players;
-                renderPlayerList();
-                if(isHost) document.getElementById('waitCount').innerText = players.length;
-            }
-            else if (data.type === 'ENTER_GAME') {
-                initGameUI();
-            }
-            else if (data.type === 'DRAW_DATA') {
-                drawOnCanvas(data);
-            }
-            else if (data.type === 'CLEAR_CANVAS') {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-            }
-            else if (data.type === 'CHAT') {
-                addLog(data.name, data.content);
-            }
-            else if (data.type === 'ROUND_START') {
-                startRoundUI(data);
-            }
+            // 通用逻辑
+            if (data.type === 'WELCOME') { hostConn.send({ type: 'LOGIN', name: myName }); }
+            else if (data.type === 'UPDATE_PLAYERS') { players = data.players; renderPlayerList(); if(isHost) document.getElementById('waitCount').innerText = players.length; }
+            else if (data.type === 'ENTER_GAME') { initGameUI(); }
+            else if (data.type === 'DRAW_DATA') { drawOnCanvas(data); }
+            else if (data.type === 'CLEAR_CANVAS') { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+            else if (data.type === 'CHAT') { addLog(data.name, data.content); }
+            else if (data.type === 'ROUND_START') { startRoundUI(data); }
+            else if (data.type === 'UPDATE_WORD') { updateWordUI(data); } // 换词刷新
             else if (data.type === 'CORRECT_GUESS') {
                 addLog('系统', `🎉 ${data.winner} 猜对了：${data.answer}!`, 'correct');
                 players = data.players;
@@ -326,90 +339,111 @@
 
         function broadcast(msg) {
             if(isHost) {
-                // 自己处理
-                if(msg.type !== 'DRAW_DATA') handleData(msg); // 画画数据单独处理避免双重绘制
-                // 发给所有人
+                if(msg.type !== 'DRAW_DATA') handleData(msg); 
                 connList.forEach(c => c.send(msg));
             } else {
                 hostConn.send(msg);
             }
         }
 
-        // ================= 3. 游戏逻辑 (房主控场) =================
+        // ================= 3. 游戏流程 =================
         function initGameUI() {
             document.getElementById('loginModal').style.display = 'none';
             document.getElementById('wordOverlay').style.display = 'flex';
             if(isHost) {
-                document.getElementById('overlayText').innerText = "请选择游戏模式";
+                document.getElementById('overlayText').innerText = "房主请选择题库";
                 document.getElementById('hostControls').style.display = 'flex';
             } else {
-                document.getElementById('overlayText').innerText = "等待房主选择模式...";
+                document.getElementById('overlayText').innerText = "等待房主选题...";
             }
         }
 
-        function startGame(mode) {
-            currentMode = mode;
-            if(mode === 'classic') {
-                // 竞速模式：从第一个人开始
-                startClassicLoop(0);
-            } else {
-                // 接龙模式 (这里简化为：第一个人画，第二个人猜，轮流)
-                // 实际为了简单：房主出题 -> P1画 -> P2猜(且画) -> P3猜...
-                // 现版本简化逻辑：房主控制，手动开始下一轮
-                alert("接龙模式即将开始！请按顺序接力！");
-                startClassicLoop(0); // 暂时复用逻辑，后续可扩展
-            }
+        function startGame(category) {
+            currentCategory = category;
+            // 开始循环
+            startRoundLoop(0);
         }
 
-        // 竞速模式循环
         let roundIdx = -1;
-        function nextRoundClassic() {
-            startClassicLoop((roundIdx + 1) % players.length);
+        function nextRound() {
+            startRoundLoop((roundIdx + 1) % players.length);
         }
 
-        function startClassicLoop(idx) {
+        function startRoundLoop(idx) {
             roundIdx = idx;
             drawerId = players[idx].id;
-            currentWord = WORDS[Math.floor(Math.random() * WORDS.length)];
+            currentWord = getRandomWord();
             
-            // 广播回合开始
+            // 广播
             broadcast({
                 type: 'ROUND_START',
                 drawerId: drawerId,
-                word: currentWord // 注意：客户端收到后，如果不是画师，要隐藏这个词
+                word: currentWord
             });
         }
 
-        // UI响应回合开始
+        function getRandomWord() {
+            const list = AI_WORDS[currentCategory];
+            return list[Math.floor(Math.random() * list.length)];
+        }
+
+        // UI 响应
         function startRoundUI(data) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             drawerId = data.drawerId;
+            currentWord = data.word; // 客户端也要存一下用于核对
             renderPlayerList();
             
             const isMe = (myId === drawerId);
             const overlay = document.getElementById('wordOverlay');
             const toolBar = document.getElementById('toolBar');
             const inputArea = document.getElementById('guessInputArea');
+            const drawerControls = document.getElementById('drawerControls');
+
+            // 隐藏房主控件
+            document.getElementById('hostControls').style.display = 'none';
 
             if (isMe) {
                 // 我是画师
                 overlay.style.display = 'flex';
-                document.getElementById('overlayText').innerText = `你要画的是：${data.word}\n(点击开始)`;
-                document.getElementById('hostControls').style.display = 'none';
-                
-                // 点击遮罩开始作画
-                overlay.onclick = () => {
-                    overlay.style.display = 'none';
-                    toolBar.style.display = 'flex';
-                    inputArea.style.display = 'none'; // 画师不能猜
-                    overlay.onclick = null;
-                };
+                document.getElementById('overlayText').innerHTML = `题目：<span style="color:#a29bfe;font-size:50px;">${data.word}</span><br><span style="font-size:20px;color:#888;">(请不要写出答案)</span>`;
+                drawerControls.style.display = 'block';
+                toolBar.style.display = 'none'; // 开始画之前不显示工具
+                inputArea.style.display = 'none';
             } else {
                 // 我是猜题者
                 overlay.style.display = 'none';
                 toolBar.style.display = 'none';
+                drawerControls.style.display = 'none';
                 inputArea.style.display = 'flex';
-                document.getElementById('statusText').innerText = `正在画画: ${players.find(p=>p.id===drawerId).name}`;
+                let dName = players.find(p=>p.id===drawerId)?.name || "画师";
+                document.getElementById('statusText').innerText = `正在画画: ${dName}`;
+            }
+        }
+
+        // 画师点击“开始作画”
+        function startDrawing() {
+            document.getElementById('wordOverlay').style.display = 'none';
+            document.getElementById('toolBar').style.display = 'flex';
+        }
+
+        // 画师点击“换一个词”
+        function skipWord() {
+            if(isHost) {
+                // 房主直接换
+                currentWord = getRandomWord();
+                broadcast({ type: 'UPDATE_WORD', word: currentWord, drawerId: drawerId });
+            } else {
+                // 玩家请求房主换
+                hostConn.send({ type: 'SKIP_WORD' });
+            }
+        }
+
+        function updateWordUI(data) {
+            // 只有画师能看到新词更新
+            if(myId === data.drawerId) {
+                currentWord = data.word;
+                document.getElementById('overlayText').innerHTML = `题目：<span style="color:#a29bfe;font-size:50px;">${data.word}</span><br><span style="font-size:20px;color:#888;">(请不要写出答案)</span>`;
             }
         }
 
@@ -419,12 +453,10 @@
         let lastX = 0, lastY = 0;
 
         function initCanvasEvents() {
-            // 鼠标
             canvas.onmousedown = (e) => startDraw(e.offsetX, e.offsetY);
             canvas.onmousemove = (e) => moveDraw(e.offsetX, e.offsetY);
             canvas.onmouseup = endDraw;
             
-            // 触摸 (手机)
             canvas.ontouchstart = (e) => {
                 e.preventDefault();
                 const rect = canvas.getBoundingClientRect();
@@ -440,42 +472,27 @@
 
         function startDraw(x, y) {
             if (myId !== drawerId) return;
-            painting = true;
-            lastX = x; lastY = y;
+            painting = true; lastX = x; lastY = y;
         }
 
         function moveDraw(x, y) {
             if (!painting) return;
-            // 发送相对坐标 (0-1)，适配不同屏幕
-            const w = canvas.width;
-            const h = canvas.height;
-            
-            const drawData = {
-                type: 'DRAW_DATA',
-                x1: lastX / w, y1: lastY / h,
-                x2: x / w, y2: y / h,
-                color: currentColor
-            };
-            
-            drawOnCanvas(drawData); // 自己画
-            
-            // 发送给房主(或广播)
-            if(isHost) broadcast(drawData);
-            else hostConn.send(drawData);
-
+            const w = canvas.width; const h = canvas.height;
+            const drawData = { type: 'DRAW_DATA', x1: lastX/w, y1: lastY/h, x2: x/w, y2: y/h, color: currentColor };
+            drawOnCanvas(drawData);
+            if(isHost) broadcast(drawData); else hostConn.send(drawData);
             lastX = x; lastY = y;
         }
 
         function endDraw() { painting = false; }
 
         function drawOnCanvas(data) {
-            const w = canvas.width;
-            const h = canvas.height;
+            const w = canvas.width; const h = canvas.height;
             ctx.beginPath();
             ctx.moveTo(data.x1 * w, data.y1 * h);
             ctx.lineTo(data.x2 * w, data.y2 * h);
             ctx.strokeStyle = data.color;
-            ctx.lineWidth = data.color === '#ffffff' ? 20 : 3; // 橡皮擦粗一点
+            ctx.lineWidth = data.color === '#ffffff' ? 20 : 3;
             ctx.lineCap = 'round';
             ctx.stroke();
         }
@@ -483,10 +500,7 @@
         function setColor(c) { currentColor = c; }
         function clearCanvas(send) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            if(send) {
-                if(isHost) broadcast({type:'CLEAR_CANVAS'});
-                else hostConn.send({type:'CLEAR_CANVAS'});
-            }
+            if(send) { if(isHost) broadcast({type:'CLEAR_CANVAS'}); else hostConn.send({type:'CLEAR_CANVAS'}); }
         }
 
         // ================= 5. 聊天与辅助 =================
@@ -494,12 +508,8 @@
             const ipt = document.getElementById('guessInput');
             const val = ipt.value.trim();
             if(!val) return;
-            
-            // 发送猜词请求
             const msg = { type: 'GUESS', name: myName, content: val, from: myId };
-            if(isHost) handleData(msg); // 房主自产自销
-            else hostConn.send(msg);
-            
+            if(isHost) handleData(msg); else hostConn.send(msg);
             ipt.value = '';
         }
 
@@ -518,18 +528,12 @@
             players.forEach(p => {
                 let div = document.createElement('div');
                 div.className = `player-card ${p.id === drawerId ? 'drawer' : ''}`;
-                div.innerHTML = `
-                    <div class="p-avatar">🧸</div>
-                    <div class="p-name">${p.name}</div>
-                    <div class="p-score">${p.score}</div>
-                `;
+                div.innerHTML = `<div class="p-avatar">🧸</div><div class="p-name">${p.name}</div><div class="p-score">${p.score}</div>`;
                 list.appendChild(div);
             });
         }
 
-        function copyId() {
-            navigator.clipboard.writeText(myId).then(()=>alert('房号已复制'));
-        }
+        function copyId() { navigator.clipboard.writeText(myId).then(()=>alert('房号已复制')); }
     </script>
 </body>
 </html>
