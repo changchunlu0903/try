@@ -21861,6 +21861,425 @@ window.openAISettings = function() {
 
 })();
 
+/* ================= 🎨 V46.0 补丁：美化模式强力修复 (API重连+解析增强) ================= */
+(function() {
+    console.log("🚀 执行 V46.0：正在重写 API 调用与 JSON 解析引擎...");
+
+    // ================= 1. 强力 JSON 清洗引擎 (专门修补 AI 的烂代码) =================
+    window.safeExtractJSON = function(str) {
+        try {
+            // A. 尝试直接解析
+            return JSON.parse(str);
+        } catch (e) {
+            console.log("⚠️以此方式解析失败，尝试清洗...");
+            // B. 提取最外层的 [...] 或 {...}
+            var match = str.match(/\[[\s\S]*\]/) || str.match(/\{[\s\S]*\}/);
+            if (!match) throw new Error("AI 没有返回有效的数据格式");
+            
+            var clean = match[0];
+            
+            // C. 暴力清洗：修复常见的 JSON 破坏符
+            // 1. 把未转义的换行符变成 \\n
+            clean = clean.replace(/(?<!\\)\n/g, "\\n");
+            // 2. 清理控制字符
+            clean = clean.replace(/[\u0000-\u0019]+/g, ""); 
+            
+            try {
+                return JSON.parse(clean);
+            } catch (e2) {
+                console.error("清洗后仍无法解析:", clean);
+                throw new Error("AI 生成的代码格式太乱，无法读取。请重试。");
+            }
+        }
+    };
+
+    // ================= 2. 重写 API 调用函数 (确保引用正确) =================
+    window.fetchAI = async function(userPrompt, config) {
+        if(!config || !config.apiKey) throw new Error("未检测到 API Key，请去设置里填写");
+
+        var messages = [{ role: "user", content: userPrompt }];
+
+        // 检查是否有临时破限 (V37+ 兼容)
+        if (window.tempActiveJailbreak) {
+            messages.unshift({ role: "system", content: window.tempActiveJailbreak });
+        }
+
+        console.log("📡 正在发送请求...", config.apiUrl);
+
+        try {
+            const response = await fetch(`${config.apiUrl}/chat/completions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.apiKey}` },
+                body: JSON.stringify({
+                    model: config.model || 'gpt-3.5-turbo',
+                    messages: messages,
+                    temperature: 0.7,
+                    stream: false
+                })
+            });
+
+            if (!response.ok) {
+                var errText = await response.text();
+                throw new Error(`API 报错 (${response.status}): ${errText}`);
+            }
+
+            const data = await response.json();
+            return data.choices[0].message.content;
+
+        } catch (e) {
+            console.error("API 请求失败:", e);
+            throw e; // 抛出错误给界面显示
+        }
+    };
+
+    // ================= 3. 重写美化生成逻辑 (集成 V38 预览功能) =================
+    // 这个函数会覆盖 V36/V38 的逻辑，使用上面新的 fetchAI 和 safeExtractJSON
+    window.runBeautifyGeneration = async function(text, loadingId) {
+        var chat = document.getElementById('advisorChat');
+        
+        // 1. 获取配置
+        var config = window.aiConfig || JSON.parse(localStorage.getItem('my_ai_config'));
+        var desc = document.getElementById('cardDesc').value || "通用角色";
+
+        // 2. 构建 Prompt
+        var styleGuideContent = window.frontendStyleGuide || "";
+        var stylePrompt = "";
+        
+        if (styleGuideContent) {
+            stylePrompt = `
+━━━━━━━━━━━━━━━━━━━━━━━━
+【强制参考样式规范】
+请忽略默认风格，必须严格复用以下 CSS 变量和类名：
+\`\`\`css
+${styleGuideContent.substring(0, 3000)}
+\`\`\`
+━━━━━━━━━━━━━━━━━━━━━━━━
+            `;
+        }
+
+        var prompt = `
+        你是一个前端UI设计师。
+        用户需求：${text}
+        角色设定简述：${desc.substring(0, 200)}...
+        
+        ${stylePrompt}
+        
+        请设计 3 个 HTML/CSS 方案。
+        
+        🔥 **格式极其重要**：
+        1. 返回纯 JSON 数组。
+        2. "code" 字段内必须包含完整的 <style> 和 HTML 结构。
+        3. 严禁在 JSON 字符串内部直接换行，请使用 \\n 代替换行。
+        4. JSON 内部的双引号必须转义 (\\")。
+        
+        格式示例：
+        [
+            {
+                "name": "方案名",
+                "desc": "设计思路",
+                "regex": "/正则/g",
+                "code": "<style>...</style><div>...</div>"
+            }
+        ]
+        `;
+
+        try {
+            // 3. 调用 AI
+            var res = await fetchAI(prompt, config);
+            console.log("🤖 AI 返回原始内容:", res); // 方便调试
+
+            // 4. 解析数据 (使用强力清洗引擎)
+            var data = safeExtractJSON(res);
+            
+            // 移除 Loading
+            var loadEl = document.getElementById(loadingId);
+            if(loadEl) loadEl.remove();
+
+            if (!Array.isArray(data) || data.length === 0) throw new Error("生成数据为空");
+
+            chat.innerHTML += `<div class="advisor-bubble">✨ 设计完成！<b>点击下方灰色区域可放大预览：</b></div>`;
+
+            // 5. 渲染卡片 (集成 V38 预览逻辑)
+            data.forEach((item, idx) => {
+                var safeCode = encodeURIComponent(item.code);
+                var safeRegex = encodeURIComponent(item.regex);
+                var previewId = `preview_box_${Date.now()}_${idx}`;
+
+                chat.innerHTML += `
+                    <div class="advisor-bubble" style="border-left:4px solid #9c27b0; padding:10px;">
+                        <b>🎨 方案 ${idx+1}: ${item.name}</b>
+                        <div style="font-size:11px; color:#666; margin-bottom:5px;">${item.desc}</div>
+                        
+                        <div style="background:#eee; padding:10px; border-radius:5px; margin:5px 0; min-height:60px; overflow:hidden; cursor: zoom-in; border: 1px solid #ccc; transition: 0.2s;"
+                             title="点击放大查看全屏效果"
+                             onmouseover="this.style.borderColor='#9c27b0'"
+                             onmouseout="this.style.borderColor='#ccc'"
+                             onclick="window.enlargePreview('${safeCode}')">
+                             
+                            <div id="${previewId}" style="pointer-events: none; transform: scale(0.8); transform-origin: top left; width: 125%;"></div>
+                        </div>
+
+                        <div style="display:flex; gap:5px;">
+                            <button class="advisor-action-btn" style="flex:1; background:#e1bee7; color:#4a148c;" onclick="applyBeautify('${safeCode}', '${safeRegex}')">
+                                ✅ 使用
+                            </button>
+                            <button class="advisor-action-btn" style="flex:1; background:#fff; border:1px solid #999; color:#555;" onclick="refineBeautify('${safeCode}', '${item.name}')">
+                                🔧 提意见
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                // 延迟渲染缩略图
+                setTimeout(() => {
+                    var container = document.getElementById(previewId);
+                    if(container) {
+                        if (!container.shadowRoot) container.attachShadow({mode: 'open'});
+                        container.shadowRoot.innerHTML = item.code;
+                    }
+                }, 100);
+            });
+            
+            chat.scrollTop = chat.scrollHeight;
+
+        } catch(e) {
+            console.error(e);
+            var loadEl = document.getElementById(loadingId);
+            if(loadEl) loadEl.remove();
+            
+            // 🔥 显示详细错误原因
+            chat.innerHTML += `
+                <div class="advisor-bubble" style="background:#fff0f0; color:#c0392b; border:1px solid #e74c3c;">
+                    ❌ <b>生成失败</b><br>
+                    原因：${e.message}<br>
+                    <small>建议：请检查 API Key 是否正确，或者重试一次。</small>
+                </div>
+            `;
+            chat.scrollTop = chat.scrollHeight;
+        }
+    };
+
+    console.log("✅ V46.0：API 连接与 JSON 解析已加固");
+    if(window.auth && window.auth.toast) window.auth.toast('🔧 美化生成功能已修复');
+
+})();
+
+
+/* ================= 📦 V45.0 补丁：图文双导 (TavernPNG 隐写术) ================= */
+(function() {
+    console.log("🚀 执行 V45.0：安装 PNG 隐写引擎，支持双格式导出...");
+
+    // ================= 1. 核心工具：CRC32 校验 (PNG格式必需) =================
+    var crcTable = [];
+    for (var i = 0; i < 256; i++) {
+        var c = i;
+        for (var k = 0; k < 8; k++) c = (c & 1) ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+        crcTable[i] = c;
+    }
+    function crc32(buf) {
+        var crc = 0xFFFFFFFF;
+        for (var i = 0; i < buf.length; i++) crc = (crc >>> 8) ^ crcTable[(crc ^ buf[i]) & 0xFF];
+        return (crc ^ 0xFFFFFFFF) >>> 0;
+    }
+
+    // ================= 2. 核心工具：PNG 注入器 =================
+    function injectTavernData(pngBuffer, jsonStr) {
+        // A. 准备数据：tEXt 块结构
+        // Keyword: "chara" + null separator + Base64(JSON)
+        // 注意：Tavern 标准是用 Base64 编码 JSON
+        
+        // 处理中文编码
+        var uint8Json = new TextEncoder().encode(jsonStr);
+        var base64Json = btoa(String.fromCharCode.apply(null, uint8Json));
+        
+        var keyword = "chara";
+        var chunkDataLen = keyword.length + 1 + base64Json.length;
+        var chunkData = new Uint8Array(chunkDataLen);
+        
+        // 写入 Keyword "chara"
+        for(var i=0; i<keyword.length; i++) chunkData[i] = keyword.charCodeAt(i);
+        chunkData[keyword.length] = 0; // null separator
+        // 写入 Base64 数据
+        for(var i=0; i<base64Json.length; i++) chunkData[keyword.length + 1 + i] = base64Json.charCodeAt(i);
+
+        // B. 计算 CRC
+        // CRC 计算范围：Type code ("tEXt") + Data
+        var typeAndData = new Uint8Array(4 + chunkDataLen);
+        typeAndData.set([116, 69, 88, 116], 0); // "tEXt"
+        typeAndData.set(chunkData, 4);
+        var crcVal = crc32(typeAndData);
+
+        // C. 组装完整 Chunk
+        // Length (4 bytes) + Type (4 bytes) + Data + CRC (4 bytes)
+        var fullChunkLen = 4 + 4 + chunkDataLen + 4;
+        var fullChunk = new Uint8Array(fullChunkLen);
+        
+        // Length
+        var dataLen = chunkDataLen;
+        fullChunk[0] = (dataLen >>> 24) & 0xFF;
+        fullChunk[1] = (dataLen >>> 16) & 0xFF;
+        fullChunk[2] = (dataLen >>> 8) & 0xFF;
+        fullChunk[3] = dataLen & 0xFF;
+        
+        // Type + Data
+        fullChunk.set(typeAndData, 4);
+        
+        // CRC
+        fullChunk[fullChunkLen-4] = (crcVal >>> 24) & 0xFF;
+        fullChunk[fullChunkLen-3] = (crcVal >>> 16) & 0xFF;
+        fullChunk[fullChunkLen-2] = (crcVal >>> 8) & 0xFF;
+        fullChunk[fullChunkLen-1] = crcVal & 0xFF;
+
+        // D. 插入原 PNG (插在 IHDR 后面)
+        // PNG 头部是 8 字节签名 + IHDR 块 (通常 25 字节: 4 len + 4 type + 13 data + 4 crc)
+        // IHDR 总是第一个块，固定位置结束于 8 + 25 = 33 字节处
+        var newPng = new Uint8Array(pngBuffer.byteLength + fullChunkLen);
+        newPng.set(new Uint8Array(pngBuffer.slice(0, 33)), 0); // 复制头部 + IHDR
+        newPng.set(fullChunk, 33); // 插入我们的 tEXt
+        newPng.set(new Uint8Array(pngBuffer.slice(33)), 33 + fullChunkLen); // 复制剩余部分
+
+        return newPng;
+    }
+
+    // ================= 3. 核心：重写导出函数 =================
+    window.forceExportTavernCard = async function() {
+        try {
+            // A. 视觉反馈
+            var allButtons = document.querySelectorAll('button');
+            var targetBtn = null;
+            allButtons.forEach(btn => {
+                if (btn.innerText.includes("导出")) {
+                    targetBtn = btn;
+                    btn.innerHTML = "📦 正在打包...";
+                    btn.style.background = "#e67e22";
+                    btn.disabled = true;
+                }
+            });
+
+            // B. 抓取数据 (复用之前的逻辑)
+            var getVal = function(id) { var el = document.getElementById(id); return el ? el.value : ""; };
+            var name = getVal('cardName').trim() || "未命名角色";
+            
+            var cardData = {
+                "spec": "chara_card_v2",
+                "spec_version": "2.0",
+                "data": {
+                    "name": name,
+                    "description": getVal('cardDesc'),
+                    "first_mes": getVal('cardFirstMes'),
+                    "mes_example": getVal('cardMesExample'),
+                    "scenario": getVal('cardScenario'),
+                    "creator_notes": getVal('cardNote') || getVal('statEditor'),
+                    "system_prompt": "",
+                    "post_history_instructions": "",
+                    "alternate_greetings": [],
+                    "character_book": null,
+                    "tags": [],
+                    "creator": "Lili's Workshop",
+                    "character_version": "1.0",
+                    "extensions": {}
+                }
+            };
+
+            // 注入高级数据
+            if (window.currentCardRegexes && window.currentCardRegexes.length > 0) 
+                cardData.data.extensions.regex_scripts = window.currentCardRegexes;
+            
+            if (window.currentWorldInfo && window.currentWorldInfo.entries && window.currentWorldInfo.entries.length > 0) {
+                cardData.data.character_book = {
+                    "name": "Embedded World",
+                    "scan_depth": 100, "token_budget": 500, "recursive_scanning": false, "extensions": {},
+                    "entries": window.currentWorldInfo.entries
+                };
+            }
+
+            var jsonStr = JSON.stringify(cardData, null, 2);
+
+            // --- C. 导出 1：下载 JSON (保底) ---
+            var blobJson = new Blob([jsonStr], {type: "application/json"});
+            var aJson = document.createElement('a');
+            aJson.href = URL.createObjectURL(blobJson);
+            aJson.download = name + ".json";
+            document.body.appendChild(aJson);
+            aJson.click();
+            document.body.removeChild(aJson);
+
+            // --- D. 导出 2：生成 PNG (含隐写) ---
+            
+            // 1. 获取图片源 (Canvas 转换)
+            var imgPreview = document.getElementById('cardAvatarPreview');
+            var canvas = document.createElement('canvas');
+            var ctx = canvas.getContext('2d');
+            
+            // 如果有预览图且显示出来了
+            if (imgPreview && imgPreview.src && imgPreview.style.display !== 'none' && !imgPreview.src.includes('svg')) {
+                // 加载现有图片
+                var img = new Image();
+                img.crossOrigin = "Anonymous"; // 防止跨域报错
+                img.src = imgPreview.src;
+                
+                await new Promise(r => img.onload = r);
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+            } else {
+                // 没有图片，生成一个纯色背景+名字
+                canvas.width = 400;
+                canvas.height = 600;
+                ctx.fillStyle = "#ffb7c5"; // 粉色背景
+                ctx.fillRect(0, 0, 400, 600);
+                ctx.fillStyle = "#fff";
+                ctx.font = "bold 40px sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(name.substring(0, 4), 200, 300);
+                ctx.font = "20px sans-serif";
+                ctx.fillText("(Tavern Card)", 200, 350);
+            }
+
+            // 2. 转为 Blob -> ArrayBuffer
+            canvas.toBlob(async function(blob) {
+                var arrayBuffer = await blob.arrayBuffer();
+                
+                // 3. 🔥 注入数据
+                var finalBuffer = injectTavernData(arrayBuffer, jsonStr);
+                
+                // 4. 下载 PNG
+                var blobPng = new Blob([finalBuffer], {type: "image/png"});
+                var urlPng = URL.createObjectURL(blobPng);
+                var aPng = document.createElement('a');
+                aPng.href = urlPng;
+                aPng.download = name + ".png";
+                document.body.appendChild(aPng);
+                aPng.click();
+                
+                // 清理
+                setTimeout(function() {
+                    document.body.removeChild(aPng);
+                    URL.revokeObjectURL(urlPng);
+                    
+                    if (targetBtn) {
+                        targetBtn.innerHTML = "✅ 双份导出成功";
+                        targetBtn.style.background = "#00b894";
+                        targetBtn.disabled = false;
+                        setTimeout(() => targetBtn.innerHTML = "💾 导出 (JSON+PNG)", 2000);
+                    }
+                    if(window.auth && window.auth.toast) window.auth.toast('🎁 成功导出：JSON + PNG图片卡！');
+                }, 500);
+
+            }, 'image/png');
+
+        } catch (e) {
+            console.error("导出崩溃:", e);
+            alert("导出出错: " + e.message);
+            if (targetBtn) { targetBtn.innerHTML = "❌ 失败"; targetBtn.disabled = false; }
+        }
+    };
+
+    console.log("✅ V45.0：隐写引擎已就绪，导出按钮已升级");
+
+})();
+
 
 /* ================= 💾 V37.0 补丁：黑匣子自动备份系统 (防丢数据) ================= */
 (function() {
@@ -21997,6 +22416,8 @@ window.openAISettings = function() {
     console.log("✅ V37.0 黑匣子已启动：您的数据现在安全了");
 
 })();
+
+
 
 /* ================= 💾 V44.0 补丁：全家桶强力存档系统 (防漏版) ================= */
 (function() {
