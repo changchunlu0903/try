@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>🌸 LOPPY 乐园 🌸</title>
     <style>
-        /* === 1. 引入你的定制字体 === */
         @font-face {
             font-family: 'MyCutieFont';
             src: url('https://files.catbox.moe/cweam3.ttf') format('truetype');
@@ -13,7 +12,7 @@
         }
 
         :root {
-            /* 调色盘：草莓牛奶色系 */
+            /* 调色盘 */
             --bg-start: #fff1eb;
             --bg-end: #ace0f9;
             --card-bg: rgba(255, 255, 255, 0.85);
@@ -33,12 +32,12 @@
             display: flex; justify-content: center; align-items: center;
         }
 
-        /* === 背景特效 === */
+        /* 背景特效 */
         .floating-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; overflow: hidden; }
         .floating-item { position: absolute; bottom: -50px; font-size: 24px; opacity: 0.7; animation: floatUp 15s linear infinite; filter: drop-shadow(0 2px 3px rgba(255, 182, 193, 0.4)); }
         @keyframes floatUp { 0% { transform: translateY(0) rotate(0deg) scale(0.8); opacity: 0; } 10% { opacity: 0.8; } 90% { opacity: 0.8; } 100% { transform: translateY(-110vh) rotate(360deg) scale(1.1); opacity: 0; } }
 
-        /* === 主卡片 === */
+        /* 主卡片 */
         .game-card {
             width: 320px; padding: 30px;
             background: var(--card-bg);
@@ -51,11 +50,10 @@
         @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 
         .card-bow { position: absolute; top: -25px; left: 50%; transform: translateX(-50%); font-size: 40px; filter: drop-shadow(0 5px 5px rgba(0,0,0,0.1)); z-index: 20; }
-
         h1 { font-size: 36px; color: var(--text-color); margin-top: 10px; margin-bottom: 5px; text-shadow: 2px 2px 0px #fff; }
         .subtitle { display: inline-block; font-size: 14px; color: #fff; background: var(--main-pink); padding: 4px 15px; border-radius: 20px; margin-bottom: 30px; box-shadow: 0 4px 10px rgba(255, 154, 158, 0.4); }
 
-        /* === 按钮组 === */
+        /* 按钮组 */
         .btn-group { display: flex; flex-direction: column; gap: 15px; }
         .cute-btn {
             position: relative; text-decoration: none; padding: 15px;
@@ -73,34 +71,41 @@
         .back-link { display: block; color: var(--text-color); text-decoration: none; font-size: 14px; opacity: 0.7; transition: opacity 0.3s; }
         .back-link:hover { opacity: 1; text-decoration: underline; text-decoration-style: wavy; text-decoration-color: var(--main-pink); }
 
-        /* === 👇 新增：游戏菜单弹窗 (保持风格一致) 👇 === */
-        .game-menu-modal {
+        /* === 弹窗菜单样式 === */
+        .menu-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.4); backdrop-filter: blur(5px);
             z-index: 999; display: none; justify-content: center; align-items: center;
             opacity: 0; transition: opacity 0.3s;
         }
-        .game-menu-modal.show { display: flex; opacity: 1; }
+        .menu-modal.show { display: flex; opacity: 1; }
 
         .menu-box {
             width: 300px; padding: 25px;
             background: rgba(255, 255, 255, 0.95);
             border-radius: 30px; border: 4px solid #fff;
-            outline: 2px dashed var(--main-pink); outline-offset: -8px;
-            text-align: center;
-            transform: scale(0.8); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            text-align: center; transform: scale(0.8); 
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        .game-menu-modal.show .menu-box { transform: scale(1); }
+        .menu-modal.show .menu-box { transform: scale(1); }
 
-        .menu-title { font-size: 20px; color: var(--main-pink); margin-bottom: 20px; font-weight: bold; }
+        /* 粉色主题框 */
+        .theme-pink { outline: 2px dashed #ff9a9e; outline-offset: -8px; }
+        .theme-pink .menu-title { color: #ff9a9e; }
+        .theme-pink .game-option:hover { border-color: #ff9a9e; background: #fff0f5; }
+
+        /* 蓝色主题框 */
+        .theme-blue { outline: 2px dashed #74b9ff; outline-offset: -8px; }
+        .theme-blue .menu-title { color: #74b9ff; }
+        .theme-blue .game-option:hover { border-color: #74b9ff; background: #f0f8ff; }
+
+        .menu-title { font-size: 20px; margin-bottom: 20px; font-weight: bold; }
         
-        /* 菜单里的选项按钮 */
         .game-option {
             display: flex; align-items: center; padding: 12px; margin-bottom: 10px;
             background: #fff; border-radius: 15px; border: 2px solid #eee;
-            text-decoration: none; color: var(--text-color); transition: 0.2s;
+            text-decoration: none; color: #555; transition: 0.2s;
         }
-        .game-option:hover { border-color: var(--main-pink); background: #fff0f5; transform: translateX(5px); }
         .game-icon { font-size: 24px; margin-right: 10px; }
         .game-text div:first-child { font-size: 16px; font-weight: bold; text-align: left; }
         .game-text div:last-child { font-size: 12px; color: #999; text-align: left; }
@@ -118,32 +123,52 @@
 
     <div class="game-card">
         <div class="card-bow">🎀</div>
-
         <h1>GAME LOPPY</h1>
         <div class="subtitle">✨ 魔法少女竞技场 ✨</div>
 
         <div class="btn-group">
-            <a href="#" class="cute-btn btn-pve" onclick="alert('🐰 人机试炼正在开发中...')">
-                <span style="font-size: 22px;">🐰</span> 
+            <div class="cute-btn btn-pve" onclick="openMenu('ai')">
+                <span style="font-size: 22px;">🤖</span> 
                 <span>人机试炼</span>
-            </a>
+            </div>
 
-            <div class="cute-btn btn-pvp" onclick="openGameMenu()">
+            <div class="cute-btn btn-pvp" onclick="openMenu('pvp')">
                 <span style="font-size: 22px;">💕</span> 
                 <span>密友连线</span>
             </div>
         </div>
 
         <div class="divider"></div>
-
-        <a href="index.html" class="back-link">
-            ↩ 回到百宝箱
-        </a>
+        <a href="index.html" class="back-link">↩ 回到百宝箱</a>
     </div>
 
-    <div class="game-menu-modal" id="gameMenu">
-        <div class="menu-box">
-            <div class="menu-title">✨ 请选择游戏 ✨</div>
+    <div class="menu-modal" id="menuAI">
+        <div class="menu-box theme-blue">
+            <div class="menu-title">🤖 选择人机挑战</div>
+            
+            <a href="game_ai_chat.html" class="game-option">
+                <div class="game-icon">💬</div>
+                <div class="game-text">
+                    <div>AI 陪伴聊天</div>
+                    <div>选择百宝箱里的角色畅聊</div>
+                </div>
+            </a>
+
+            <a href="game_ai_draw.html" class="game-option">
+                <div class="game-icon">🎨</div>
+                <div class="game-text">
+                    <div>AI 灵魂画手</div>
+                    <div>AI 画画，你来猜</div>
+                </div>
+            </a>
+
+            <button class="close-menu-btn" onclick="closeMenu('ai')">关闭</button>
+        </div>
+    </div>
+
+    <div class="menu-modal" id="menuPVP">
+        <div class="menu-box theme-pink">
+            <div class="menu-title">✨ 选择多人游戏</div>
             
             <a href="game_pvp.html" class="game-option">
                 <div class="game-icon">💕</div>
@@ -161,36 +186,44 @@
                 </div>
             </a>
 
-            <button class="close-menu-btn" onclick="closeGameMenu()">关闭</button>
+            <a href="game_draw.html" class="game-option">
+                <div class="game-icon">🖍️</div>
+                <div class="game-text">
+                    <div>灵魂画手 (多人)</div>
+                    <div>3-10人 · 竞速猜画</div>
+                </div>
+            </a>
+
+            <button class="close-menu-btn" onclick="closeMenu('pvp')">关闭</button>
         </div>
     </div>
 
     <script>
-        // === 1. 动态生成少女风飘浮图标 (保持原样) ===
-        const icons = ['🎀', '🌸', '🍓', '🧁', '✨', '🍭', '🧸', '💖', '🍼', '🍰'];
+        // 背景飘浮物
+        const icons = ['🎀', '🌸', '🍓', '🧁', '✨', '🍭', '🧸', '💖'];
         const container = document.getElementById('floatContainer');
-
         for (let i = 0; i < 20; i++) {
             const el = document.createElement('div');
             el.className = 'floating-item';
             el.innerText = icons[Math.floor(Math.random() * icons.length)];
             el.style.left = Math.random() * 100 + '%';
-            const size = Math.random() * 16 + 16;
-            el.style.fontSize = size + 'px';
+            el.style.fontSize = (Math.random() * 16 + 16) + 'px';
             el.style.animationDuration = (Math.random() * 10 + 8) + 's';
             el.style.animationDelay = (Math.random() * 5) + 's';
             container.appendChild(el);
         }
 
-        // === 2. 菜单控制逻辑 (新增) ===
-        function openGameMenu() {
-            const modal = document.getElementById('gameMenu');
+        // 菜单开关逻辑
+        function openMenu(type) {
+            const id = type === 'ai' ? 'menuAI' : 'menuPVP';
+            const modal = document.getElementById(id);
             modal.style.display = 'flex';
             setTimeout(() => modal.classList.add('show'), 10);
         }
 
-        function closeGameMenu() {
-            const modal = document.getElementById('gameMenu');
+        function closeMenu(type) {
+            const id = type === 'ai' ? 'menuAI' : 'menuPVP';
+            const modal = document.getElementById(id);
             modal.classList.remove('show');
             setTimeout(() => modal.style.display = 'none', 300);
         }
