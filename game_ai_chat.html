@@ -28,10 +28,10 @@
         }
         .lobby-header {
             text-align: center; font-size: 24px; color: #a29bfe; margin-bottom: 20px;
-            font-weight: bold; position: relative;
+            font-weight: bold; position: relative; display: flex; justify-content: space-between; align-items: center;
         }
-        .back-btn-lobby {
-            position: absolute; left: 0; top: 0; text-decoration: none; font-size: 24px; color: #555;
+        .back-btn-lobby, .settings-btn-lobby {
+            text-decoration: none; font-size: 24px; cursor: pointer; color: #555; background: none; border: none;
         }
 
         .char-grid {
@@ -57,7 +57,6 @@
             background: #f7f9fc; z-index: 10; display: none; flex-direction: column;
         }
         
-        /* 顶部栏 */
         .chat-header {
             height: 60px; background: rgba(255,255,255,0.95); border-bottom: 1px solid #eee;
             display: flex; align-items: center; padding: 0 15px; flex-shrink: 0;
@@ -69,7 +68,6 @@
         .header-name { font-size: 16px; font-weight: bold; color: #333; }
         .header-status { font-size: 10px; color: #00b894; }
 
-        /* 消息列表 */
         .chat-box {
             flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 15px;
         }
@@ -84,8 +82,8 @@
         }
         .bubble.user { background: #a29bfe; color: white; border-bottom-right-radius: 2px; }
         .bubble.ai { background: #fff; color: #333; border-bottom-left-radius: 2px; border: 1px solid #eee; }
+        .bubble p { margin: 0; } /* Markdown 修复 */
         
-        /* 底部输入 */
         .input-area {
             padding: 10px; background: #fff; border-top: 1px solid #eee;
             display: flex; gap: 10px; align-items: flex-end;
@@ -100,9 +98,22 @@
             color: white; border: none; font-size: 18px; cursor: pointer;
             display: flex; align-items: center; justify-content: center; flex-shrink: 0;
         }
-
-        /* 加载动画 */
         .typing { font-size: 12px; color: #999; margin-left: 10px; font-style: italic; }
+
+        /* === 设置弹窗 === */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 9999; display: none;
+            justify-content: center; align-items: center;
+        }
+        .modal {
+            background: #fff; width: 300px; padding: 20px; border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 12px; color: #888; margin-bottom: 5px; }
+        .form-group input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }
+        .modal-btn { width: 100%; padding: 10px; background: #a29bfe; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
 
     </style>
 </head>
@@ -111,11 +122,12 @@
     <div id="lobbyScreen">
         <div class="lobby-header">
             <a href="game_loppy.html" class="back-btn-lobby">🔙</a>
-            选择通话对象
+            <span>选择通话对象</span>
+            <button class="settings-btn-lobby" onclick="openSettings()">⚙️</button>
         </div>
         <div class="char-grid" id="charList">
             <div style="grid-column:span 2; text-align:center; color:#999; margin-top:50px;">
-                正在连接百宝箱数据库...<br>如果没有显示角色，请先去百宝箱添加哦！
+                正在连接百宝箱数据库...<br>如果看不到人，说明数据库为空。
             </div>
         </div>
     </div>
@@ -130,12 +142,31 @@
             </div>
         </div>
 
-        <div class="chat-box" id="msgList">
-            </div>
+        <div class="chat-box" id="msgList"></div>
 
         <div class="input-area">
             <textarea id="inputMsg" rows="1" placeholder="发消息..." oninput="autoResize(this)"></textarea>
             <button class="send-btn" onclick="sendMsg()">➤</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal">
+            <h3 style="text-align:center; color:#a29bfe; margin-bottom:15px;">🔧 AI 配置</h3>
+            <div class="form-group">
+                <label>🔗 API 地址 (例如 https://api.openai.com/v1)</label>
+                <input type="text" id="apiUrl" placeholder="默认: https://api.openai.com/v1">
+            </div>
+            <div class="form-group">
+                <label>🔑 API Key (必填)</label>
+                <input type="password" id="apiKey" placeholder="sk-...">
+            </div>
+            <div class="form-group">
+                <label>🧠 模型名称</label>
+                <input type="text" id="modelName" placeholder="默认: gpt-3.5-turbo">
+            </div>
+            <button class="modal-btn" onclick="saveSettings()">💾 保存配置</button>
+            <div style="text-align:center; margin-top:10px; font-size:12px; color:#aaa; cursor:pointer;" onclick="closeSettings()">关闭</div>
         </div>
     </div>
 
@@ -146,41 +177,69 @@
         
         let dbCharacters = [];
         let currentCharacter = null;
-        let chatHistory = []; // 简单的上下文记忆
-        
-        // 读取 AI 配置 (从百宝箱的 localStorage 读取)
-        const aiConfig = JSON.parse(localStorage.getItem('my_ai_config') || '{}');
+        let chatHistory = []; 
+        let aiConfig = {};
 
-        // ================= 1. 初始化：加载百宝箱数据 =================
+        // ================= 1. 初始化 =================
         window.onload = function() {
-            if (!aiConfig.apiKey) {
-                alert("⚠️ 警告：未检测到 API Key。\n请先去百宝箱(34.html) -> 侍从 -> 设置里配置 AI Key，否则无法对话。");
-            }
+            // 尝试读取配置
+            loadConfig();
+            // 加载角色
             loadCharacters();
         };
 
+        function loadConfig() {
+            const saved = localStorage.getItem('my_ai_config');
+            if (saved) {
+                aiConfig = JSON.parse(saved);
+            } else {
+                // 默认值
+                aiConfig = { apiUrl: 'https://api.openai.com/v1', model: 'gpt-3.5-turbo', apiKey: '' };
+            }
+        }
+
+        // ================= 2. 数据库读取 (带超时保护) =================
         function loadCharacters() {
-            const request = indexedDB.open(DB_NAME);
+            const list = document.getElementById('charList');
             
-            request.onerror = () => {
-                document.getElementById('charList').innerHTML = '<div style="text-align:center">无法读取数据库，请确保百宝箱已打开过。</div>';
-            };
+            // 超时保护：如果数据库卡死，3秒后提示
+            const timeout = setTimeout(() => {
+                if (dbCharacters.length === 0) {
+                    list.innerHTML = '<div style="text-align:center; grid-column:span 2; color:#aaa;">读取超时...<br>可能是浏览器限制了跨文件读取。<br>请尝试把文件部署到服务器(Live Server)。</div>';
+                }
+            }, 3000);
 
-            request.onsuccess = (e) => {
-                const db = e.target.result;
-                if (!db.objectStoreNames.contains(STORE_NAME)) return;
-
-                const tx = db.transaction([STORE_NAME], 'readonly');
-                const store = tx.objectStore(STORE_NAME);
-                const req = store.getAll();
-
-                req.onsuccess = () => {
-                    const items = req.result;
-                    // 筛选出有图片或设定的条目
-                    dbCharacters = items.filter(i => i.name && (i.tags || i.description || i.resources));
-                    renderCharacterList();
+            try {
+                const request = indexedDB.open(DB_NAME);
+                
+                request.onerror = () => {
+                    clearTimeout(timeout);
+                    list.innerHTML = '<div style="text-align:center; grid-column:span 2;">无法读取百宝箱数据。<br>请确保你在同一个浏览器打开过百宝箱。</div>';
                 };
-            };
+
+                request.onsuccess = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        clearTimeout(timeout);
+                        list.innerHTML = '<div style="text-align:center; grid-column:span 2;">百宝箱是空的...<br>快去添加角色卡吧！</div>';
+                        return;
+                    }
+
+                    const tx = db.transaction([STORE_NAME], 'readonly');
+                    const store = tx.objectStore(STORE_NAME);
+                    const req = store.getAll();
+
+                    req.onsuccess = () => {
+                        clearTimeout(timeout);
+                        const items = req.result;
+                        dbCharacters = items.filter(i => i.name); // 只要有名字就算
+                        renderCharacterList();
+                    };
+                };
+            } catch(e) {
+                clearTimeout(timeout);
+                console.error(e);
+            }
         }
 
         function renderCharacterList() {
@@ -188,20 +247,16 @@
             list.innerHTML = '';
 
             if (dbCharacters.length === 0) {
-                list.innerHTML = '<div style="text-align:center; grid-column:span 2;">百宝箱是空的...<br>快去添加角色卡吧！</div>';
+                list.innerHTML = '<div style="text-align:center; grid-column:span 2; color:#999;">百宝箱里没有角色...</div>';
                 return;
             }
 
             dbCharacters.forEach((char, idx) => {
-                // 找头像
-                let avatar = "https://files.catbox.moe/fv8f8p.gif"; // 默认
+                let avatar = "https://files.catbox.moe/fv8f8p.gif"; 
                 if (char.resources) {
                     const imgs = char.resources.filter(r => r.type === 'image');
-                    if (imgs.length > 0) {
-                        avatar = imgs[Math.min(char.coverIndex||0, imgs.length-1)].content;
-                    }
+                    if (imgs.length > 0) avatar = imgs[Math.min(char.coverIndex||0, imgs.length-1)].content;
                 }
-                // 找标签
                 const tagStr = (char.tags || []).join(' / ') || "暂无标签";
 
                 const div = document.createElement('div');
@@ -216,11 +271,17 @@
             });
         }
 
-        // ================= 2. 聊天逻辑 =================
+        // ================= 3. 聊天逻辑 =================
         function startChat(idx) {
+            // 检查 Key
+            if (!aiConfig.apiKey) {
+                alert("⚠️ 请先点击右上角的齿轮 ⚙️ 配置 API Key！");
+                openSettings();
+                return;
+            }
+
             currentCharacter = dbCharacters[idx];
             
-            // 找头像
             let avatar = "https://files.catbox.moe/fv8f8p.gif";
             if (currentCharacter.resources) {
                 const imgs = currentCharacter.resources.filter(r => r.type === 'image');
@@ -228,22 +289,16 @@
             }
             currentCharacter.avatarUrl = avatar;
 
-            // UI 切换
             document.getElementById('lobbyScreen').style.display = 'none';
             document.getElementById('chatScreen').style.display = 'flex';
             
-            // 设置头部
             document.getElementById('currentName').innerText = currentCharacter.name;
             document.getElementById('currentAvatar').src = avatar;
-            
-            // 清空旧消息
             document.getElementById('msgList').innerHTML = '';
             chatHistory = [];
             
-            // 尝试找开场白
+            // 开场白
             let firstMes = currentCharacter.first_mes || `你好呀，我是${currentCharacter.name}。`;
-            // 如果数据库里有 first_mes 字段直接用，没有则用 AI 生成一句问候
-            // 这里简单处理，直接模拟一条 AI 消息
             appendMessage('ai', firstMes);
             chatHistory.push({ role: "assistant", content: firstMes });
         }
@@ -259,34 +314,28 @@
             const text = input.value.trim();
             if (!text) return;
 
-            // 1. 上屏用户消息
             appendMessage('user', text);
             input.value = '';
-            input.style.height = 'auto'; // 重置高度
+            input.style.height = 'auto';
 
             if (!aiConfig.apiKey) {
-                appendMessage('ai', '🚫 (未配置 API Key，请去百宝箱设置)');
+                appendMessage('ai', '🚫 掉线了... (请检查设置里的 API Key)');
                 return;
             }
 
-            // 2. 准备 System Prompt
-            // 尝试从百宝箱数据中拼凑人设
-            let prompt = `你现在扮演角色：${currentCharacter.name}。\n`;
-            
-            if (currentCharacter.description) prompt += `详细设定：${currentCharacter.description}\n`;
-            if (currentCharacter.tags) prompt += `性格标签：${currentCharacter.tags.join(',')}\n`;
-            if (currentCharacter.creator_notes) prompt += `补充设定：${currentCharacter.creator_notes}\n`;
-            
-            prompt += `\n请完全沉浸在角色中，用角色的语气回复。不要输出任何出戏的解释。`;
+            // 构建 Prompt
+            let prompt = `你现在扮演：${currentCharacter.name}。\n`;
+            if (currentCharacter.description) prompt += `设定：${currentCharacter.description}\n`;
+            if (currentCharacter.tags) prompt += `标签：${currentCharacter.tags.join(',')}\n`;
+            if (currentCharacter.creator_notes) prompt += `补充：${currentCharacter.creator_notes}\n`;
+            prompt += `\n请沉浸在角色中回复，不要出戏，不要解释你是AI。`;
 
-            // 3. 构建消息链
             const messages = [
                 { role: "system", content: prompt },
-                ...chatHistory, // 带上历史记录
+                ...chatHistory,
                 { role: "user", content: text }
             ];
 
-            // 4. 显示加载状态
             const chatBox = document.getElementById('msgList');
             const loadingId = 'loading-' + Date.now();
             const loadingDiv = document.createElement('div');
@@ -296,9 +345,11 @@
             chatBox.appendChild(loadingDiv);
             chatBox.scrollTop = chatBox.scrollHeight;
 
-            // 5. 请求 AI
             try {
-                const response = await fetch(`${aiConfig.apiUrl}/chat/completions`, {
+                // 去掉末尾斜杠
+                const apiUrl = aiConfig.apiUrl.replace(/\/$/, '') + '/chat/completions';
+                
+                const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${aiConfig.apiKey}` },
                     body: JSON.stringify({
@@ -313,51 +364,65 @@
                 if (data.choices) {
                     const reply = data.choices[0].message.content;
                     appendMessage('ai', reply);
-                    
-                    // 记入历史 (限制最近 10 条，防止 token 爆炸)
                     chatHistory.push({ role: "user", content: text });
                     chatHistory.push({ role: "assistant", content: reply });
                     if (chatHistory.length > 20) chatHistory = chatHistory.slice(-20);
-                } else {
-                    appendMessage('ai', '❌ API 响应错误');
+                } else if (data.error) {
+                    appendMessage('ai', `❌ API 报错: ${data.error.message}`);
                 }
 
             } catch (e) {
-                document.getElementById(loadingId).remove();
+                if(document.getElementById(loadingId)) document.getElementById(loadingId).remove();
                 appendMessage('ai', '❌ 网络错误：' + e.message);
             }
         }
 
-        // 辅助：渲染消息气泡
         function appendMessage(role, text) {
             const box = document.getElementById('msgList');
             const row = document.createElement('div');
             row.className = `msg-row ${role}`;
             
-            // 解析 Markdown (加粗、斜体等)
-            const htmlContent = marked.parse(text);
+            // 使用 marked 解析 Markdown (如果没加载成功就直接显示文本)
+            let htmlContent = text;
+            if (typeof marked !== 'undefined') {
+                htmlContent = marked.parse(text);
+            }
 
             if (role === 'ai') {
-                row.innerHTML = `
-                    <img src="${currentCharacter.avatarUrl}" class="msg-avatar">
-                    <div class="bubble ai">${htmlContent}</div>
-                `;
+                row.innerHTML = `<img src="${currentCharacter.avatarUrl}" class="msg-avatar"><div class="bubble ai">${htmlContent}</div>`;
             } else {
-                // 用户头像用默认的
-                row.innerHTML = `
-                    <div class="bubble user">${htmlContent}</div>
-                    <img src="https://files.catbox.moe/kp648j.jpeg" class="msg-avatar">
-                `;
+                row.innerHTML = `<div class="bubble user">${htmlContent}</div><img src="https://files.catbox.moe/kp648j.jpeg" class="msg-avatar">`;
             }
             
             box.appendChild(row);
             box.scrollTop = box.scrollHeight;
         }
 
-        // 辅助：输入框自动长高
         function autoResize(textarea) {
             textarea.style.height = 'auto';
             textarea.style.height = textarea.scrollHeight + 'px';
+        }
+
+        // ================= 4. 设置相关 =================
+        function openSettings() {
+            document.getElementById('settingsModal').style.display = 'flex';
+            document.getElementById('apiUrl').value = aiConfig.apiUrl;
+            document.getElementById('apiKey').value = aiConfig.apiKey;
+            document.getElementById('modelName').value = aiConfig.model;
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').style.display = 'none';
+        }
+
+        function saveSettings() {
+            aiConfig.apiUrl = document.getElementById('apiUrl').value.trim() || 'https://api.openai.com/v1';
+            aiConfig.apiKey = document.getElementById('apiKey').value.trim();
+            aiConfig.model = document.getElementById('modelName').value.trim() || 'gpt-3.5-turbo';
+            
+            localStorage.setItem('my_ai_config', JSON.stringify(aiConfig));
+            alert("✅ 配置已保存！");
+            closeSettings();
         }
     </script>
 </body>
