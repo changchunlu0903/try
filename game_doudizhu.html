@@ -278,15 +278,34 @@
     const RANK_VAL = { '3':3, '4':4, '5':5, '6':6, '7':7, '8':8, '9':9, '10':10, 'J':11, 'Q':12, 'K':13, 'A':14, '2':15, 'S':16, 'B':17 };
     const DISPLAY_MAP = { 'S':'🃏', 'B':'🃏' }; 
 
+    // 全局变量
     let peer = null, connList = [], hostConn = null;
     let myId = null, myIdx = -1; 
     let myCards = [], diPai = [];
     let landlordIdx = -1;
     let gamePhase = 'idle'; 
-    let lastPlayed = { idx: -1, typeInfo: null, cards: [] }; // 存下来具体的牌，方便放大看
+    let lastPlayed = { idx: -1, typeInfo: null, cards: [] }; 
     let allHandsBackup = [];
 
+    // --- 👤 个人中心数据 ---
+    let myProfile = {
+        name: localStorage.getItem('ddz_name') || '',
+        avatar: localStorage.getItem('ddz_avatar') || '' 
+    };
+
     // ================= 1. 初始化 =================
+    // 页面加载时自动恢复名字/头像显示
+    window.onload = function() {
+        if(myProfile.name) {
+            document.getElementById('myNickInput').value = myProfile.name;
+            document.querySelector('#p0 .p-name').innerText = myProfile.name;
+        }
+        if(myProfile.avatar) {
+            updateAvatarUI(myProfile.avatar);
+            document.querySelector('#p0 .avatar').innerHTML = `<img src="${myProfile.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+        }
+    };
+
     try {
         peer = new Peer(null, { debug: 2 });
         peer.on('open', id => {
@@ -302,21 +321,36 @@
         document.getElementById('joinUI').style.display = 'none';
         document.getElementById('hostWait').style.display = 'block';
         myIdx = 0; 
+        
+        // 房主也要更新自己的名字到桌面
+        saveMyProfile();
+
         peer.on('connection', conn => {
             connList.push(conn);
             conn.on('data', data => handleData(data));
             conn.on('open', () => {
+                // 1. 发送欢迎信息 (含房主头像名字)
+                conn.send({ 
+                    type: 'WELCOME', 
+                    idx: connList.length,
+                    hostProfile: myProfile // 把房主资料发给新人
+                });
+
+                // 2. 如果是重连
                 if (allHandsBackup.length > 0) {
-                    let pIdx = connList.length;
+                    let pIdx = connList.length; // 简单按顺序补位
                     conn.send({ type: 'RECONNECT', idx: pIdx, cards: allHandsBackup[pIdx], diPai: diPai, landlord: landlordIdx });
                 } else {
+                    // 3. 正常进房
                     document.getElementById('pCount').innerText = connList.length + 1;
-                    conn.send({ type: 'WELCOME', idx: connList.length });
                     if(connList.length === 2) {
                         let btn = document.getElementById('startBtn');
                         btn.disabled = false; btn.style.opacity = 1; btn.innerText = "✨ 人齐了，发牌！";
                     }
                 }
+                
+                // 4. 广播房主资料给所有人(刷新一下)
+                broadcastProfile();
             });
             conn.on('close', () => { alert('有人退出'); location.reload(); });
         });
@@ -325,11 +359,24 @@
     // ================= 3. 玩家逻辑 =================
     function joinRoom() {
         const id = document.getElementById('joinId').value.trim();
+        const nameInput = document.getElementById('myNickInput').value.trim();
+        // 优先用输入框的名字，如果没有就用缓存的
+        if(nameInput) myProfile.name = nameInput;
+        if(!myProfile.name) myProfile.name = "神秘玩家";
+        
+        saveMyProfile(); // 保存最新名字
+
         if(!id) return alert('请输入房号');
-        hostConn = peer.connect(id);
+        
+        // 🔥 连接时带上我的资料
+        hostConn = peer.connect(id, { metadata: { name: myProfile.name, avatar: myProfile.avatar } });
+        
         hostConn.on('open', () => {
             document.getElementById('lobbyModal').style.display = 'none';
             document.getElementById('statusText').innerText = "等待发牌...";
+            
+            // 连上后再次广播自己的资料，确保大家都能看到
+            setTimeout(broadcastProfile, 500);
         });
         hostConn.on('data', data => handleData(data));
         hostConn.on('close', () => { alert('房主断开'); location.reload(); });
@@ -339,7 +386,17 @@
     function handleData(data) {
         if(data.type === 'WELCOME') {
             myIdx = data.idx; updateNames();
-        } else if(data.type === 'START') {
+            // 收到房主资料，更新界面上的“上家”或“下家”
+            if(data.hostProfile) updatePlayerUI(0, data.hostProfile);
+        } 
+        else if(data.type === 'UPDATE_PROFILE') {
+            // 收到别人更新头像/名字
+            const viewIdx = getRelativeIdx(data.idx);
+            updatePlayerUI(viewIdx, data);
+            // 房主负责转发给第三人
+            if(myIdx === 0) connList.forEach(c => c.send(data));
+        }
+        else if(data.type === 'START') {
             resetTable();
             document.getElementById('lobbyModal').style.display = 'none';
             diPai = data.diPai; myCards = data.hands[myIdx];
@@ -381,49 +438,39 @@
         handleData(msg); connList.forEach(c => c.send(msg));
     }
 
-    // ================= 6. 核心规则判定 (修复乱出牌问题) =================
+    // ================= 6. 核心规则判定 (修复版) =================
     function getCardType(cards) {
         const len = cards.length;
         const vals = cards.map(c => c.v);
         let counts = {};
         vals.forEach(x => { counts[x] = (counts[x] || 0) + 1; });
         let maxCount = Math.max(...Object.values(counts));
-        let keys = Object.keys(counts).map(Number).sort((a,b)=>b-a); // 点数从大到小
+        let keys = Object.keys(counts).map(Number).sort((a,b)=>b-a);
 
-        // 1. 🚀 王炸
         if (len === 2 && vals[0] === 17 && vals[1] === 16) return { type: 'rocket', val: 99 };
-        // 2. 💣 炸弹
         if (len === 4 && maxCount === 4) return { type: 'bomb', val: vals[0] };
-        // 3. 单张
         if (len === 1) return { type: '1', val: vals[0] };
-        // 4. 对子
         if (len === 2 && maxCount === 2) return { type: '2', val: vals[0] };
-        // 5. 三张
         if (len === 3 && maxCount === 3) return { type: '3', val: vals[0] };
-        // 6. 三带一
         if (len === 4 && maxCount === 3) {
             let mainVal = keys.find(k => counts[k] === 3);
             return { type: '3+1', val: mainVal };
         }
-        // 7. 三带二 (带一对)
         if (len === 5 && maxCount === 3 && keys.length === 2) {
             let mainVal = keys.find(k => counts[k] === 3);
-            return { type: '3+2', val: mainVal };
+            return { type: '3+2', val: mainVal }; // 3带2(对子)
         }
-        // 8. 顺子 (5张起, 最大A, 不能有2/王)
         if (len >= 5 && maxCount === 1 && vals[0] < 15) {
             if (vals[0] - vals[len-1] === len - 1) return { type: 'straight', val: vals[0], len: len };
         }
-        // 9. 连对 (3对起)
-        if (len >= 6 && len % 2 === 0 && maxCount === 2 && vals[0] < 15) {
+        if (len >= 6 && len % 2 === 0 && maxCount === 2 && keys.length === len/2 && vals[0] < 15) {
             if (keys[0] - keys[keys.length-1] === keys.length - 1) return { type: 'pairs', val: keys[0], len: len/2 };
         }
-        
-        return null; // ❌ 没见过的牌型
+        return null;
     }
 
     function canBeat(my, enemy) {
-        if(!enemy) return true; // 没人出牌我最大
+        if(!enemy) return true;
         if(my.type === 'rocket') return true;
         if(enemy.type === 'rocket') return false;
         if(my.type === 'bomb') {
@@ -432,88 +479,86 @@
         }
         if(enemy.type === 'bomb') return false;
         
-        // 普通牌必须：类型相同 且 张数相同 且 牌面更大
         if(my.type !== enemy.type) return false;
-        // 顺子连对要校验长度
-        if(my.type === 'straight' || my.type === 'pairs') {
-            if(my.len !== enemy.len) return false;
-        }
+        if((my.type === 'straight' || my.type === 'pairs') && my.len !== enemy.len) return false;
         return my.val > enemy.val;
     }
 
-    // ================= 7. 智能提示 (修复乱提示问题) =================
+    // ================= 7. 智能提示 (修复版) =================
     function autoSelectCards() {
-        // 先清空
         document.querySelectorAll('.poker.selected').forEach(p => p.classList.remove('selected'));
-        
         let suggestion = [];
-        const mySorted = [...myCards].sort((a,b) => a.v - b.v); // 小到大
+        const mySorted = [...myCards].sort((a,b) => a.v - b.v);
+        let counts = {};
+        mySorted.forEach(c => counts[c.v] = (counts[c.v]||0)+1);
 
-        // A. 自由出牌 (出最小的一张)
         if (!lastPlayed || lastPlayed.idx === -1 || lastPlayed.idx === myIdx) {
             if(mySorted.length > 0) suggestion.push(mySorted[0]);
-        } 
-        // B. 管牌 (根据上家类型找牌)
-        else {
+        } else {
             const tType = lastPlayed.typeInfo.type;
             const tVal = lastPlayed.typeInfo.val;
-            const tLen = lastPlayed.typeInfo.len || 0; // 顺子长度
 
-            // 1. 找同类型的牌
             if (tType === '1') {
                 suggestion = mySorted.filter(c => c.v > tVal).slice(0, 1);
             } else if (tType === '2') {
-                for (let i=0; i<mySorted.length-1; i++) {
-                    if (mySorted[i].v === mySorted[i+1].v && mySorted[i].v > tVal) {
-                        suggestion = [mySorted[i], mySorted[i+1]]; break;
-                    }
-                }
+                for (let v in counts) { if (counts[v] >= 2 && parseInt(v) > tVal) { suggestion = mySorted.filter(c => c.v == v).slice(0, 2); break; } }
             } else if (tType === '3') {
-                for (let i=0; i<mySorted.length-2; i++) {
-                    if (mySorted[i].v === mySorted[i+2].v && mySorted[i].v > tVal) {
-                        suggestion = mySorted.slice(i, i+3); break;
+                for (let v in counts) { if (counts[v] >= 3 && parseInt(v) > tVal) { suggestion = mySorted.filter(c => c.v == v).slice(0, 3); break; } }
+            } else if (tType === '3+1') {
+                let threeVal = -1;
+                for (let v in counts) { if (counts[v] >= 3 && parseInt(v) > tVal) { threeVal = parseInt(v); break; } }
+                if(threeVal !== -1) {
+                    let three = mySorted.filter(c => c.v == threeVal).slice(0,3);
+                    let one = mySorted.find(c => c.v != threeVal);
+                    if(one) suggestion = three.concat(one);
+                }
+            } else if (tType === '3+2') {
+                let threeVal = -1;
+                for (let v in counts) { if (counts[v] >= 3 && parseInt(v) > tVal) { threeVal = parseInt(v); break; } }
+                if(threeVal !== -1) {
+                    let three = mySorted.filter(c => c.v == threeVal).slice(0,3);
+                    let pairVal = -1;
+                    for(let v in counts) { if(parseInt(v) !== threeVal && counts[v] >= 2) { pairVal=v; break; }}
+                    if(pairVal !== -1) {
+                        let two = mySorted.filter(c => c.v == pairVal).slice(0,2);
+                        suggestion = three.concat(two);
                     }
                 }
             }
-            // 2. 找炸弹 (如果同类型找不到)
+            
+            // 炸弹兜底
             if (suggestion.length === 0 && tType !== 'rocket') {
-                let counts = {};
-                mySorted.forEach(c => counts[c.v] = (counts[c.v]||0)+1);
                 for (let v in counts) {
                     if (counts[v] === 4 && (tType !== 'bomb' || parseInt(v) > tVal)) {
                         suggestion = mySorted.filter(c => c.v == v); break;
                     }
                 }
-                // 找王炸
-                if(suggestion.length === 0) {
-                    const kings = mySorted.filter(c => c.v > 15);
+                if(suggestion.length===0) {
+                    let kings = mySorted.filter(c => c.v > 15);
                     if(kings.length === 2) suggestion = kings;
                 }
             }
         }
 
-        // 选中建议的牌
         if (suggestion.length > 0) {
             const allEls = document.querySelectorAll('.poker');
             suggestion.forEach(card => {
                 for(let el of allEls) {
                     let d = JSON.parse(el.dataset.val);
-                    // 确保不重复选
                     if(d.r === card.r && d.s === card.s && !el.classList.contains('selected')) {
                         el.classList.add('selected'); break;
                     }
                 }
             });
         } else {
-            alert("没有能管上的牌... 要不起！(可以点不出)");
+            alert("没有能管上的牌！(请点不出)");
         }
     }
 
     // ================= 8. 动作处理与渲染 =================
     function handleRemoteAction(data) {
         const viewIdx = getRelativeIdx(data.idx);
-        const areaId = ['playedMe', 'played1', 'played2'][viewIdx];
-        const area = document.getElementById(areaId);
+        const area = document.getElementById(['playedMe', 'played1', 'played2'][viewIdx]);
         area.innerHTML = ''; 
         document.querySelectorAll('.player').forEach(p => p.classList.remove('active'));
 
@@ -535,7 +580,6 @@
             }
         } 
         else if(data.act === 'play') {
-            // 渲染牌
             data.cards.forEach(c => {
                 let div = document.createElement('div');
                 div.style.cssText = "display:inline-block; background:#fff; border:1px solid #ccc; width:45px; height:60px; border-radius:4px; margin-left:-30px; font-size:14px; line-height:60px; text-align:center; box-shadow:2px 2px 5px rgba(0,0,0,0.2); font-weight:bold;";
@@ -547,7 +591,7 @@
             
             // 绑定放大点击事件
             area.onclick = () => showZoomCards(data.cards);
-            area.style.pointerEvents = "auto"; // 允许点击
+            area.style.pointerEvents = "auto"; 
 
             if(navigator.vibrate) navigator.vibrate(30);
 
@@ -593,6 +637,9 @@
         if(data.idx === myIdx) {
             document.getElementById('statusText').innerText = "轮到你了！";
             if(navigator.vibrate) navigator.vibrate(200);
+            
+            if(typeof startTimer === 'function') startTimer(30);
+            
             if(data.isBid) showBtns(['btnCall', 'btnNoCall']);
             else showBtns(['btnOut', 'btnPass', 'btnHint']);
         } else {
@@ -606,18 +653,15 @@
         const selected = Array.from(selectedEls).map(e => JSON.parse(e.dataset.val));
         selected.sort((a,b) => b.v - a.v);
 
-        // 1. 检查牌型合法性
         const typeInfo = getCardType(selected);
-        if(!typeInfo) return alert('牌型不对！(例如: 334, 3456)');
+        if(!typeInfo) return alert('牌型不对！');
         
-        // 2. 检查管牌
         const isFree = (lastPlayed.idx === -1 || lastPlayed.idx === myIdx);
         if (!isFree) {
-            // 长度必须一致 (除了炸弹和火箭)
             if (typeInfo.type !== 'bomb' && typeInfo.type !== 'rocket') {
                 if (selected.length !== lastPlayed.cards.length) return alert('张数不对！');
             }
-            if (!canBeat(typeInfo, lastPlayed.typeInfo)) return alert('打不过！(太小了)');
+            if (!canBeat(typeInfo, lastPlayed.typeInfo)) return alert('打不过！');
         }
 
         myCards = myCards.filter(c => !selected.some(s => s.r === c.r && s.s === c.s));
@@ -638,7 +682,6 @@
         else hostConn.send(msg);
     }
 
-    // 滑动选牌与渲染
     let isDragging = false;
     function sortAndRenderHand() {
         myCards.sort((a,b) => b.v - a.v);
@@ -658,9 +701,9 @@
         });
     }
 
-    // 放大镜功能
     function showZoomCards(cards) {
         const box = document.getElementById('zoomCards');
+        if(!box) return; // 防止没加html报错
         box.innerHTML = '';
         cards.forEach(c => {
             let div = document.createElement('div');
@@ -673,7 +716,6 @@
         document.getElementById('zoomLayer').style.display = 'flex';
     }
 
-    // 杂项
     function setLandlord(idx) {
         landlordIdx = idx; gamePhase = 'playing';
         const box = document.getElementById('diPaiBox');
@@ -693,6 +735,7 @@
         document.querySelectorAll('.crown').forEach(el => el.style.display = 'none');
         myCards = []; diPai = []; landlordIdx = -1; gamePhase = 'idle'; lastPlayed = { idx: -1, typeInfo: null, cards: [] };
         document.getElementById('resultModal').style.display = 'none';
+        if(typeof stopTimer === 'function') stopTimer();
     }
 
     function tryRestart() {
@@ -719,8 +762,78 @@
         const isWin = (data.winnerIdx === landlordIdx && myIdx === landlordIdx) || (data.winnerIdx !== landlordIdx && myIdx !== landlordIdx);
         document.getElementById('resultTitle').innerText = isWin ? "🎉 胜利！" : "😭 惜败...";
         document.getElementById('resultModal').style.display = 'flex';
+        // 触发特效 (如果有)
+        if(isWin && typeof createFireworks === 'function') createFireworks();
+        if(!isWin && typeof startRain === 'function') startRain();
     }
     
+    // --- 个人资料相关 ---
+    // === 1. 保存并实时更新界面 ===
+function saveMyProfile() {
+    const nameVal = document.getElementById('myNickInput').value.trim();
+    if(nameVal) myProfile.name = nameVal;
+    
+    // 存到浏览器缓存
+    localStorage.setItem('ddz_name', myProfile.name);
+    if(myProfile.avatar) localStorage.setItem('ddz_avatar', myProfile.avatar);
+    
+    // 🔥 关键修复：立刻更新桌面上“我 (#p0)”的显示
+    // 1. 更新名字
+    document.querySelector('#p0 .p-name').innerText = myProfile.name;
+    
+    // 2. 更新头像 (如果有图，就用图覆盖 Emoji)
+    if(myProfile.avatar) {
+        const p0Avatar = document.querySelector('#p0 .avatar');
+        p0Avatar.innerHTML = `<img src="${myProfile.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+    }
+}
+    function updateAvatarUI(src) {
+    const img = document.getElementById('avatarPreview');
+    const emoji = document.getElementById('avatarEmoji');
+    if (src) {
+        img.src = src; 
+        img.style.display = 'block'; 
+        emoji.style.display = 'none'; // 有图就隐藏 Emoji
+    } else {
+        img.style.display = 'none'; 
+        emoji.style.display = 'block';
+    }
+}
+    // === 2. 处理文件上传 (选完图立刻刷新) ===
+function handleFile(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            // 拿到图片的 Base64 数据
+            myProfile.avatar = e.target.result;
+            
+            // 1. 更新设置弹窗里的预览图
+            updateAvatarUI(myProfile.avatar);
+            
+            // 2. 存起来，并刷新桌面的头像
+            saveMyProfile();
+            
+            // 3. 如果已经连上房主，顺便广播给别人看
+            if(connList.length > 0 || hostConn) {
+                setTimeout(broadcastProfile, 500);
+            }
+        };
+        
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+    function broadcastProfile() {
+        const msg = { type: 'UPDATE_PROFILE', idx: myIdx, name: myProfile.name, avatar: myProfile.avatar };
+        sendMsg(msg);
+    }
+    function updatePlayerUI(viewIdx, data) {
+        const pId = ['p0', 'p1', 'p2'][viewIdx];
+        document.querySelector(`#${pId} .p-name`).innerText = data.name;
+        if(data.avatar) document.querySelector(`#${pId} .avatar`).innerHTML = `<img src="${data.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+    }
+
     // 工具
     function getRelativeIdx(target) { if(target===myIdx)return 0; if(target===(myIdx+2)%3)return 1; return 2; }
     function showBtns(ids) { ids.forEach(id => document.getElementById(id).style.display = 'block'); }
