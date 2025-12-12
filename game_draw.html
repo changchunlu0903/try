@@ -31,8 +31,8 @@
         canvas { touch-action: none; width: 100%; height: 100%; border-radius: 15px; }
 
         /* 遮罩层 (题目/等待/结果) */
-        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 20; display: none; text-align: center; padding: 20px; }
-        .overlay-title { font-size: 24px; color: #a29bfe; margin-bottom: 10px; }
+        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.98); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 20; display: none; text-align: center; padding: 20px; }
+        .overlay-title { font-size: 20px; color: #a29bfe; margin-bottom: 10px; }
         .overlay-text { font-size: 40px; color: #ff9a9e; font-weight: bold; margin-bottom: 20px; text-shadow: 2px 2px 0 #fff; }
         
         /* 接龙图片预览区 */
@@ -54,9 +54,17 @@
         /* 弹窗 */
         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(5px); }
         .modal-box { background: #fff; padding: 30px; border-radius: 30px; width: 90%; max-width: 400px; text-align: center; border: 4px solid #ffb7c5; }
-        .btn { padding: 10px 20px; border-radius: 20px; border: none; font-size: 14px; color: white; cursor: pointer; margin: 5px; font-family: inherit; }
+        
+        /* 按钮样式 */
+        .btn { padding: 10px 20px; border-radius: 20px; border: none; font-size: 14px; color: white; cursor: pointer; margin: 5px; font-family: inherit; transition: 0.2s; }
+        .btn:active { transform: scale(0.95); }
         .btn-pink { background: #ff9a9e; }
         .btn-blue { background: #74b9ff; }
+        
+        /* 题库选择按钮 */
+        .cat-btn { background: #eee; color: #666; border: 2px solid transparent; width: 80px; }
+        .cat-btn.active { border-color: #ff9a9e; background: #fff0f5; color: #ff6b81; font-weight: bold; }
+        
         .ipt { width: 100%; padding: 10px; border-radius: 10px; border: 2px solid #ddd; margin-bottom: 10px; text-align: center; }
 
         /* 结果展示 */
@@ -98,10 +106,23 @@
                     <div class="overlay-text" style="font-size:20px; color:#aaa;">等待其他人...</div>
                 </div>
 
-                <div id="hostControls" style="display:none; flex-direction:column; gap:10px;">
-                    <div style="font-size:12px; color:#888;">请选择模式：</div>
-                    <button class="btn btn-blue" onclick="startClassic()">🎨 竞速猜画 (一人画大家猜)</button>
-                    <button class="btn btn-pink" onclick="startRelay()">🧩 灵魂接龙 (画->猜->画->猜)</button>
+                <div id="hostControls" style="display:none; flex-direction:column; gap:10px; width:80%;">
+                    
+                    <div style="background:#f9f9f9; padding:10px; border-radius:15px; margin-bottom:10px;">
+                        <div style="font-size:12px; color:#888; margin-bottom:5px;">① 选择题库风格</div>
+                        <div style="display:flex; justify-content:center; gap:5px;">
+                            <button class="btn cat-btn active" id="btnNormal" onclick="selectCategory('normal')">🌈普通</button>
+                            <button class="btn cat-btn" id="btnPure" onclick="selectCategory('pure')">🌸纯爱</button>
+                            <button class="btn cat-btn" id="btnSpicy" onclick="selectCategory('spicy')">💋刺激</button>
+                        </div>
+                    </div>
+
+                    <div style="background:#f9f9f9; padding:10px; border-radius:15px;">
+                        <div style="font-size:12px; color:#888; margin-bottom:5px;">② 选择玩法模式</div>
+                        <button class="btn btn-blue" style="width:100%" onclick="startGame('classic')">🎨 竞速猜画 (抢答)</button>
+                        <button class="btn btn-pink" style="width:100%" onclick="startGame('relay')">🧩 灵魂接龙 (传话筒)</button>
+                    </div>
+
                 </div>
 
                 <div id="resultDisplay" style="display:none; width:100%;">
@@ -148,23 +169,29 @@
     </div>
 
     <script>
-        // ================= 配置 =================
-        const AI_WORDS = ["苹果", "奥特曼", "马桶", "海绵宝宝", "珍珠奶茶", "放屁", "秃头", "比基尼", "初吻", "壁咚", "公主抱", "黑丝", "女仆装", "皮鞭"];
+        // ================= 题库配置 =================
+        const WORD_DB = {
+            normal: ["苹果", "奥特曼", "马桶", "海绵宝宝", "珍珠奶茶", "放屁", "秃头", "比基尼", "挖掘机", "法拉利", "火锅", "作业", "私房钱", "哥斯拉"],
+            pure: ["初吻", "情书", "壁咚", "摸头杀", "婚礼", "公主抱", "看星星", "摩天轮", "红线", "一见钟情", "吃醋", "撒娇", "围巾", "早安吻"],
+            spicy: ["锁骨", "黑丝", "咬耳朵", "女仆装", "皮鞭", "湿身", "捆绑", "种草莓", "大长腿", "浴室", "钢管舞", "烈焰红唇", "手铐", "撕丝袜"]
+        };
+
+        let currentCategory = 'normal'; // 默认普通
         
         let peer = null, connList = [], hostConn = null;
         let myId = null, myName = "", isHost = false;
-        let players = []; // {id, name, score}
+        let players = []; 
         
         // 游戏状态
         let mode = ''; // 'classic' or 'relay'
         let currentDrawer = null;
         let currentWord = '';
         
-        // 接龙专用状态
-        let relayQueue = []; // 接龙顺序 [p1, p2, p3...]
-        let relayStep = 0;   // 当前第几棒
-        let relayHistory = []; // 记录全过程 {player, type, content}
-        let relayStarterIndex = 0; // 记录谁是第一棒，用于“以此类推”
+        // 接龙专用
+        let relayQueue = []; 
+        let relayStep = 0;   
+        let relayHistory = []; 
+        let relayStarterIndex = 0; 
 
         let canvas, ctx, isDrawing = false;
 
@@ -228,7 +255,6 @@
         // ================= 2. 消息处理 =================
         function handleData(data, conn) {
             if (isHost) {
-                // 房主逻辑
                 if (data.type === 'LOGIN') {
                     players.push({ id: conn.peer, name: data.name, score: 0 });
                     document.getElementById('waitCount').innerText = players.length;
@@ -237,7 +263,6 @@
                 else if (data.type === 'DRAW_DATA') { broadcast(data); drawLine(data); }
                 else if (data.type === 'CLEAR') { broadcast(data); ctx.clearRect(0,0,canvas.width,canvas.height); }
                 
-                // 竞速猜题逻辑
                 else if (data.type === 'GUESS_CLASSIC') {
                     if (mode === 'classic' && data.content === currentWord) {
                         broadcast({ type: 'WINNER', name: data.name, answer: currentWord });
@@ -247,13 +272,11 @@
                     }
                 }
                 
-                // 接龙提交逻辑
                 else if (data.type === 'RELAY_SUBMIT') {
                     handleRelayStep(data);
                 }
             }
 
-            // 通用逻辑
             if (data.type === 'WELCOME') { hostConn.send({ type: 'LOGIN', name: myName }); }
             else if (data.type === 'UPDATE_PLAYERS') { players = data.players; renderPlayers(); }
             else if (data.type === 'ENTER_GAME') { 
@@ -264,11 +287,9 @@
             else if (data.type === 'CLEAR') { ctx.clearRect(0,0,canvas.width,canvas.height); }
             else if (data.type === 'CHAT') { addLog(data.name, data.content); }
             
-            // 游戏指令
             else if (data.type === 'START_CLASSIC') { startRoundUI(data); }
             else if (data.type === 'WINNER') { addLog('系统', `🎉 ${data.name} 猜对了：${data.answer}!`, 'sys'); }
             
-            // 接龙指令
             else if (data.type === 'RELAY_YOUR_TURN') { startRelayTurnUI(data); }
             else if (data.type === 'RELAY_WAIT') { showOverlay('wait', `正在由 ${data.name} 进行 ${data.act}...`); }
             else if (data.type === 'RELAY_GAMEOVER') { showRelayResult(data.history); }
@@ -281,16 +302,44 @@
             } else { hostConn.send(msg); }
         }
 
-        // ================= 3. 竞速模式 (Classic) =================
+        // ================= 3. 游戏控制逻辑 (核心修改点) =================
+        
+        // 房主选择题库
+        function selectCategory(cat) {
+            currentCategory = cat;
+            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+            
+            let btnId = 'btnNormal';
+            if(cat === 'pure') btnId = 'btnPure';
+            if(cat === 'spicy') btnId = 'btnSpicy';
+            document.getElementById(btnId).classList.add('active');
+        }
+
+        // 获取随机词 (基于当前题库)
+        function getRandomWord() {
+            const list = WORD_DB[currentCategory];
+            return list[Math.floor(Math.random() * list.length)];
+        }
+
+        // 统一开始入口
+        function startGame(selectedMode) {
+            mode = selectedMode;
+            if (mode === 'classic') {
+                startClassic();
+            } else {
+                startRelay();
+            }
+        }
+
+        // ---------------- 竞速模式 ----------------
         function startClassic() {
-            mode = 'classic';
             nextRoundClassic();
         }
 
         function nextRoundClassic() {
             const drawer = players[Math.floor(Math.random() * players.length)];
             currentDrawer = drawer.id;
-            currentWord = AI_WORDS[Math.floor(Math.random() * AI_WORDS.length)];
+            currentWord = getRandomWord(); // 🔥 使用选定题库
             broadcast({ type: 'START_CLASSIC', drawer: drawer.id, name: drawer.name, word: currentWord });
         }
 
@@ -301,55 +350,40 @@
             
             if (myId === data.drawer) {
                 showOverlay('word', data.word);
-                // 我是画手，不能输入
                 document.getElementById('chatInputArea').style.display = 'none';
             } else {
-                showOverlay('none'); // 猜题者看画布
+                showOverlay('none');
                 document.getElementById('toolBar').style.display = 'none';
                 document.getElementById('chatInputArea').style.display = 'flex';
             }
         }
 
-        // ================= 4. 灵魂接龙 (Relay) 核心逻辑 =================
-        
-        // 房主点击“开始接龙”
+        // ---------------- 接龙模式 ----------------
         function startRelay() {
-            mode = 'relay';
-            // 根据 relayStarterIndex 决定顺序
-            // 例如 [A, B, C]，第一轮 A开头。第二轮 B开头 -> [B, C, A]
             let p = [...players];
-            // 轮转数组
             for(let i=0; i<relayStarterIndex; i++) p.push(p.shift());
             
             relayQueue = p;
             relayStep = 0;
             relayHistory = [];
             
-            // 第一步：选词
-            currentWord = AI_WORDS[Math.floor(Math.random() * AI_WORDS.length)];
+            currentWord = getRandomWord(); // 🔥 使用选定题库
             
-            // 记录初始词
             relayHistory.push({ type: 'word', content: currentWord, name: '系统' });
-
-            // 触发第一个人画画
             triggerRelayStep();
-            
-            // 准备下一次起始人
             relayStarterIndex = (relayStarterIndex + 1) % players.length;
         }
 
         function triggerRelayStep() {
-            // 检查是否结束
             if (relayStep >= relayQueue.length) {
                 broadcast({ type: 'RELAY_GAMEOVER', history: relayHistory });
                 return;
             }
 
             const p = relayQueue[relayStep];
-            const isDrawingTurn = (relayStep % 2 === 0); // 偶数步画，奇数步猜
+            const isDrawingTurn = (relayStep % 2 === 0);
             const lastContent = relayHistory[relayHistory.length - 1].content;
 
-            // 通知这个人操作，其他人等待
             connList.forEach(c => {
                 if (c.peer === p.id) {
                     c.send({ type: 'RELAY_YOUR_TURN', act: isDrawingTurn?'draw':'guess', content: lastContent });
@@ -357,7 +391,6 @@
                     c.send({ type: 'RELAY_WAIT', name: p.name, act: isDrawingTurn?'画画':'猜题' });
                 }
             });
-            // 如果房主自己是这个人
             if (myId === p.id) {
                 handleData({ type: 'RELAY_YOUR_TURN', act: isDrawingTurn?'draw':'guess', content: lastContent });
             } else {
@@ -370,67 +403,51 @@
             document.getElementById('statusText').innerText = "轮到你了！";
 
             if (data.act === 'draw') {
-                // 轮到我画：内容是文字
                 showOverlay('word', data.content);
             } else {
-                // 轮到我猜：内容是图片URL
                 showOverlay('guess_img', data.content);
             }
         }
 
-        // 提交接龙结果 (画完/猜完)
         function handleRelayStep(data) {
-            // data: { content: "图片URL" 或 "文字" }
             const p = relayQueue[relayStep];
             const type = (relayStep % 2 === 0) ? 'img' : 'text';
-            
             relayHistory.push({ name: p.name, type: type, content: data.content });
             relayStep++;
-            triggerRelayStep(); // 下一步
+            triggerRelayStep();
         }
 
         // ================= 5. 操作交互 =================
-        
-        // 画手点击“开始画”
         function startDrawing() {
             hideOverlay();
             document.getElementById('toolBar').style.display = 'flex';
         }
 
-        // 画手点击“换一题”
         function changeWord() {
             if(mode === 'classic') {
                 if(isHost) {
-                    currentWord = AI_WORDS[Math.floor(Math.random() * AI_WORDS.length)];
+                    currentWord = getRandomWord();
                     broadcast({ type: 'START_CLASSIC', drawer: myId, name: myName, word: currentWord });
-                } else {
-                    alert('只有房主能换题(偷懒没写)');
                 }
             } else {
-                // 接龙模式换题 (仅限第一棒)
                 if(relayStep === 0) {
-                    currentWord = AI_WORDS[Math.floor(Math.random() * AI_WORDS.length)];
-                    // 更新历史第一条
+                    currentWord = getRandomWord();
                     relayHistory[0].content = currentWord;
-                    // 刷新UI
                     document.getElementById('wordText').innerText = currentWord;
                 }
             }
         }
 
-        // 画手点击“画好了”
         function finishDrawing() {
             if (mode === 'classic') {
                 alert('竞速模式不需要点这个，等他们猜对就行！');
             } else {
-                // 接龙模式：提交画作
                 const imgData = canvas.toDataURL();
                 const msg = { type: 'RELAY_SUBMIT', content: imgData };
                 if(isHost) handleRelayStep(msg); else hostConn.send(msg);
             }
         }
 
-        // 猜题者提交猜测 (接龙)
         function submitRelayGuess() {
             const val = document.getElementById('relayGuessInput').value.trim();
             if(!val) return;
@@ -438,7 +455,6 @@
             if(isHost) handleRelayStep(msg); else hostConn.send(msg);
         }
 
-        // 竞速模式聊天框回车
         function sendChat() {
             const val = document.getElementById('chatInput').value.trim();
             if(!val) return;
@@ -477,7 +493,6 @@
         function showRelayResult(history) {
             const list = document.getElementById('resultList');
             list.innerHTML = '';
-            
             history.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'result-item';
@@ -488,20 +503,17 @@
                 }
                 list.appendChild(div);
             });
-
             document.getElementById('gameOverlay').style.display = 'flex';
             document.getElementById('resultDisplay').style.display = 'block';
             document.getElementById('overlayTitle').innerText = "灵魂画作大赏";
         }
 
-        // 画板与工具
         let currentColor = '#000';
         let lastX, lastY;
         function initCanvasEvents() {
             canvas.onmousedown = e => { isDrawing=true; lastX=e.offsetX; lastY=e.offsetY; };
             canvas.onmousemove = e => { if(isDrawing) sendDraw(e.offsetX, e.offsetY); };
             canvas.onmouseup = () => isDrawing=false;
-            
             canvas.ontouchstart = e => { e.preventDefault(); const r=canvas.getBoundingClientRect(); isDrawing=true; lastX=e.touches[0].clientX-r.left; lastY=e.touches[0].clientY-r.top; };
             canvas.ontouchmove = e => { e.preventDefault(); if(isDrawing) { const r=canvas.getBoundingClientRect(); sendDraw(e.touches[0].clientX-r.left, e.touches[0].clientY-r.top); } };
             canvas.ontouchend = () => isDrawing=false;
@@ -524,7 +536,6 @@
             ctx.clearRect(0,0,canvas.width,canvas.height);
             if(isHost) broadcast({type:'CLEAR'}); else hostConn.send({type:'CLEAR'});
         }
-
         function renderPlayers() {
             const div = document.getElementById('playerList');
             div.innerHTML = '';
