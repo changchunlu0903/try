@@ -19486,54 +19486,7 @@ window.openAISettings = function() {
     };
 
 
-    // ================= 2. 前端美化规范导入 (Requirement 2) =================
-
-    // 全局变量存储规范
-    window.frontendStyleGuide = "";
-
-    // A. 插入按钮
-    function injectFrontendBtn() {
-        var container = document.querySelector('#uiFrontendMode label'); // 找到“AI 建筑师”那个标签
-        if (container && !document.getElementById('btnImportGuide')) {
-            var btn = document.createElement('span');
-            btn.id = 'btnImportGuide';
-            btn.innerHTML = "📜 导入美化规范";
-            btn.style.cssText = "font-size:10px; background:#fff; border:1px solid #6c5ce7; color:#6c5ce7; padding:2px 8px; border-radius:4px; margin-left:10px; cursor:pointer;";
-            btn.onclick = function() {
-                var guide = prompt("请输入/粘贴你的前端美化规范 (CSS要求/配色方案/布局风格)：", window.frontendStyleGuide);
-                if (guide !== null) {
-                    window.frontendStyleGuide = guide;
-                    auth.toast('✅ 规范已导入，下次生成将严格遵守！');
-                }
-            };
-            container.appendChild(btn);
-        }
-    }
-    // 尝试插入
-    setTimeout(injectFrontendBtn, 1000);
-
-    // B. 覆盖生成函数，带上规范
-    var _oldGenFront = window.generateFrontendCode;
-    window.generateFrontendCode = async function() {
-        // 劫持输入框
-        var reqEl = document.getElementById('aiCodePrompt');
-        var originalReq = reqEl.value;
-
-        // 如果有规范，悄悄拼接到 Prompt 里
-        if (window.frontendStyleGuide) {
-            // 我们不修改输入框显示的文字，只在发送给AI时修改
-            // 但因为我们封装了 fetchAI，这里采用更暴力的劫持方式：
-            // 临时修改输入框的值，调用原函数，然后再改回来
-            reqEl.value = `${originalReq}\n\n【强制遵守以下UI规范】：${window.frontendStyleGuide}`;
-        }
-
-        await _oldGenFront();
-
-        // 还原输入框 (让用户感觉不到发生了什么)
-        if (window.frontendStyleGuide) {
-            reqEl.value = originalReq;
-        }
-    };
+ 
 
 
     // ================= 3. 添加大类标签 (Requirement 3) =================
