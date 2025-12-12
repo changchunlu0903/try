@@ -3,114 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>🎨 Loppy 灵魂画手 (AI版)</title>
+    <title>🎨 Loppy 灵魂画手</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.4.7/peerjs.min.js"></script>
     <style>
         @font-face { font-family: 'MyCutieFont'; src: url('https://files.catbox.moe/cweam3.ttf') format('truetype'); font-display: swap; }
-        
         * { margin: 0; padding: 0; box-sizing: border-box; touch-action: none; -webkit-tap-highlight-color: transparent; }
         
-        body {
-            font-family: 'MyCutieFont', sans-serif;
-            background: linear-gradient(135deg, #fff1eb 0%, #ace0f9 100%);
-            height: 100vh; display: flex; flex-direction: column; overflow: hidden;
-        }
+        body { font-family: 'MyCutieFont', sans-serif; background: linear-gradient(135deg, #fff1eb 0%, #ace0f9 100%); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
         /* 顶部 */
-        .top-bar {
-            padding: 10px; background: rgba(255,255,255,0.8); display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 2px dashed #ff9a9e; z-index: 100;
-        }
+        .top-bar { padding: 10px; background: rgba(255,255,255,0.8); display: flex; justify-content: space-between; align-items: center; border-bottom: 2px dashed #ff9a9e; z-index: 100; }
         .back-btn { text-decoration: none; font-size: 20px; cursor: pointer; }
         .game-info { font-size: 16px; color: #ff6b81; font-weight: bold; }
-        .timer { font-size: 20px; color: #a29bfe; font-weight: bold; }
 
         /* 主区域 */
         .main-area { flex: 1; display: flex; position: relative; overflow: hidden; }
         
         /* 侧边栏 */
-        .sidebar {
-            width: 80px; background: rgba(255,255,255,0.5); border-right: 2px dashed #fff;
-            overflow-y: auto; padding: 5px; display: flex; flex-direction: column; gap: 5px;
-        }
-        .player-card {
-            background: #fff; border-radius: 10px; padding: 5px; text-align: center; border: 2px solid #fff;
-            transition: 0.3s;
-        }
-        .player-card.active { border-color: #ff9a9e; transform: scale(1.05); }
-        .player-card.drawer { border-color: #a29bfe; background: #f3e5f5; }
-        .p-avatar { font-size: 24px; }
+        .sidebar { width: 80px; background: rgba(255,255,255,0.5); border-right: 2px dashed #fff; overflow-y: auto; padding: 5px; display: flex; flex-direction: column; gap: 5px; }
+        .player-card { background: #fff; border-radius: 10px; padding: 5px; text-align: center; border: 2px solid #fff; transition: 0.3s; opacity: 0.7; }
+        .player-card.active { border-color: #ff9a9e; transform: scale(1.05); opacity: 1; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .p-name { font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .p-score { font-size: 12px; color: #ff7675; font-weight: bold; }
 
-        /* 画板 */
-        .canvas-container {
-            flex: 1; position: relative; background: #fff; margin: 10px; border-radius: 20px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1); border: 4px solid #a29bfe;
-            display: flex; justify-content: center; align-items: center; cursor: crosshair;
-        }
+        /* 画板容器 */
+        .canvas-container { flex: 1; position: relative; background: #fff; margin: 10px; border-radius: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); border: 4px solid #a29bfe; display: flex; justify-content: center; align-items: center; overflow: hidden; }
         canvas { touch-action: none; width: 100%; height: 100%; border-radius: 15px; }
+
+        /* 遮罩层 (题目/等待/结果) */
+        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 20; display: none; text-align: center; padding: 20px; }
+        .overlay-title { font-size: 24px; color: #a29bfe; margin-bottom: 10px; }
+        .overlay-text { font-size: 40px; color: #ff9a9e; font-weight: bold; margin-bottom: 20px; text-shadow: 2px 2px 0 #fff; }
         
-        /* 遮罩 & 题库选择 */
-        .word-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255,255,255,0.98); display: flex; flex-direction: column; 
-            justify-content: center; align-items: center; z-index: 20;
-            display: none; 
-        }
-        .word-text { font-size: 40px; color: #ff9a9e; margin-bottom: 20px; text-align: center; text-shadow: 2px 2px 0 #fff;}
-        
-        .mode-select-box {
-            display: flex; flex-direction: column; gap: 15px; width: 80%; max-width: 300px;
-        }
-        .mode-title { font-size: 18px; color: #888; margin-bottom: 5px; }
-        
-        /* 聊天 */
-        .chat-area {
-            position: absolute; bottom: 10px; right: 10px; width: 200px; height: 150px;
-            background: rgba(255,255,255,0.8); border-radius: 15px; border: 2px solid #fff;
-            display: flex; flex-direction: column; overflow: hidden; pointer-events: none;
-        }
-        .chat-msgs { flex: 1; overflow-y: auto; padding: 5px; font-size: 12px; pointer-events: auto;}
+        /* 接龙图片预览区 */
+        .relay-img-preview { max-width: 80%; max-height: 50%; border: 4px solid #333; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+
+        /* 聊天区 */
+        .chat-area { position: absolute; bottom: 10px; right: 10px; width: 200px; height: 150px; background: rgba(255,255,255,0.8); border-radius: 15px; border: 2px solid #fff; display: flex; flex-direction: column; overflow: hidden; pointer-events: none; }
+        .chat-msgs { flex: 1; overflow-y: auto; padding: 5px; font-size: 12px; pointer-events: auto; }
         .chat-msg { margin-bottom: 2px; }
-        .chat-msg.correct { color: #00b894; font-weight: bold; background: #e0f2f1; padding: 2px; border-radius: 4px;}
         .chat-msg.sys { color: #a29bfe; font-style: italic; }
         .chat-input-box { display: flex; padding: 5px; background: #fff; pointer-events: auto; }
         .chat-ipt { flex: 1; border: 1px solid #ddd; border-radius: 5px; padding: 3px; outline: none; }
 
         /* 工具栏 */
-        .tools-bar {
-            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-            background: #fff; padding: 10px; border-radius: 50px; display: none; gap: 10px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.2); z-index: 50;
-        }
+        .tools-bar { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: #fff; padding: 10px; border-radius: 50px; display: none; gap: 10px; box-shadow: 0 5px 20px rgba(0,0,0,0.2); z-index: 50; }
         .color-btn { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #fff; cursor: pointer; }
         .color-btn.active { transform: scale(1.2); border-color: #555; }
-        .tool-btn { font-size: 20px; cursor: pointer; padding: 0 10px; }
-
-        /* 弹窗 */
-        .modal {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center;
-            z-index: 1000; backdrop-filter: blur(5px);
-        }
-        .modal-box {
-            background: #fff; padding: 30px; border-radius: 30px; width: 90%; max-width: 400px;
-            text-align: center; border: 4px solid #ffb7c5; position: relative;
-        }
-        .btn {
-            padding: 12px 25px; border-radius: 20px; border: none; font-size: 16px;
-            color: white; cursor: pointer; margin-top: 10px; width: 100%; font-family: inherit;
-            transition: transform 0.1s;
-        }
-        .btn:active { transform: scale(0.95); }
-        .btn-pink { background: linear-gradient(45deg, #ff9a9e, #fad0c4); }
-        .btn-blue { background: linear-gradient(45deg, #a18cd1, #fbc2eb); }
-        .btn-spicy { background: linear-gradient(45deg, #ff758c, #ff7eb3); border: 2px solid #fff; box-shadow: 0 4px 10px rgba(255, 117, 140, 0.4); }
-        .btn-pure { background: linear-gradient(45deg, #84fab0, #8fd3f4); color: #fff; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
         
+        /* 弹窗 */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(5px); }
+        .modal-box { background: #fff; padding: 30px; border-radius: 30px; width: 90%; max-width: 400px; text-align: center; border: 4px solid #ffb7c5; }
+        .btn { padding: 10px 20px; border-radius: 20px; border: none; font-size: 14px; color: white; cursor: pointer; margin: 5px; font-family: inherit; }
+        .btn-pink { background: #ff9a9e; }
+        .btn-blue { background: #74b9ff; }
         .ipt { width: 100%; padding: 10px; border-radius: 10px; border: 2px solid #ddd; margin-bottom: 10px; text-align: center; }
 
+        /* 结果展示 */
+        .result-scroll { max-height: 60vh; overflow-y: auto; width: 100%; text-align: left; }
+        .result-item { border-bottom: 1px dashed #ddd; padding: 10px; }
+        .result-img { max-width: 100px; border: 1px solid #ccc; vertical-align: middle; }
     </style>
 </head>
 <body>
@@ -118,113 +70,107 @@
     <div class="top-bar">
         <a href="game_loppy.html" class="back-btn">🔙</a>
         <div class="game-info" id="statusText">等待开始...</div>
-        <div class="timer" id="timerDisplay"></div>
+        <div></div>
     </div>
 
     <div class="main-area">
         <div class="sidebar" id="playerList"></div>
 
-        <div class="canvas-container" id="canvasBox">
+        <div class="canvas-container">
             <canvas id="gameCanvas"></canvas>
-            
-            <div class="word-overlay" id="wordOverlay">
-                <div class="word-text" id="overlayText">等待房主选择...</div>
+
+            <div class="overlay" id="gameOverlay">
+                <div class="overlay-title" id="overlayTitle">准备</div>
                 
-                <div id="hostControls" style="display:none;" class="mode-select-box">
-                    <div class="mode-title">✨ 请选择 AI 出题风格 ✨</div>
-                    <button class="btn btn-blue" onclick="startGame('normal')">🌈 普通版 (日常快乐)</button>
-                    <button class="btn btn-pure" onclick="startGame('pure')">🌸 纯情版 (甜甜恋爱)</button>
-                    <button class="btn btn-spicy" onclick="startGame('spicy')">💋 刺激版 (脸红心跳)</button>
+                <div id="wordDisplay" style="display:none;">
+                    <div class="overlay-text" id="wordText">题目</div>
+                    <button class="btn btn-pink" onclick="startDrawing()">🖌️ 开始画</button>
+                    <button class="btn btn-blue" onclick="changeWord()">🔄 换一题</button>
                 </div>
-                
-                <div id="drawerControls" style="display:none;">
-                    <button class="btn btn-pink" onclick="startDrawing()">🖌️ 开始作画</button>
-                    <button class="btn btn-blue" onclick="skipWord()" style="margin-top:10px; background:#ccc;">🔄 换一个词</button>
+
+                <div id="imgDisplay" style="display:none; flex-direction:column; align-items:center;">
+                    <img id="relayImg" class="relay-img-preview" src="">
+                    <input type="text" class="ipt" id="relayGuessInput" placeholder="你觉得这是什么？">
+                    <button class="btn btn-pink" onclick="submitRelayGuess()">✅ 提交猜测</button>
+                </div>
+
+                <div id="waitDisplay" style="display:none;">
+                    <div class="overlay-text" style="font-size:20px; color:#aaa;">等待其他人...</div>
+                </div>
+
+                <div id="hostControls" style="display:none; flex-direction:column; gap:10px;">
+                    <div style="font-size:12px; color:#888;">请选择模式：</div>
+                    <button class="btn btn-blue" onclick="startClassic()">🎨 竞速猜画 (一人画大家猜)</button>
+                    <button class="btn btn-pink" onclick="startRelay()">🧩 灵魂接龙 (画->猜->画->猜)</button>
+                </div>
+
+                <div id="resultDisplay" style="display:none; width:100%;">
+                    <div class="result-scroll" id="resultList"></div>
+                    <button class="btn btn-pink" onclick="document.getElementById('resultDisplay').style.display='none'; if(isHost) document.getElementById('hostControls').style.display='flex';">🔙以此类推下一位</button>
                 </div>
             </div>
         </div>
 
         <div class="chat-area">
             <div class="chat-msgs" id="chatList"></div>
-            <div class="chat-input-box" id="guessInputArea">
-                <input type="text" class="ipt chat-ipt" id="guessInput" placeholder="输入答案..." onkeydown="if(event.keyCode==13) sendGuess()">
+            <div class="chat-input-box" id="chatInputArea">
+                <input type="text" class="ipt chat-ipt" id="chatInput" placeholder="聊天/竞速猜题..." onkeydown="if(event.keyCode==13) sendChat()">
             </div>
         </div>
     </div>
 
     <div class="tools-bar" id="toolBar">
-        <div class="color-btn" style="background:#000" onclick="setColor('#000000')"></div>
+        <div class="color-btn" style="background:#000" onclick="setColor('#000')"></div>
         <div class="color-btn" style="background:#ff7675" onclick="setColor('#ff7675')"></div>
         <div class="color-btn" style="background:#fdcb6e" onclick="setColor('#fdcb6e')"></div>
         <div class="color-btn" style="background:#55efc4" onclick="setColor('#55efc4')"></div>
         <div class="color-btn" style="background:#74b9ff" onclick="setColor('#74b9ff')"></div>
-        <div class="tool-btn" onclick="setColor('#ffffff')" title="橡皮擦">🧽</div>
-        <div class="tool-btn" onclick="clearCanvas(true)" title="清空">🗑️</div>
+        <button class="btn" style="padding:5px 10px; background:#ddd; color:#555;" onclick="clearCanvas()">🗑️</button>
+        <button class="btn btn-blue" onclick="finishDrawing()">✅ 画好了</button>
     </div>
 
     <div class="modal" id="loginModal">
         <div class="modal-box">
-            <h2 style="color:#ff9a9e; margin-bottom:15px;">🎨 灵魂画手</h2>
+            <h2 style="color:#ff9a9e;">🎨 灵魂画手</h2>
             <input type="text" class="ipt" id="myName" placeholder="你的名字">
-            
             <div id="lobbyBtns">
-                <button class="btn btn-pink" onclick="createRoom()">👑 我是房主 (建房)</button>
-                <div style="margin:10px; color:#aaa;">- 或 -</div>
-                <input type="text" class="ipt" id="hostIdInput" placeholder="输入房号">
+                <button class="btn btn-pink" onclick="createRoom()">👑 我是房主</button>
+                <div style="margin:5px; color:#ccc;">- 或 -</div>
+                <input type="text" class="ipt" id="hostIdInput" placeholder="房主ID">
                 <button class="btn btn-blue" onclick="joinRoom()">🚀 加入房间</button>
             </div>
-
             <div id="hostWait" style="display:none;">
-                <p>房号: <span id="myRoomId" style="color:#ff6b81; font-weight:bold; user-select:all;" onclick="copyId()">...</span></p>
-                <p style="font-size:12px; color:#888;">(最少3人)</p>
-                <p>当前人数: <span id="waitCount">1</span></p>
-                <button class="btn btn-pink" onclick="enterGame()">进入游戏大厅</button>
+                <p>房号: <span id="myRoomId" style="color:#ff6b81; font-weight:bold; cursor:pointer;" onclick="copyId()">...</span></p>
+                <p>人数: <span id="waitCount">1</span></p>
+                <button class="btn btn-pink" onclick="enterGame()">进入大厅</button>
             </div>
         </div>
     </div>
 
     <script>
-        // ================= 🔥 AI 词库配置 🔥 =================
-        // 你可以在这里自己加词！越多越好玩！
-        const AI_WORDS = {
-            // 🌈 普通版：日常、搞笑、物品
-            normal: [
-                "苹果", "奥特曼", "马桶", "电脑", "海绵宝宝", "珍珠奶茶", "法拉利", "皮卡丘", "火锅", 
-                "放屁", "秃头", "方便面", "二维码", "小猪佩奇", "仙人掌", "比基尼", "哥斯拉", "挖掘机",
-                "WiFi", "口罩", "自拍", "辣条", "作业", "私房钱", "肌肉男", "广场舞"
-            ],
-            
-            // 🌸 纯情版：恋爱、浪漫、少女心
-            pure: [
-                "初吻", "情书", "壁咚", "摸头杀", "婚礼", "公主抱", "看星星", "摩天轮", "红线", 
-                "一见钟情", "男朋友", "吃醋", "撒娇", "告白气球", "最萌身高差", "烛光晚餐", 
-                "比心", "定情信物", "草莓印", "围巾", "偷偷看你", "早安吻"
-            ],
-            
-            // 💋 刺激版 (Loppy特供)：稍微带点颜色但不过分，适合密友
-            spicy: [
-                "锁骨", "黑丝", "咬耳朵", "女仆装", "皮鞭", "湿身", "捆绑", "种草莓", "大长腿", 
-                "浴室", "钢管舞", "烈焰红唇", "霸道总裁", "深V", "绝对领域", "手铐", "小野猫", 
-                "腹肌", "做坏事", "偷情", "膝枕", "撕丝袜", "浴室play" 
-            ]
-        };
-
-        // ================= 游戏变量 =================
-        let peer = null, connList = [], hostConn = null;
-        let myId = null, myName = "";
-        let isHost = false;
-        let players = []; 
+        // ================= 配置 =================
+        const AI_WORDS = ["苹果", "奥特曼", "马桶", "海绵宝宝", "珍珠奶茶", "放屁", "秃头", "比基尼", "初吻", "壁咚", "公主抱", "黑丝", "女仆装", "皮鞭"];
         
-        let currentCategory = 'normal'; // 当前选的题库
+        let peer = null, connList = [], hostConn = null;
+        let myId = null, myName = "", isHost = false;
+        let players = []; // {id, name, score}
+        
+        // 游戏状态
+        let mode = ''; // 'classic' or 'relay'
+        let currentDrawer = null;
         let currentWord = '';
-        let drawerId = null;
-        let isDrawing = false;
-        let ctx = null, canvas = null;
-        let hasGuessedRight = false; // 本轮是否猜对过
+        
+        // 接龙专用状态
+        let relayQueue = []; // 接龙顺序 [p1, p2, p3...]
+        let relayStep = 0;   // 当前第几棒
+        let relayHistory = []; // 记录全过程 {player, type, content}
+        let relayStarterIndex = 0; // 记录谁是第一棒，用于“以此类推”
+
+        let canvas, ctx, isDrawing = false;
 
         window.onload = () => {
-            const savedName = localStorage.getItem('draw_name');
-            if(savedName) document.getElementById('myName').value = savedName;
+            const saved = localStorage.getItem('draw_name');
+            if(saved) document.getElementById('myName').value = saved;
             canvas = document.getElementById('gameCanvas');
             ctx = canvas.getContext('2d');
             resizeCanvas();
@@ -232,28 +178,23 @@
             initCanvasEvents();
         };
 
-        function resizeCanvas() {
-            canvas.width = canvas.parentElement.clientWidth;
-            canvas.height = canvas.parentElement.clientHeight;
-        }
+        function resizeCanvas() { canvas.width = canvas.parentElement.clientWidth; canvas.height = canvas.parentElement.clientHeight; }
 
         // ================= 1. 联机 =================
         try {
             peer = new Peer(null, { debug: 2 });
             peer.on('open', id => myId = id);
-            peer.on('error', err => alert('联机错误:' + err.type));
-        } catch(e) { alert('组件加载失败'); }
+        } catch(e) {}
 
         function createRoom() {
-            myName = document.getElementById('myName').value.trim() || "房主";
+            myName = document.getElementById('myName').value || "房主";
             localStorage.setItem('draw_name', myName);
             isHost = true;
             players = [{ id: myId, name: myName, score: 0 }];
-            
             document.getElementById('lobbyBtns').style.display = 'none';
             document.getElementById('hostWait').style.display = 'block';
             document.getElementById('myRoomId').innerText = myId;
-
+            
             peer.on('connection', conn => {
                 connList.push(conn);
                 conn.on('open', () => conn.send({ type: 'WELCOME', players: players }));
@@ -266,273 +207,339 @@
         }
 
         function joinRoom() {
-            myName = document.getElementById('myName').value.trim() || "玩家";
+            myName = document.getElementById('myName').value || "玩家";
             localStorage.setItem('draw_name', myName);
             const hostId = document.getElementById('hostIdInput').value.trim();
             if(!hostId) return alert('请输入房号');
-
             hostConn = peer.connect(hostId, { metadata: { name: myName } });
             hostConn.on('open', () => {
                 document.getElementById('loginModal').style.display = 'none';
-                addLog('系统', '已连接房主');
+                showOverlay('wait', '等待房主开始...');
             });
             hostConn.on('data', data => handleData(data));
-            hostConn.on('close', () => { alert('房主断开'); location.reload(); });
         }
 
         function enterGame() {
             broadcast({ type: 'ENTER_GAME' });
-            initGameUI();
+            showOverlay('host', '请选择模式');
+            document.getElementById('loginModal').style.display = 'none';
         }
 
-        // ================= 2. 数据处理 =================
-        function handleData(data, senderConn) {
+        // ================= 2. 消息处理 =================
+        function handleData(data, conn) {
             if (isHost) {
+                // 房主逻辑
                 if (data.type === 'LOGIN') {
-                    players.push({ id: senderConn.peer, name: data.name, score: 0 });
+                    players.push({ id: conn.peer, name: data.name, score: 0 });
                     document.getElementById('waitCount').innerText = players.length;
                     broadcast({ type: 'UPDATE_PLAYERS', players: players });
                 }
-                else if (data.type === 'DRAW_DATA') {
-                    broadcast(data); drawOnCanvas(data);
-                }
-                else if (data.type === 'SKIP_WORD') {
-                    // 画师请求换词
-                    currentWord = getRandomWord();
-                    broadcast({ type: 'UPDATE_WORD', word: currentWord, drawerId: drawerId });
-                }
-                else if (data.type === 'GUESS') {
-                    // 猜题逻辑
-                    if (data.content === currentWord) {
-                        let p = players.find(x => x.id === data.from);
-                        let d = players.find(x => x.id === drawerId);
-                        
-                        // 防止重复加分
-                        if (!data.hasWon) {
-                            if(p) p.score += 10;
-                            if(d) d.score += 5;
-                            broadcast({ type: 'CORRECT_GUESS', winner: p.name, answer: currentWord, players: players });
-                            // 猜对直接下一轮
-                            setTimeout(nextRound, 2000); 
-                        }
+                else if (data.type === 'DRAW_DATA') { broadcast(data); drawLine(data); }
+                else if (data.type === 'CLEAR') { broadcast(data); ctx.clearRect(0,0,canvas.width,canvas.height); }
+                
+                // 竞速猜题逻辑
+                else if (data.type === 'GUESS_CLASSIC') {
+                    if (mode === 'classic' && data.content === currentWord) {
+                        broadcast({ type: 'WINNER', name: data.name, answer: currentWord });
+                        setTimeout(nextRoundClassic, 3000);
                     } else {
                         broadcast({ type: 'CHAT', name: data.name, content: data.content });
                     }
                 }
-            } 
-            
+                
+                // 接龙提交逻辑
+                else if (data.type === 'RELAY_SUBMIT') {
+                    handleRelayStep(data);
+                }
+            }
+
             // 通用逻辑
             if (data.type === 'WELCOME') { hostConn.send({ type: 'LOGIN', name: myName }); }
-            else if (data.type === 'UPDATE_PLAYERS') { players = data.players; renderPlayerList(); if(isHost) document.getElementById('waitCount').innerText = players.length; }
-            else if (data.type === 'ENTER_GAME') { initGameUI(); }
-            else if (data.type === 'DRAW_DATA') { drawOnCanvas(data); }
-            else if (data.type === 'CLEAR_CANVAS') { ctx.clearRect(0, 0, canvas.width, canvas.height); }
-            else if (data.type === 'CHAT') { addLog(data.name, data.content); }
-            else if (data.type === 'ROUND_START') { startRoundUI(data); }
-            else if (data.type === 'UPDATE_WORD') { updateWordUI(data); } // 换词刷新
-            else if (data.type === 'CORRECT_GUESS') {
-                addLog('系统', `🎉 ${data.winner} 猜对了：${data.answer}!`, 'correct');
-                players = data.players;
-                renderPlayerList();
+            else if (data.type === 'UPDATE_PLAYERS') { players = data.players; renderPlayers(); }
+            else if (data.type === 'ENTER_GAME') { 
+                document.getElementById('loginModal').style.display = 'none'; 
+                if(!isHost) showOverlay('wait', '等待房主选择模式...');
             }
+            else if (data.type === 'DRAW_DATA') { drawLine(data); }
+            else if (data.type === 'CLEAR') { ctx.clearRect(0,0,canvas.width,canvas.height); }
+            else if (data.type === 'CHAT') { addLog(data.name, data.content); }
+            
+            // 游戏指令
+            else if (data.type === 'START_CLASSIC') { startRoundUI(data); }
+            else if (data.type === 'WINNER') { addLog('系统', `🎉 ${data.name} 猜对了：${data.answer}!`, 'sys'); }
+            
+            // 接龙指令
+            else if (data.type === 'RELAY_YOUR_TURN') { startRelayTurnUI(data); }
+            else if (data.type === 'RELAY_WAIT') { showOverlay('wait', `正在由 ${data.name} 进行 ${data.act}...`); }
+            else if (data.type === 'RELAY_GAMEOVER') { showRelayResult(data.history); }
         }
 
         function broadcast(msg) {
-            if(isHost) {
+            if (isHost) {
                 if(msg.type !== 'DRAW_DATA') handleData(msg); 
                 connList.forEach(c => c.send(msg));
-            } else {
-                hostConn.send(msg);
-            }
+            } else { hostConn.send(msg); }
         }
 
-        // ================= 3. 游戏流程 =================
-        function initGameUI() {
-            document.getElementById('loginModal').style.display = 'none';
-            document.getElementById('wordOverlay').style.display = 'flex';
-            if(isHost) {
-                document.getElementById('overlayText').innerText = "房主请选择题库";
-                document.getElementById('hostControls').style.display = 'flex';
-            } else {
-                document.getElementById('overlayText').innerText = "等待房主选题...";
-            }
+        // ================= 3. 竞速模式 (Classic) =================
+        function startClassic() {
+            mode = 'classic';
+            nextRoundClassic();
         }
 
-        function startGame(category) {
-            currentCategory = category;
-            // 开始循环
-            startRoundLoop(0);
+        function nextRoundClassic() {
+            const drawer = players[Math.floor(Math.random() * players.length)];
+            currentDrawer = drawer.id;
+            currentWord = AI_WORDS[Math.floor(Math.random() * AI_WORDS.length)];
+            broadcast({ type: 'START_CLASSIC', drawer: drawer.id, name: drawer.name, word: currentWord });
         }
 
-        let roundIdx = -1;
-        function nextRound() {
-            startRoundLoop((roundIdx + 1) % players.length);
-        }
-
-        function startRoundLoop(idx) {
-            roundIdx = idx;
-            drawerId = players[idx].id;
-            currentWord = getRandomWord();
-            
-            // 广播
-            broadcast({
-                type: 'ROUND_START',
-                drawerId: drawerId,
-                word: currentWord
-            });
-        }
-
-        function getRandomWord() {
-            const list = AI_WORDS[currentCategory];
-            return list[Math.floor(Math.random() * list.length)];
-        }
-
-        // UI 响应
         function startRoundUI(data) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawerId = data.drawerId;
-            currentWord = data.word; // 客户端也要存一下用于核对
-            renderPlayerList();
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            renderPlayers();
+            document.getElementById('statusText').innerText = `画手：${data.name}`;
             
-            const isMe = (myId === drawerId);
-            const overlay = document.getElementById('wordOverlay');
-            const toolBar = document.getElementById('toolBar');
-            const inputArea = document.getElementById('guessInputArea');
-            const drawerControls = document.getElementById('drawerControls');
-
-            // 隐藏房主控件
-            document.getElementById('hostControls').style.display = 'none';
-
-            if (isMe) {
-                // 我是画师
-                overlay.style.display = 'flex';
-                document.getElementById('overlayText').innerHTML = `题目：<span style="color:#a29bfe;font-size:50px;">${data.word}</span><br><span style="font-size:20px;color:#888;">(请不要写出答案)</span>`;
-                drawerControls.style.display = 'block';
-                toolBar.style.display = 'none'; // 开始画之前不显示工具
-                inputArea.style.display = 'none';
+            if (myId === data.drawer) {
+                showOverlay('word', data.word);
+                // 我是画手，不能输入
+                document.getElementById('chatInputArea').style.display = 'none';
             } else {
-                // 我是猜题者
-                overlay.style.display = 'none';
-                toolBar.style.display = 'none';
-                drawerControls.style.display = 'none';
-                inputArea.style.display = 'flex';
-                let dName = players.find(p=>p.id===drawerId)?.name || "画师";
-                document.getElementById('statusText').innerText = `正在画画: ${dName}`;
+                showOverlay('none'); // 猜题者看画布
+                document.getElementById('toolBar').style.display = 'none';
+                document.getElementById('chatInputArea').style.display = 'flex';
             }
         }
 
-        // 画师点击“开始作画”
+        // ================= 4. 灵魂接龙 (Relay) 核心逻辑 =================
+        
+        // 房主点击“开始接龙”
+        function startRelay() {
+            mode = 'relay';
+            // 根据 relayStarterIndex 决定顺序
+            // 例如 [A, B, C]，第一轮 A开头。第二轮 B开头 -> [B, C, A]
+            let p = [...players];
+            // 轮转数组
+            for(let i=0; i<relayStarterIndex; i++) p.push(p.shift());
+            
+            relayQueue = p;
+            relayStep = 0;
+            relayHistory = [];
+            
+            // 第一步：选词
+            currentWord = AI_WORDS[Math.floor(Math.random() * AI_WORDS.length)];
+            
+            // 记录初始词
+            relayHistory.push({ type: 'word', content: currentWord, name: '系统' });
+
+            // 触发第一个人画画
+            triggerRelayStep();
+            
+            // 准备下一次起始人
+            relayStarterIndex = (relayStarterIndex + 1) % players.length;
+        }
+
+        function triggerRelayStep() {
+            // 检查是否结束
+            if (relayStep >= relayQueue.length) {
+                broadcast({ type: 'RELAY_GAMEOVER', history: relayHistory });
+                return;
+            }
+
+            const p = relayQueue[relayStep];
+            const isDrawingTurn = (relayStep % 2 === 0); // 偶数步画，奇数步猜
+            const lastContent = relayHistory[relayHistory.length - 1].content;
+
+            // 通知这个人操作，其他人等待
+            connList.forEach(c => {
+                if (c.peer === p.id) {
+                    c.send({ type: 'RELAY_YOUR_TURN', act: isDrawingTurn?'draw':'guess', content: lastContent });
+                } else {
+                    c.send({ type: 'RELAY_WAIT', name: p.name, act: isDrawingTurn?'画画':'猜题' });
+                }
+            });
+            // 如果房主自己是这个人
+            if (myId === p.id) {
+                handleData({ type: 'RELAY_YOUR_TURN', act: isDrawingTurn?'draw':'guess', content: lastContent });
+            } else {
+                handleData({ type: 'RELAY_WAIT', name: p.name, act: isDrawingTurn?'画画':'猜题' });
+            }
+        }
+
+        function startRelayTurnUI(data) {
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            document.getElementById('statusText').innerText = "轮到你了！";
+
+            if (data.act === 'draw') {
+                // 轮到我画：内容是文字
+                showOverlay('word', data.content);
+            } else {
+                // 轮到我猜：内容是图片URL
+                showOverlay('guess_img', data.content);
+            }
+        }
+
+        // 提交接龙结果 (画完/猜完)
+        function handleRelayStep(data) {
+            // data: { content: "图片URL" 或 "文字" }
+            const p = relayQueue[relayStep];
+            const type = (relayStep % 2 === 0) ? 'img' : 'text';
+            
+            relayHistory.push({ name: p.name, type: type, content: data.content });
+            relayStep++;
+            triggerRelayStep(); // 下一步
+        }
+
+        // ================= 5. 操作交互 =================
+        
+        // 画手点击“开始画”
         function startDrawing() {
-            document.getElementById('wordOverlay').style.display = 'none';
+            hideOverlay();
             document.getElementById('toolBar').style.display = 'flex';
         }
 
-        // 画师点击“换一个词”
-        function skipWord() {
-            if(isHost) {
-                // 房主直接换
-                currentWord = getRandomWord();
-                broadcast({ type: 'UPDATE_WORD', word: currentWord, drawerId: drawerId });
+        // 画手点击“换一题”
+        function changeWord() {
+            if(mode === 'classic') {
+                if(isHost) {
+                    currentWord = AI_WORDS[Math.floor(Math.random() * AI_WORDS.length)];
+                    broadcast({ type: 'START_CLASSIC', drawer: myId, name: myName, word: currentWord });
+                } else {
+                    alert('只有房主能换题(偷懒没写)');
+                }
             } else {
-                // 玩家请求房主换
-                hostConn.send({ type: 'SKIP_WORD' });
+                // 接龙模式换题 (仅限第一棒)
+                if(relayStep === 0) {
+                    currentWord = AI_WORDS[Math.floor(Math.random() * AI_WORDS.length)];
+                    // 更新历史第一条
+                    relayHistory[0].content = currentWord;
+                    // 刷新UI
+                    document.getElementById('wordText').innerText = currentWord;
+                }
             }
         }
 
-        function updateWordUI(data) {
-            // 只有画师能看到新词更新
-            if(myId === data.drawerId) {
-                currentWord = data.word;
-                document.getElementById('overlayText').innerHTML = `题目：<span style="color:#a29bfe;font-size:50px;">${data.word}</span><br><span style="font-size:20px;color:#888;">(请不要写出答案)</span>`;
+        // 画手点击“画好了”
+        function finishDrawing() {
+            if (mode === 'classic') {
+                alert('竞速模式不需要点这个，等他们猜对就行！');
+            } else {
+                // 接龙模式：提交画作
+                const imgData = canvas.toDataURL();
+                const msg = { type: 'RELAY_SUBMIT', content: imgData };
+                if(isHost) handleRelayStep(msg); else hostConn.send(msg);
             }
         }
 
-        // ================= 4. 画板逻辑 =================
-        let painting = false;
-        let currentColor = '#000000';
-        let lastX = 0, lastY = 0;
-
-        function initCanvasEvents() {
-            canvas.onmousedown = (e) => startDraw(e.offsetX, e.offsetY);
-            canvas.onmousemove = (e) => moveDraw(e.offsetX, e.offsetY);
-            canvas.onmouseup = endDraw;
-            
-            canvas.ontouchstart = (e) => {
-                e.preventDefault();
-                const rect = canvas.getBoundingClientRect();
-                startDraw(e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top);
-            };
-            canvas.ontouchmove = (e) => {
-                e.preventDefault();
-                const rect = canvas.getBoundingClientRect();
-                moveDraw(e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top);
-            };
-            canvas.ontouchend = endDraw;
-        }
-
-        function startDraw(x, y) {
-            if (myId !== drawerId) return;
-            painting = true; lastX = x; lastY = y;
-        }
-
-        function moveDraw(x, y) {
-            if (!painting) return;
-            const w = canvas.width; const h = canvas.height;
-            const drawData = { type: 'DRAW_DATA', x1: lastX/w, y1: lastY/h, x2: x/w, y2: y/h, color: currentColor };
-            drawOnCanvas(drawData);
-            if(isHost) broadcast(drawData); else hostConn.send(drawData);
-            lastX = x; lastY = y;
-        }
-
-        function endDraw() { painting = false; }
-
-        function drawOnCanvas(data) {
-            const w = canvas.width; const h = canvas.height;
-            ctx.beginPath();
-            ctx.moveTo(data.x1 * w, data.y1 * h);
-            ctx.lineTo(data.x2 * w, data.y2 * h);
-            ctx.strokeStyle = data.color;
-            ctx.lineWidth = data.color === '#ffffff' ? 20 : 3;
-            ctx.lineCap = 'round';
-            ctx.stroke();
-        }
-
-        function setColor(c) { currentColor = c; }
-        function clearCanvas(send) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            if(send) { if(isHost) broadcast({type:'CLEAR_CANVAS'}); else hostConn.send({type:'CLEAR_CANVAS'}); }
-        }
-
-        // ================= 5. 聊天与辅助 =================
-        function sendGuess() {
-            const ipt = document.getElementById('guessInput');
-            const val = ipt.value.trim();
+        // 猜题者提交猜测 (接龙)
+        function submitRelayGuess() {
+            const val = document.getElementById('relayGuessInput').value.trim();
             if(!val) return;
-            const msg = { type: 'GUESS', name: myName, content: val, from: myId };
+            const msg = { type: 'RELAY_SUBMIT', content: val };
+            if(isHost) handleRelayStep(msg); else hostConn.send(msg);
+        }
+
+        // 竞速模式聊天框回车
+        function sendChat() {
+            const val = document.getElementById('chatInput').value.trim();
+            if(!val) return;
+            const msg = { type: 'GUESS_CLASSIC', name: myName, content: val };
             if(isHost) handleData(msg); else hostConn.send(msg);
-            ipt.value = '';
+            document.getElementById('chatInput').value = '';
         }
 
-        function addLog(name, text, type='') {
-            const list = document.getElementById('chatList');
-            const div = document.createElement('div');
-            div.className = `chat-msg ${type}`;
-            div.innerText = `${name}: ${text}`;
-            list.appendChild(div);
-            list.scrollTop = list.scrollHeight;
+        // ================= 6. 辅助函数 =================
+        function showOverlay(type, data) {
+            document.querySelectorAll('.overlay > div').forEach(d => d.style.display='none');
+            document.getElementById('gameOverlay').style.display = 'flex';
+            
+            if(type === 'word') {
+                document.getElementById('wordDisplay').style.display = 'block';
+                document.getElementById('wordText').innerText = data;
+                document.getElementById('overlayTitle').innerText = "你要画的是：";
+            } else if (type === 'guess_img') {
+                document.getElementById('imgDisplay').style.display = 'flex';
+                document.getElementById('relayImg').src = data;
+                document.getElementById('relayGuessInput').value = '';
+                document.getElementById('overlayTitle').innerText = "上一棒画了啥？";
+            } else if (type === 'wait') {
+                document.getElementById('waitDisplay').style.display = 'block';
+                document.querySelector('#waitDisplay .overlay-text').innerText = data;
+            } else if (type === 'host') {
+                document.getElementById('hostControls').style.display = 'flex';
+                document.getElementById('overlayTitle').innerText = "房主控制台";
+            } else if (type === 'none') {
+                document.getElementById('gameOverlay').style.display = 'none';
+            }
         }
 
-        function renderPlayerList() {
-            const list = document.getElementById('playerList');
+        function hideOverlay() { document.getElementById('gameOverlay').style.display = 'none'; }
+
+        function showRelayResult(history) {
+            const list = document.getElementById('resultList');
             list.innerHTML = '';
-            players.forEach(p => {
-                let div = document.createElement('div');
-                div.className = `player-card ${p.id === drawerId ? 'drawer' : ''}`;
-                div.innerHTML = `<div class="p-avatar">🧸</div><div class="p-name">${p.name}</div><div class="p-score">${p.score}</div>`;
+            
+            history.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'result-item';
+                if (item.type === 'word' || item.type === 'text') {
+                    div.innerHTML = `<b>${item.name}</b>: <span style="font-size:20px; color:#ff9a9e;">${item.content}</span>`;
+                } else {
+                    div.innerHTML = `<b>${item.name}</b> 画了:<br><img src="${item.content}" class="result-img">`;
+                }
                 list.appendChild(div);
             });
+
+            document.getElementById('gameOverlay').style.display = 'flex';
+            document.getElementById('resultDisplay').style.display = 'block';
+            document.getElementById('overlayTitle').innerText = "灵魂画作大赏";
         }
 
+        // 画板与工具
+        let currentColor = '#000';
+        let lastX, lastY;
+        function initCanvasEvents() {
+            canvas.onmousedown = e => { isDrawing=true; lastX=e.offsetX; lastY=e.offsetY; };
+            canvas.onmousemove = e => { if(isDrawing) sendDraw(e.offsetX, e.offsetY); };
+            canvas.onmouseup = () => isDrawing=false;
+            
+            canvas.ontouchstart = e => { e.preventDefault(); const r=canvas.getBoundingClientRect(); isDrawing=true; lastX=e.touches[0].clientX-r.left; lastY=e.touches[0].clientY-r.top; };
+            canvas.ontouchmove = e => { e.preventDefault(); if(isDrawing) { const r=canvas.getBoundingClientRect(); sendDraw(e.touches[0].clientX-r.left, e.touches[0].clientY-r.top); } };
+            canvas.ontouchend = () => isDrawing=false;
+        }
+        function sendDraw(x, y) {
+            const w = canvas.width, h = canvas.height;
+            const data = { type:'DRAW_DATA', x1:lastX/w, y1:lastY/h, x2:x/w, y2:y/h, color:currentColor };
+            drawLine(data);
+            if(isHost) broadcast(data); else hostConn.send(data);
+            lastX = x; lastY = y;
+        }
+        function drawLine(d) {
+            const w = canvas.width, h = canvas.height;
+            ctx.beginPath();
+            ctx.moveTo(d.x1*w, d.y1*h); ctx.lineTo(d.x2*w, d.y2*h);
+            ctx.strokeStyle = d.color; ctx.lineWidth = d.color==='#fff'?20:3; ctx.lineCap='round'; ctx.stroke();
+        }
+        function setColor(c) { currentColor = c; }
+        function clearCanvas() { 
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            if(isHost) broadcast({type:'CLEAR'}); else hostConn.send({type:'CLEAR'});
+        }
+
+        function renderPlayers() {
+            const div = document.getElementById('playerList');
+            div.innerHTML = '';
+            players.forEach(p => {
+                const card = document.createElement('div');
+                card.className = `player-card ${p.id===currentDrawer?'active':''}`;
+                card.innerHTML = `<div style="font-size:20px;">🧸</div><div class="p-name">${p.name}</div><div class="p-score">${p.score}</div>`;
+                div.appendChild(card);
+            });
+        }
+        function addLog(n, t, c='') {
+            const box = document.getElementById('chatList');
+            box.innerHTML += `<div class="chat-msg ${c}">${n}: ${t}</div>`;
+            box.scrollTop = box.scrollHeight;
+        }
         function copyId() { navigator.clipboard.writeText(myId).then(()=>alert('房号已复制')); }
     </script>
 </body>
