@@ -22676,6 +22676,94 @@ window.openAISettings = function() {
 
 })();
 
+
+/* ================= 👥 V42.1 补丁：多人模式重置与缓存清理 ================= */
+(function() {
+    console.log("🚀 执行 V42.1：添加多人模式重置功能...");
+
+    // 1. 🗑️ 核心：清空多人项目数据
+    window.resetMultiProject = function() {
+        if (!confirm("⚠️ 确定要清空多人模式的当前名单吗？\n\n这将删除：\n1. 当前的张三、李四等名字\n2. 已经生成的角色设定缓存\n\n(不会删除已导出的文件)")) return;
+
+        // 清除内存
+        window.advisorState.multiChars = [];
+        window.projectCharData = {};
+        
+        // 🔥 清除硬盘缓存 (Local Storage)
+        localStorage.removeItem('my_multi_project_v1');
+        
+        // 提示并重新初始化
+        if(window.auth && window.auth.toast) window.auth.toast('🧹 多人项目已清空！');
+        
+        // 重新运行初始化逻辑 (这次会因为没数据而弹窗问你)
+        window.appendMultiChars(true);
+    };
+
+    // 2. 🔥 覆盖：渲染多人菜单 (增加重置按钮)
+    window.renderMultiCharMenu = function() {
+        var chat = document.getElementById('advisorChat');
+        var names = window.advisorState.multiChars || [];
+        var currentName = document.getElementById('cardName').value.trim();
+
+        // 如果名单为空，自动引导去添加
+        if (names.length === 0) {
+            window.appendMultiChars(true);
+            return;
+        }
+
+        // 生成按钮列表
+        var btnsHtml = names.map(name => {
+            var hasData = window.projectCharData && window.projectCharData[name];
+            var isCurrent = (name === currentName);
+            
+            var btnStyle = "background:#e3f2fd; color:#1565c0;"; 
+            var btnText = `⚡ 生成【${name}】设定`;
+            var action = `generateCharSettings('${name}')`;
+
+            if (hasData) {
+                if (isCurrent) {
+                    btnStyle = "background:#4caf50; color:white; border:1px solid #388e3c;";
+                    btnText = `🟢 编辑中：${name}`;
+                    action = "";
+                } else {
+                    btnStyle = "background:#fff; border:1px solid #1565c0; color:#1565c0;";
+                    btnText = `👤 切换至：${name}`;
+                    action = `switchCharPanel('${name}')`;
+                }
+            }
+            return `<button class="advisor-action-btn" style="${btnStyle}" onclick="${action}">${btnText}</button>`;
+        }).join('');
+        
+        // 渲染面板 (底部增加了红色重置按钮)
+        chat.innerHTML = `
+            <div class="advisor-bubble" style="background:#f5f5f5; border-left:4px solid #673ab7;">
+                <b>👥 多人角色管理台</b><br>
+                <div style="font-size:11px; color:#666; margin-bottom:5px;">
+                    当前名单：${names.join(', ')}
+                </div>
+                <div style="display:flex; flex-direction:column; gap:5px;">
+                    ${btnsHtml}
+                </div>
+                
+                <hr style="border:0; border-top:1px dashed #ccc; margin:10px 0;">
+                
+                <div style="display:flex; gap:5px;">
+                    <button class="advisor-action-btn" style="flex:1; background:#fff; color:#d32f2f; border:1px solid #d32f2f;" onclick="window.resetMultiProject()">
+                        🗑️ 清空重置
+                    </button>
+                    <button class="advisor-action-btn" style="flex:1; background:#e0f2f1; color:#00695c;" onclick="window.appendMultiChars(false)">
+                        ➕ 增加一人
+                    </button>
+                </div>
+            </div>
+        `;
+        chat.scrollTop = chat.scrollHeight;
+    };
+
+    console.log("✅ V42.1：已修复幽灵数据问题");
+
+})();
+
 /* ================= 💾 V49.0 补丁：切换至 IndexedDB 海量存储引擎 ================= */
 (function() {
     console.log("🚀 执行 V49.0：正在迁移至海量数据库 (IndexedDB)...");
@@ -23059,6 +23147,8 @@ window.openAISettings = function() {
     console.log("✅ V51.0：恢复系统已修复");
 
 })();
+
+
 
 // ================= 👑 写卡器代码结束 =================
 
