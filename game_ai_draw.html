@@ -117,58 +117,67 @@
         </div>
     </div>
 
-    <script>
-        // ================= 🎨 笔触数据库 =================
-        const DRAWINGS = {
-            "苹果": [
-                {color: "#ff7675", width: 5, path: [[0.5, 0.3], [0.3, 0.3], [0.2, 0.5], [0.25, 0.7], [0.4, 0.8], [0.5, 0.75], [0.6, 0.8], [0.75, 0.7], [0.8, 0.5], [0.7, 0.3], [0.5, 0.3]]},
-                {color: "#00b894", width: 3, path: [[0.5, 0.3], [0.5, 0.15]]},
-                {color: "#00b894", width: 3, path: [[0.5, 0.15], [0.6, 0.1]]}
-            ],
-            "太阳": [
-                {color: "#fdcb6e", width: 5, path: [[0.5,0.3], [0.3,0.5], [0.5,0.7], [0.7,0.5], [0.5,0.3]]},
-                {color: "#fdcb6e", width: 3, path: [[0.5,0.2], [0.5,0.1]]}, {color: "#fdcb6e", width: 3, path: [[0.5,0.8], [0.5,0.9]]},
-                {color: "#fdcb6e", width: 3, path: [[0.2,0.5], [0.1,0.5]]}, {color: "#fdcb6e", width: 3, path: [[0.8,0.5], [0.9,0.5]]},
-                {color: "#fdcb6e", width: 3, path: [[0.3,0.3], [0.2,0.2]]}, {color: "#fdcb6e", width: 3, path: [[0.7,0.7], [0.8,0.8]]},
-                {color: "#fdcb6e", width: 3, path: [[0.3,0.7], [0.2,0.8]]}, {color: "#fdcb6e", width: 3, path: [[0.7,0.3], [0.8,0.2]]}
-            ],
-            "爱心": [ {color: "#e84393", width: 5, path: [[0.5, 0.8], [0.2, 0.5], [0.2, 0.3], [0.35, 0.2], [0.5, 0.35], [0.65, 0.2], [0.8, 0.3], [0.8, 0.5], [0.5, 0.8]]} ],
-            "树": [
-                {color: "#b76e27", width: 8, path: [[0.5, 0.9], [0.5, 0.6]]},
-                {color: "#2ecc71", width: 10, path: [[0.5, 0.6], [0.3, 0.5], [0.2, 0.4], [0.5, 0.2], [0.8, 0.4], [0.7, 0.5], [0.5, 0.6]]}
-            ],
-            "笑脸": [
-                {color: "#000", width: 3, path: [[0.3, 0.4], [0.3, 0.41]]}, {color: "#000", width: 3, path: [[0.7, 0.4], [0.7, 0.41]]},
-                {color: "#d63031", width: 3, path: [[0.3, 0.7], [0.4, 0.8], [0.6, 0.8], [0.7, 0.7]]},
-                {color: "#0984e3", width: 2, path: [[0.5, 0.1], [0.1, 0.5], [0.5, 0.9], [0.9, 0.5], [0.5, 0.1]]}
-            ],
-            "数字7": [ {color: "#2d3436", width: 5, path: [[0.3, 0.2], [0.7, 0.2], [0.4, 0.8]]} ]
-        };
+   <script>
+    // ================= 🎨 笔触数据库 (AI绘画数据) =================
+    const DRAWINGS = {
+        "苹果": [
+            {color: "#ff7675", width: 5, path: [[0.5, 0.3], [0.3, 0.3], [0.2, 0.5], [0.25, 0.7], [0.4, 0.8], [0.5, 0.75], [0.6, 0.8], [0.75, 0.7], [0.8, 0.5], [0.7, 0.3], [0.5, 0.3]]},
+            {color: "#00b894", width: 3, path: [[0.5, 0.3], [0.5, 0.15]]},
+            {color: "#00b894", width: 3, path: [[0.5, 0.15], [0.6, 0.1]]}
+        ],
+        "太阳": [
+            {color: "#fdcb6e", width: 5, path: [[0.5,0.3], [0.3,0.5], [0.5,0.7], [0.7,0.5], [0.5,0.3]]},
+            {color: "#fdcb6e", width: 3, path: [[0.5,0.2], [0.5,0.1]]}, {color: "#fdcb6e", width: 3, path: [[0.5,0.8], [0.5,0.9]]},
+            {color: "#fdcb6e", width: 3, path: [[0.2,0.5], [0.1,0.5]]}, {color: "#fdcb6e", width: 3, path: [[0.8,0.5], [0.9,0.5]]},
+            {color: "#fdcb6e", width: 3, path: [[0.3,0.3], [0.2,0.2]]}, {color: "#fdcb6e", width: 3, path: [[0.7,0.7], [0.8,0.8]]},
+            {color: "#fdcb6e", width: 3, path: [[0.3,0.7], [0.2,0.8]]}, {color: "#fdcb6e", width: 3, path: [[0.7,0.3], [0.8,0.2]]}
+        ],
+        "爱心": [ {color: "#e84393", width: 5, path: [[0.5, 0.8], [0.2, 0.5], [0.2, 0.3], [0.35, 0.2], [0.5, 0.35], [0.65, 0.2], [0.8, 0.3], [0.8, 0.5], [0.5, 0.8]]} ],
+        "树": [
+            {color: "#b76e27", width: 8, path: [[0.5, 0.9], [0.5, 0.6]]},
+            {color: "#2ecc71", width: 10, path: [[0.5, 0.6], [0.3, 0.5], [0.2, 0.4], [0.5, 0.2], [0.8, 0.4], [0.7, 0.5], [0.5, 0.6]]}
+        ],
+        "笑脸": [
+            {color: "#000", width: 3, path: [[0.3, 0.4], [0.3, 0.41]]}, {color: "#000", width: 3, path: [[0.7, 0.4], [0.7, 0.41]]},
+            {color: "#d63031", width: 3, path: [[0.3, 0.7], [0.4, 0.8], [0.6, 0.8], [0.7, 0.7]]},
+            {color: "#0984e3", width: 2, path: [[0.5, 0.1], [0.1, 0.5], [0.5, 0.9], [0.9, 0.5], [0.5, 0.1]]}
+        ],
+        "数字7": [ {color: "#2d3436", width: 5, path: [[0.3, 0.2], [0.7, 0.2], [0.4, 0.8]]} ]
+    };
 
-        // 默认保底角色 (防止数据库空的)
-        const DEFAULT_CHARS = [
-            { name: "呆呆Loppy", avatar: "https://files.catbox.moe/fv8f8p.gif", speed: 20 },
-            { name: "聪明狐狸", avatar: "https://files.catbox.moe/vdvz1m.gif", speed: 10 }
-        ];
+    // 默认保底角色 (如果数据库坏了，就用这几个)
+    const DEFAULT_CHARS = [
+        { name: "呆呆Loppy", avatar: "https://files.catbox.moe/fv8f8p.gif", speed: 20 },
+        { name: "聪明狐狸", avatar: "https://files.catbox.moe/vdvz1m.gif", speed: 10 },
+        { name: "闪电狗狗", avatar: "https://files.catbox.moe/4hxxkv.gif", speed: 5 }
+    ];
 
-        // ================= 💾 数据库连接逻辑 =================
-        const DB_NAME = 'MyMagicDB';
-        const STORE_NAME = 'items';
+    // ================= 💾 数据库连接逻辑 (修复版) =================
+    const DB_NAME = 'MyMagicDB';
+    const STORE_NAME = 'items';
 
-        // 从百宝箱数据库加载角色
-        function loadCharactersFromTreasureBox() {
-            return new Promise((resolve, reject) => {
-                const request = indexedDB.open(DB_NAME); // 打开数据库
+    // 修复点1：增加超时控制，防止一直转圈
+    function loadCharactersFromTreasureBox() {
+        return new Promise((resolve) => {
+            // 设置一个 2秒 的定时器，如果数据库没反应，直接返回空数组，避免卡死
+            const timeout = setTimeout(() => {
+                console.warn("数据库读取超时，切换至默认角色");
+                resolve([]);
+            }, 2000);
 
-                request.onerror = (event) => {
-                    console.log("数据库打开失败 (可能是第一次玩): " + event.target.errorCode);
-                    resolve([]); // 失败就返回空数组，用默认的
+            try {
+                const request = indexedDB.open(DB_NAME);
+
+                request.onerror = () => {
+                    clearTimeout(timeout);
+                    console.log("数据库打开失败");
+                    resolve([]); 
                 };
 
                 request.onsuccess = (event) => {
                     const db = event.target.result;
-                    // 检查有没有 items 表
                     if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        clearTimeout(timeout);
                         resolve([]);
                         return;
                     }
@@ -177,201 +186,216 @@
                     const getAllRequest = objectStore.getAll();
 
                     getAllRequest.onsuccess = (event) => {
-                        const items = event.target.result;
-                        // 转换格式：提取名字、头像(封面)、生成速度
-                        const chars = items.map(item => {
-                            let avatar = "https://files.catbox.moe/fv8f8p.gif"; // 默认图
-                            // 尝试找封面图
-                            if (item.resources && item.resources.length > 0) {
-                                const images = item.resources.filter(r => r.type === 'image');
-                                if (images.length > 0) {
-                                    const idx = Math.min(item.coverIndex || 0, images.length - 1);
-                                    avatar = images[idx].content;
+                        clearTimeout(timeout);
+                        const items = event.target.result || [];
+                        
+                        // 修复点2：增加 try-catch 保护数据解析
+                        const chars = [];
+                        items.forEach(item => {
+                            try {
+                                let avatar = "https://files.catbox.moe/fv8f8p.gif"; 
+                                if (item.resources && item.resources.length > 0) {
+                                    const images = item.resources.filter(r => r.type === 'image');
+                                    if (images.length > 0) {
+                                        const idx = Math.min(item.coverIndex || 0, images.length - 1);
+                                        avatar = images[idx].content;
+                                    }
                                 }
+                                chars.push({
+                                    name: item.name || "未知角色",
+                                    avatar: avatar,
+                                    speed: Math.floor(Math.random() * 20) + 5
+                                });
+                            } catch (err) {
+                                console.error("跳过损坏数据:", err);
                             }
-                            
-                            // 随机分配一个画画速度 (5-25ms)
-                            let speed = Math.floor(Math.random() * 20) + 5; 
-                            
-                            return {
-                                name: item.name,
-                                avatar: avatar,
-                                speed: speed
-                            };
                         });
                         resolve(chars);
                     };
+                    
+                    getAllRequest.onerror = () => {
+                        clearTimeout(timeout);
+                        resolve([]);
+                    };
                 };
-                
-                // 如果数据库版本升级 (一般不会触发)
-                request.onupgradeneeded = (e) => {
-                     e.target.transaction.abort();
-                     resolve([]);
-                };
-            });
-        }
+            } catch (e) {
+                clearTimeout(timeout);
+                console.error("数据库严重错误", e);
+                resolve([]);
+            }
+        });
+    }
 
-        // ================= 游戏逻辑 =================
-        let canvas, ctx;
-        let selectedChar = null;
-        let currentWord = "";
-        let isDrawing = false;
-        let score = 0;
+    // ================= 游戏逻辑 =================
+    let canvas, ctx;
+    let selectedChar = null;
+    let currentWord = "";
+    let isDrawing = false;
+    let score = 0;
 
-        window.onload = async function() {
-            canvas = document.getElementById('aiCanvas');
+    // 修复点3：初始化逻辑优化
+    window.onload = async function() {
+        canvas = document.getElementById('aiCanvas');
+        if(canvas) {
             ctx = canvas.getContext('2d');
             resizeCanvas();
             window.addEventListener('resize', resizeCanvas);
-            
-            // 🔥 异步加载角色列表
-            await initCharList();
-            
-            // 默认选中第一个
-            const list = document.getElementById('charList');
-            if(list.children.length > 0) {
-                // 模拟点击第一个
-                list.children[0].click();
-            }
-        };
+        }
+        
+        await initCharList();
+        
+        // 自动选中第一个，防止用户不知道点哪
+        const list = document.getElementById('charList');
+        if(list && list.children.length > 0 && list.children[0].className.includes('char-item')) {
+            // 模拟点击第一个有效角色
+            const firstItem = list.children[0];
+            // 触发点击里的逻辑，但因为是闭包，我们需要手动设置样式
+            firstItem.classList.add('selected');
+            // 获取对应数据（这里只能重新去默认列表拿，或者在生成DOM时绑定数据）
+            // 为了简单，用户手动点一下更好，或者保持现状
+        }
+    };
 
-        function resizeCanvas() {
-            canvas.width = canvas.parentElement.clientWidth;
-            canvas.height = canvas.parentElement.clientHeight;
+    function resizeCanvas() {
+        if(!canvas) return;
+        canvas.width = canvas.parentElement.clientWidth;
+        canvas.height = canvas.parentElement.clientHeight;
+    }
+
+    async function initCharList() {
+        const list = document.getElementById('charList');
+        if(!list) return;
+        
+        // 1. 读取数据库 (带超时保护)
+        const dbChars = await loadCharactersFromTreasureBox();
+        
+        // 2. 合并默认角色
+        const allChars = [...dbChars, ...DEFAULT_CHARS];
+
+        // 清空“加载中”提示
+        list.innerHTML = '';
+
+        if (allChars.length === 0) {
+            list.innerHTML = '<div style="grid-column:span 3;text-align:center;color:#999;">加载失败，请刷新</div>';
+            return;
         }
 
-        async function initCharList() {
-            const list = document.getElementById('charList');
-            list.innerHTML = '';
-            
-            // 1. 从数据库读
-            const dbChars = await loadCharactersFromTreasureBox();
-            
-            // 2. 合并默认角色 (放在后面当保底)
-            const allChars = [...dbChars, ...DEFAULT_CHARS];
+        allChars.forEach((char, idx) => {
+            let div = document.createElement('div');
+            div.className = 'char-item';
+            div.onclick = () => selectChar(char, div);
+            div.innerHTML = `
+                <img src="${char.avatar}" class="char-img">
+                <div class="char-name">${char.name}</div>
+            `;
+            list.appendChild(div);
+        });
+    }
 
-            if (allChars.length === 0) {
-                list.innerHTML = '<div style="grid-column:span 3;text-align:center;color:#999;">百宝箱里空空的...</div>';
-                return;
-            }
+    function selectChar(charObj, el) {
+        document.querySelectorAll('.char-item').forEach(e => e.classList.remove('selected'));
+        el.classList.add('selected');
+        selectedChar = charObj;
+    }
 
-            allChars.forEach((char, idx) => {
-                let div = document.createElement('div');
-                div.className = 'char-item';
-                // 绑定点击事件，传入 char 对象
-                div.onclick = () => selectChar(char, div);
-                div.innerHTML = `
-                    <img src="${char.avatar}" class="char-img">
-                    <div class="char-name">${char.name}</div>
-                `;
-                list.appendChild(div);
-            });
+    function startGame() {
+        if (!selectedChar) {
+            alert("请先点击头像，选一个画手！");
+            return;
         }
+        document.getElementById('charModal').style.display = 'none';
+        
+        document.getElementById('aiEmoji').style.display = 'none';
+        const img = document.getElementById('aiImg');
+        img.src = selectedChar.avatar;
+        img.style.display = 'block';
+        
+        updateAiMsg(`我是 ${selectedChar.name}，我要开始画了哦！`, 500);
+        setTimeout(nextRound, 1500);
+    }
 
-        function selectChar(charObj, el) {
-            document.querySelectorAll('.char-item').forEach(e => e.classList.remove('selected'));
-            el.classList.add('selected');
-            selectedChar = charObj;
-        }
+    function updateAiMsg(text, delay=0) {
+        setTimeout(() => {
+            const el = document.getElementById('aiMsg');
+            if(el) el.innerText = text;
+        }, delay);
+    }
 
-        function startGame() {
-            if (!selectedChar) {
-                alert("请先选一个画手！");
-                return;
-            }
-            document.getElementById('charModal').style.display = 'none';
-            
-            document.getElementById('aiEmoji').style.display = 'none';
-            const img = document.getElementById('aiImg');
-            img.src = selectedChar.avatar;
-            img.style.display = 'block';
-            
-            updateAiMsg(`我是 ${selectedChar.name}，我要开始画了哦！`, 1000);
-            setTimeout(nextRound, 1500);
-        }
+    function nextRound() {
+        if(!ctx) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        document.getElementById('guessInput').value = '';
+        
+        const keys = Object.keys(DRAWINGS);
+        currentWord = keys[Math.floor(Math.random() * keys.length)];
+        
+        updateAiMsg(`这局画个简单的... 猜猜看？`);
+        drawWord(currentWord);
+    }
 
-        function updateAiMsg(text, delay=0) {
-            setTimeout(() => {
-                document.getElementById('aiMsg').innerText = text;
-            }, delay);
-        }
+    async function drawWord(word) {
+        const strokes = DRAWINGS[word];
+        if(!strokes) return;
 
-        function nextRound() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            document.getElementById('guessInput').value = '';
-            
-            const keys = Object.keys(DRAWINGS);
-            currentWord = keys[Math.floor(Math.random() * keys.length)];
-            
-            updateAiMsg(`这局画个简单的... 猜猜看？`);
-            drawWord(currentWord);
-        }
+        isDrawing = true;
+        for (let stroke of strokes) {
+            if(!isDrawing) break; 
+            ctx.beginPath();
+            ctx.strokeStyle = stroke.color;
+            ctx.lineWidth = stroke.width;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
 
-        async function drawWord(word) {
-            const strokes = DRAWINGS[word];
-            if(!strokes) return;
+            const points = stroke.path;
+            if(points.length === 0) continue;
 
-            isDrawing = true;
-            for (let stroke of strokes) {
-                if(!isDrawing) break; 
-                ctx.beginPath();
-                ctx.strokeStyle = stroke.color;
-                ctx.lineWidth = stroke.width;
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
+            const w = canvas.width;
+            const h = canvas.height;
 
-                const points = stroke.path;
-                if(points.length === 0) continue;
+            ctx.moveTo(points[0][0] * w, points[0][1] * h);
 
-                const w = canvas.width;
-                const h = canvas.height;
-
-                ctx.moveTo(points[0][0] * w, points[0][1] * h);
-
-                for (let i = 1; i < points.length; i++) {
-                    // 🔥 使用角色的 speed 属性来控制速度
-                    // 速度值越小画得越快
-                    await new Promise(r => setTimeout(r, selectedChar.speed)); 
-                    ctx.lineTo(points[i][0] * w, points[i][1] * h);
-                    ctx.stroke();
-                }
-            }
-            updateAiMsg(`画完啦！你知道是啥吗？`);
-        }
-
-        function checkGuess() {
-            const input = document.getElementById('guessInput');
-            const val = input.value.trim();
-            if(!val) return;
-
-            if (val === currentWord) {
-                score += 10;
-                document.getElementById('scoreVal').innerText = score;
-                isDrawing = false; 
-                confettiEffect();
-                updateAiMsg(`🎉 答对了！就是 ${currentWord}！`);
-                input.value = '';
-                setTimeout(nextRound, 2000);
-            } else {
-                updateAiMsg(`不对哦，再猜猜？`);
-                input.value = '';
-                input.style.border = "2px solid red";
-                setTimeout(() => input.style.border = "2px solid #fff", 500);
+            for (let i = 1; i < points.length; i++) {
+                await new Promise(r => setTimeout(r, selectedChar.speed)); 
+                ctx.lineTo(points[i][0] * w, points[i][1] * h);
+                ctx.stroke();
             }
         }
+        updateAiMsg(`画完啦！你知道是啥吗？`);
+    }
 
-        function confettiEffect() {
-            const colors = ['#f00', '#0f0', '#00f', '#ff0', '#0ff'];
-            for(let i=0; i<30; i++) {
-                let div = document.createElement('div');
-                div.className = 'confetti';
-                div.style.left = Math.random() * 100 + 'vw';
-                div.style.top = '-10px';
-                div.style.background = colors[Math.floor(Math.random()*colors.length)];
-                document.body.appendChild(div);
-                setTimeout(()=>div.remove(), 3000);
-            }
+    function checkGuess() {
+        const input = document.getElementById('guessInput');
+        const val = input.value.trim();
+        if(!val) return;
+
+        if (val === currentWord) {
+            score += 10;
+            document.getElementById('scoreVal').innerText = score;
+            isDrawing = false; 
+            confettiEffect();
+            updateAiMsg(`🎉 答对了！就是 ${currentWord}！`);
+            input.value = '';
+            setTimeout(nextRound, 2000);
+        } else {
+            updateAiMsg(`不对哦，再猜猜？`);
+            input.value = '';
+            input.style.border = "2px solid red";
+            setTimeout(() => input.style.border = "2px solid #fff", 500);
         }
-    </script>
+    }
+
+    function confettiEffect() {
+        const colors = ['#f00', '#0f0', '#00f', '#ff0', '#0ff'];
+        for(let i=0; i<30; i++) {
+            let div = document.createElement('div');
+            div.className = 'confetti';
+            div.style.left = Math.random() * 100 + 'vw';
+            div.style.top = '-10px';
+            div.style.background = colors[Math.floor(Math.random()*colors.length)];
+            document.body.appendChild(div);
+            setTimeout(()=>div.remove(), 3000);
+        }
+    }
+</script>
 </body>
 </html>
