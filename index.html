@@ -21102,6 +21102,978 @@ ${window.frontendStyleGuide.substring(0, 5000)}
 
 })();
 
+/* ================= 🔍 V38.0 补丁：美化方案全屏预览 ================= */
+(function() {
+    console.log("🚀 执行 V38.0：正在安装全屏预览插件...");
+
+    // 1. 🏗️ 构建全屏预览窗口 (Lightbox)
+    function injectPreviewModal() {
+        if (document.getElementById('codePreviewModal')) return;
+
+        var modal = document.createElement('div');
+        modal.id = 'codePreviewModal';
+        modal.className = 'modal-overlay'; // 复用你的弹窗样式
+        modal.style.cssText = "z-index: 20000; display: none; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px);";
+
+        modal.innerHTML = `
+            <div class="modal" style="width: 90%; height: 90%; max-width: 1000px; padding: 0; display: flex; flex-direction: column; background: #eee; border-radius: 10px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
+                
+                <div style="padding: 10px 15px; background: #fff; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: bold; color: #333;">👁️ 效果预览 (全屏模式)</span>
+                    <button onclick="document.getElementById('codePreviewModal').classList.remove('active'); setTimeout(()=>document.getElementById('codePreviewModal').style.display='none', 300);" 
+                            style="border: none; background: none; font-size: 24px; cursor: pointer; color: #666;">×</button>
+                </div>
+
+                <div id="codePreviewStage" style="flex: 1; overflow: auto; padding: 20px; position: relative; display: flex; justify-content: center; align-items: center; background-image: radial-gradient(#ccc 1px, transparent 1px); background-size: 20px 20px;">
+                    <div id="shadowHost" style="width: 100%; max-width: 600px; background: transparent;"></div>
+                </div>
+
+                <div style="padding: 10px; background: #fff; border-top: 1px solid #ddd; text-align: center; color: #888; font-size: 12px;">
+                    💡 这就是应用到卡片后的实际效果
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    // 2. 🔍 打开预览函数
+    window.enlargePreview = function(encodedCode) {
+        var code = decodeURIComponent(encodedCode);
+        
+        var modal = document.getElementById('codePreviewModal');
+        var host = document.getElementById('shadowHost');
+        
+        if (!modal || !host) {
+            injectPreviewModal();
+            modal = document.getElementById('codePreviewModal');
+            host = document.getElementById('shadowHost');
+        }
+
+        // 重置 Shadow DOM
+        // 因为 ShadowRoot 不能被重置，所以我们每次都重建 host 元素
+        var parent = host.parentNode;
+        parent.removeChild(host);
+        
+        var newHost = document.createElement('div');
+        newHost.id = 'shadowHost';
+        newHost.style.cssText = "width: 100%; max-width: 800px; min-height: 200px; background: transparent;";
+        parent.appendChild(newHost);
+
+        // 注入代码
+        var shadow = newHost.attachShadow({mode: 'open'});
+        shadow.innerHTML = code;
+
+        // 显示弹窗
+        modal.style.display = 'flex';
+        // 稍微延迟加 active 类以触发动画 (如果 css 有动画的话)
+        setTimeout(() => modal.classList.add('active'), 10);
+    };
+
+    // 3. 🔥 覆盖美化生成逻辑 (runBeautifyGeneration)
+    // 目标：给预览框加上点击事件
+    // 我们必须完整重写这个函数，因为它是闭包里的逻辑
+    
+    // (注意：这里需要复用 V36 的逻辑，但修改 innerHTML 生成部分)
+    window.runBeautifyGenerationOverride = async function(text, loadingId) {
+        var chat = document.getElementById('advisorChat');
+        var config = window.aiConfig || JSON.parse(localStorage.getItem('my_ai_config'));
+        var desc = document.getElementById('cardDesc').value || "通用角色";
+
+        // Prompt (保持不变)
+        var prompt = `
+        你是一个前端UI设计师。
+        用户需求：${text}
+        角色设定：${desc.substring(0, 500)}
+        
+        ${window.tempStyleGuide ? "【强制参考样式规范】:\n" + window.tempStyleGuide.substring(0, 3000) : ""}
+        
+        请设计 3 个不同的 HTML/CSS 方案。
+        必须返回纯 JSON 数组：
+        [
+            {
+                "name": "方案名称",
+                "desc": "设计理念",
+                "regex": "/正则/g",
+                "code": "<style>...</style><div>...</div>"
+            },
+            ...
+        ]
+        `;
+
+        try {
+            var res = await fetchAI(prompt, config);
+            var data = JSON.parse(res.replace(/```json/g, '').replace(/```/g, '').trim());
+            document.getElementById(loadingId).remove();
+
+            if (data.length === 0) throw new Error("生成为空");
+
+            chat.innerHTML += `<div class="advisor-bubble">✨ 设计完成！<b>点击下方灰色区域可放大预览：</b></div>`;
+
+            // 渲染方案
+            data.forEach((item, idx) => {
+                var safeCode = encodeURIComponent(item.code);
+                var safeRegex = encodeURIComponent(item.regex);
+                
+                // 预览容器 ID
+                var previewId = `preview_box_${Date.now()}_${idx}`;
+
+                chat.innerHTML += `
+                    <div class="advisor-bubble" style="border-left:4px solid #9c27b0; padding:10px;">
+                        <b>🎨 方案 ${idx+1}: ${item.name}</b>
+                        <div style="font-size:11px; color:#666; margin-bottom:5px;">${item.desc}</div>
+                        
+                        <div style="background:#eee; padding:10px; border-radius:5px; margin:5px 0; min-height:60px; overflow:hidden; cursor: zoom-in; border: 1px solid #ccc; transition: 0.2s;"
+                             title="点击放大查看全屏效果"
+                             onmouseover="this.style.borderColor='#9c27b0'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'"
+                             onmouseout="this.style.borderColor='#ccc'; this.style.boxShadow='none'"
+                             onclick="window.enlargePreview('${safeCode}')">
+                             
+                            <div id="${previewId}" style="pointer-events: none; transform: scale(0.8); transform-origin: top left; width: 125%;"></div>
+                        </div>
+
+                        <div style="display:flex; gap:5px;">
+                            <button class="advisor-action-btn" style="flex:1; background:#e1bee7; color:#4a148c;" onclick="applyBeautify('${safeCode}', '${safeRegex}')">
+                                ✅ 直接使用
+                            </button>
+                            <button class="advisor-action-btn" style="flex:1; background:#fff; border:1px solid #999; color:#555;" onclick="refineBeautify('${safeCode}', '${item.name}')">
+                                🔧 提意见
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                // 延迟渲染缩略图
+                setTimeout(() => {
+                    var container = document.getElementById(previewId);
+                    if(container) {
+                        if (!container.shadowRoot) container.attachShadow({mode: 'open'});
+                        container.shadowRoot.innerHTML = item.code;
+                    }
+                }, 100);
+            });
+            
+            chat.scrollTop = chat.scrollHeight;
+
+        } catch(e) {
+            var loadEl = document.getElementById(loadingId);
+            if(loadEl) loadEl.remove();
+            chat.innerHTML += `<div class="advisor-bubble">❌ 生成失败: ${e.message}</div>`;
+        }
+    };
+
+    // 4. 🔗 替换拦截逻辑
+    // 我们需要修改 sendAdvisorMsg 里的调用，指向新的 runBeautifyGenerationOverride
+    // 这里的做法是：修改 runBeautifyGeneration 变量本身（如果之前是全局定义的话）
+    // 或者我们直接把逻辑注入到 runBeautifyGeneration 这个名字上
+    window.runBeautifyGeneration = window.runBeautifyGenerationOverride;
+
+    // 5. 初始化
+    injectPreviewModal();
+
+    console.log("✅ V38.0 预览功能已就绪");
+
+})();
+
+/* ================= 🚜 V39.0 补丁：跳转功能暴力修复 ================= */
+(function() {
+    console.log("🚀 执行 V39.0：正在重写跨页面导航系统...");
+
+    // 1. 覆盖：跳转核心函数
+    window.jumpToCreator = function(btn, type, encodedPrompt) {
+        console.log("👉 收到跳转指令，目标类型:", type);
+
+        // A. 按钮反馈 (防止用户以为没点到)
+        if (btn) {
+            var oldText = btn.innerText;
+            btn.innerText = "🚀 跳转中...";
+            btn.style.opacity = "0.7";
+            btn.disabled = true; // 防止连点
+            
+            // 2秒后恢复按钮，万一用户想再点一次
+            setTimeout(function() {
+                btn.innerText = "✅ 已填入";
+                btn.style.background = "#d4edda";
+                btn.style.color = "#155724";
+                btn.style.opacity = "1";
+                // btn.disabled = false; // 保持禁用，提示已完成
+            }, 1000);
+        }
+
+        setTimeout(function() {
+            try {
+                var promptText = decodeURIComponent(encodedPrompt);
+                var targetTabId = "";
+                var targetInputId = "";
+                
+                // --- B. 路由分发 (死板但有效) ---
+                
+                // 1. 世界书 (World Info)
+                if (type === 'world') {
+                    targetTabId = 'tab-world';
+                    targetInputId = 'aiWorldPrompt';
+                }
+                // 2. 前端美化 (Frontend)
+                else if (type === 'frontend') {
+                    targetTabId = 'tab-regex';
+                    targetInputId = 'aiCodePrompt';
+                    
+                    // 🔥 特殊处理：确保 AI 面板是开着的
+                    var frontPanel = document.getElementById('uiFrontendMode');
+                    var simplePanel = document.getElementById('uiSimpleMode');
+                    if (frontPanel) frontPanel.style.display = 'block';
+                    if (simplePanel) simplePanel.style.display = 'none';
+                    // 勾选 radio
+                    var radio = document.querySelector('input[value="frontend"]');
+                    if (radio) radio.checked = true;
+                }
+                // 3. 属性/逻辑 (Stats)
+                else if (type === 'stat') {
+                    targetTabId = 'tab-stats';
+                    targetInputId = 'aiStatPrompt';
+                }
+                // 4. 详细设定/文风 (Description)
+                else if (type === 'desc' || type === 'style') {
+                    targetTabId = 'tab-preview';
+                    targetInputId = 'refineInput_desc';
+                    
+                    // 🔥 特殊处理：强制显示修改框
+                    // 无论之前有没有生成过，都要把那个灰色的框弄出来
+                    var refineBox = document.getElementById('refineArea_desc');
+                    
+                    // 如果框不存在，现场造一个 (防止报错)
+                    if (!refineBox) {
+                        var descInput = document.getElementById('cardDesc');
+                        if (descInput) {
+                            refineBox = document.createElement('div');
+                            refineBox.id = 'refineArea_desc';
+                            refineBox.style.cssText = "display:block; margin-top:10px; background:#f0f0f0; padding:8px; border-radius:8px;";
+                            refineBox.innerHTML = `
+                                <div style="display:flex; gap:5px;">
+                                    <input type="text" id="refineInput_desc" class="visual-input" style="flex:1;">
+                                    <button onclick="refineResult('desc')" style="background:#a29bfe; color:white; border:none; padding:5px 15px; border-radius:5px;">🔄 让它改</button>
+                                </div>`;
+                            descInput.parentNode.insertBefore(refineBox, descInput.nextSibling);
+                        }
+                    } else {
+                        refineBox.style.display = 'block';
+                    }
+                }
+
+                // --- C. 执行切换 (暴力操作 DOM) ---
+                
+                // 1. 确保弹窗是开的
+                var modal = document.getElementById('cardCreatorModal');
+                if (modal) {
+                    modal.classList.add('active');
+                    modal.style.display = 'flex';
+                }
+
+                // 2. 切换 Tab 内容
+                var allTabs = document.querySelectorAll('.card-tab-content');
+                allTabs.forEach(function(el) { el.style.display = 'none'; });
+                
+                var targetTabEl = document.getElementById(targetTabId);
+                if (targetTabEl) targetTabEl.style.display = 'block';
+                else throw new Error("找不到目标页面 ID: " + targetTabId);
+
+                // 3. 切换 Tab 按钮高亮
+                var tabBtns = document.querySelectorAll('.card-tab');
+                tabBtns.forEach(function(b) { b.classList.remove('active'); });
+                // 模糊匹配
+                var keyword = targetTabId.replace('tab-', '');
+                for (var i=0; i<tabBtns.length; i++) {
+                    var onClickStr = tabBtns[i].getAttribute('onclick');
+                    if (onClickStr && onClickStr.includes(keyword)) {
+                        tabBtns[i].classList.add('active');
+                        break;
+                    }
+                }
+
+                // --- D. 填入并聚焦 ---
+                var inputEl = document.getElementById(targetInputId);
+                if (inputEl) {
+                    inputEl.value = promptText;
+                    inputEl.focus();
+                    
+                    // 滚动屏幕，把输入框放到中间
+                    inputEl.scrollIntoView({behavior: "smooth", block: "center"});
+                    
+                    // 闪烁特效
+                    var originalBg = inputEl.style.backgroundColor;
+                    inputEl.style.transition = "background 0.3s";
+                    inputEl.style.backgroundColor = "#fff3cd"; // 浅黄色高亮
+                    setTimeout(function() { inputEl.style.backgroundColor = originalBg; }, 800);
+
+                    if(window.auth && window.auth.toast) window.auth.toast('✅ 已自动填入建议，请点击按钮生成');
+                } else {
+                    alert("❌ 导航成功，但找不到输入框: " + targetInputId);
+                }
+
+            } catch (e) {
+                console.error(e);
+                alert("跳转失败: " + e.message);
+                if (btn) {
+                    btn.innerText = "❌ 失败";
+                    btn.disabled = false;
+                }
+            }
+        }, 100);
+    };
+
+    console.log("✅ V39.0：跳转系统已重置");
+
+})();
+
+/* ================= 📊 V40.0 补丁：属性逻辑多模块系统 ================= */
+(function() {
+    console.log("🚀 执行 V40.0：正在将属性页升级为多模块架构...");
+
+    // 1. 初始化数据结构
+    // 如果之前没有模块数据，创建一个初始的
+    if (!window.statModules) {
+        window.statModules = [];
+        window.currentStatIdx = 0;
+    }
+
+    // 2. 🏗️ 界面重构工兵
+    function upgradeStatsUI() {
+        var tabStats = document.getElementById('tab-stats');
+        if (!tabStats) return;
+
+        // 找到旧的编辑器和说明书
+        var oldEditor = document.getElementById('statEditor');
+        var guideBox = document.getElementById('statGuideBox'); // V8.0 的说明书
+        var refineBox = document.getElementById('refineArea_stat'); // V24.0 的修改框
+        var aiPanel = document.querySelector('#tab-stats > div[style*="background"]'); // 顶部的AI输入框容器
+
+        // 如果已经升级过，就不动了
+        if (document.getElementById('stat-modules-container')) return;
+
+        // --- A. 数据迁移 (防丢) ---
+        var existingContent = oldEditor ? oldEditor.value : "";
+        // 如果有旧内容且模块为空，迁移进去
+        if (window.statModules.length === 0) {
+            window.statModules.push({
+                name: "📝 基础规则 (Main)",
+                content: existingContent
+            });
+        }
+
+        // --- B. 构建新界面容器 ---
+        var container = document.createElement('div');
+        container.id = 'stat-modules-container';
+        // 样式复用世界书的 flex 布局
+        container.style.cssText = "display:flex; height:500px; border:1px solid #ddd; border-radius:8px; overflow:hidden; margin-top:10px; background:#fff;";
+
+        // 1. 左侧列表栏
+        var sidebar = document.createElement('div');
+        sidebar.id = 'statSidebar';
+        sidebar.style.cssText = "width:160px; background:#f9f9f9; border-right:1px solid #eee; overflow-y:auto; display:flex; flex-direction:column;";
+        
+        // 新建按钮
+        var addBtn = document.createElement('div');
+        addBtn.innerHTML = "➕ 新建模块";
+        addBtn.style.cssText = "padding:10px; text-align:center; cursor:pointer; font-weight:bold; color:#6c5ce7; border-bottom:1px solid #eee; background:#fff;";
+        addBtn.onclick = addNewStatModule;
+        sidebar.appendChild(addBtn);
+
+        // 列表容器
+        var listContainer = document.createElement('div');
+        listContainer.id = 'statModuleList';
+        listContainer.style.flex = "1";
+        sidebar.appendChild(listContainer);
+
+        // 2. 右侧编辑区
+        var mainArea = document.createElement('div');
+        mainArea.style.cssText = "flex:1; display:flex; flex-direction:column; padding:15px; background:#fff; overflow-y:auto;";
+
+        // 模块标题输入
+        var titleRow = document.createElement('div');
+        titleRow.style.cssText = "display:flex; gap:10px; margin-bottom:10px; align-items:center;";
+        titleRow.innerHTML = `<span style="font-size:12px;color:#999;">模块名:</span><input type="text" id="currentStatName" class="visual-input" style="flex:1;" placeholder="例如: 张三的属性" oninput="updateCurrentStatMeta()"> <button class="small-btn" onclick="deleteCurrentStatModule()" style="background:#ff7675;color:white;border:none;">🗑️</button>`;
+        
+        // 重新安置旧编辑器 (为了保留 ID 兼容其他补丁)
+        // 我们把旧的 textarea 搬过来，样式改一下
+        if (oldEditor) {
+            oldEditor.style.width = "100%";
+            oldEditor.style.flex = "1";
+            oldEditor.style.height = "auto"; // 让 flex 控制高度
+            oldEditor.style.minHeight = "300px";
+            oldEditor.style.resize = "none"; // 禁止拖拽，用 flex 自适应
+            oldEditor.placeholder = "在这里编写逻辑代码...\n例如:\nTarget: HP = 100\nRule: ...";
+            // 绑定输入事件：同步保存
+            oldEditor.oninput = function() {
+                saveCurrentContent();
+                syncAllStatsToNote(); // 实时合并
+            };
+        }
+
+        // 组装右侧
+        mainArea.appendChild(titleRow);
+        
+        // 把旧元素挪进来 (AI说明书、编辑器、修改框)
+        // 顺序：说明书 -> 编辑器 -> 修改框
+        if (guideBox) mainArea.appendChild(guideBox);
+        if (oldEditor) mainArea.appendChild(oldEditor);
+        else {
+            // 如果旧编辑器找不到了，造一个新的
+            var newEditor = document.createElement('textarea');
+            newEditor.id = 'statEditor';
+            newEditor.className = 'card-textarea';
+            newEditor.oninput = function() { saveCurrentContent(); syncAllStatsToNote(); };
+            mainArea.appendChild(newEditor);
+        }
+        if (refineBox) mainArea.appendChild(refineBox);
+
+        // 组装整体
+        container.appendChild(sidebar);
+        container.appendChild(mainArea);
+
+        // --- C. 插入到页面 ---
+        // 插在 AI 面板 (aiPanel) 的后面
+        if (aiPanel && aiPanel.parentNode === tabStats) {
+            tabStats.insertBefore(container, aiPanel.nextSibling);
+        } else {
+            tabStats.appendChild(container);
+        }
+
+        // 刷新列表
+        renderStatModuleList();
+        loadStatModule(0);
+    }
+
+    // 3. 📝 逻辑控制函数
+
+    window.addNewStatModule = function() {
+        var name = prompt("请输入新模块名称 (例如: 角色B的属性):", "新模块");
+        if (!name) return;
+        
+        window.statModules.push({
+            name: name,
+            content: ""
+        });
+        renderStatModuleList();
+        // 选中最新的
+        loadStatModule(window.statModules.length - 1);
+    };
+
+    window.deleteCurrentStatModule = function() {
+        if (window.statModules.length <= 1) {
+            alert("⚠️ 至少保留一个模块！");
+            return;
+        }
+        if (!confirm("确定删除这个模块吗？")) return;
+
+        window.statModules.splice(window.currentStatIdx, 1);
+        // 重置索引
+        window.currentStatIdx = 0;
+        renderStatModuleList();
+        loadStatModule(0);
+        syncAllStatsToNote();
+    };
+
+    window.renderStatModuleList = function() {
+        var list = document.getElementById('statModuleList');
+        if (!list) return;
+        list.innerHTML = '';
+
+        window.statModules.forEach((mod, idx) => {
+            var item = document.createElement('div');
+            // 样式：模仿世界书列表
+            var isActive = idx === window.currentStatIdx;
+            item.style.cssText = `padding:10px; border-bottom:1px solid #eee; cursor:pointer; font-size:12px; ${isActive ? 'background:#e0f7fa; color:#006064; border-left:3px solid #00bcd4; font-weight:bold;' : 'color:#555;'}`;
+            item.innerText = mod.name;
+            item.onclick = function() { loadStatModule(idx); };
+            list.appendChild(item);
+        });
+    };
+
+    window.loadStatModule = function(idx) {
+        window.currentStatIdx = idx;
+        var mod = window.statModules[idx];
+        
+        // 填入数据
+        document.getElementById('currentStatName').value = mod.name;
+        document.getElementById('statEditor').value = mod.content || "";
+        
+        // 刷新高亮
+        renderStatModuleList();
+    };
+
+    window.updateCurrentStatMeta = function() {
+        var name = document.getElementById('currentStatName').value;
+        window.statModules[window.currentStatIdx].name = name;
+        renderStatModuleList(); // 刷新列表名字
+    };
+
+    window.saveCurrentContent = function() {
+        var content = document.getElementById('statEditor').value;
+        window.statModules[window.currentStatIdx].content = content;
+    };
+
+    // 🔥 核心：合并所有模块 -> 深度设定 (Card Note)
+    window.syncAllStatsToNote = function() {
+        var noteEl = document.getElementById('cardNote');
+        if (!noteEl) return;
+
+        // 将所有模块内容拼接，中间加分隔符
+        var combinedText = window.statModules
+            .map(m => m.content.trim()) // 去掉首尾空格
+            .filter(t => t.length > 0)  // 过滤空模块
+            .join('\n\n'); // 用换行隔开
+
+        noteEl.value = combinedText;
+    };
+
+    // 4. 初始化
+    // 延时执行，确保页面元素已就绪
+    setTimeout(upgradeStatsUI, 600);
+
+    // 5. 覆盖军师跳转逻辑 (适配新结构)
+    // 当军师要跳转 'stat' 时，我们确保它填入的是当前选中的模块
+    var _oldJump = window.jumpToCreator;
+    window.jumpToCreator = function(btn, type, encodedPrompt) {
+        if (type === 'stat') {
+            // 先确保界面是打开的
+            if(typeof switchCardTab === 'function') switchCardTab('stats');
+            
+            // 如果是多人模式生成，建议新建模块
+            // 这里我们做一个智能判断：如果当前模块已经有字了，就新建一个
+            var currentContent = document.getElementById('statEditor').value.trim();
+            if (currentContent.length > 50) {
+                // 自动新建一个“新规则”模块，防止覆盖旧的
+                window.statModules.push({ name: "➕ 新增规则 (AI建议)", content: "" });
+                renderStatModuleList();
+                loadStatModule(window.statModules.length - 1);
+                
+                if(window.auth && window.auth.toast) window.auth.toast('✨ 已自动新建模块，避免覆盖旧规则');
+            }
+        }
+        // 执行原有跳转
+        if(_oldJump) _oldJump(btn, type, encodedPrompt);
+    };
+
+    console.log("✅ 属性多模块系统已就绪");
+
+})();
+
+/* ================= 👥 V41.0 补丁：多人角色面板切换系统 ================= */
+(function() {
+    console.log("🚀 执行 V41.0：启动多人角色档案管理系统...");
+
+    // 1. 初始化数据中心 (花名册)
+    // 结构: { "张三": { desc: "...", firstMes: "..." }, "李四": { ... } }
+    if (!window.projectCharData) {
+        window.projectCharData = {};
+    }
+
+    // 2. 💾 核心：保存当前界面到花名册
+    window.saveCurrentCharToCache = function() {
+        var name = document.getElementById('cardName').value.trim();
+        if (!name) return; // 没名字的不存
+
+        // 收集当前界面数据
+        var data = {
+            desc: document.getElementById('cardDesc').value,
+            firstMes: document.getElementById('cardFirstMes').value,
+            mesEx: document.getElementById('cardMesExample').value,
+            // 如果有 V40 的属性模块，也可以考虑存，但属性通常是共用的，暂不强制绑定
+        };
+
+        window.projectCharData[name] = data;
+        // console.log(`✅ 已自动缓存角色【${name}】的数据`);
+    };
+
+    // 3. 📤 核心：切换角色面板
+    window.switchCharPanel = function(targetName) {
+        // A. 先保存现在的 (防止没点保存就切走了)
+        saveCurrentCharToCache();
+
+        // B. 读取目标数据
+        var data = window.projectCharData[targetName];
+        if (!data) {
+            alert(`⚠️ 角色【${targetName}】暂无数据，请先生成！`);
+            return;
+        }
+
+        // C. 填入界面
+        document.getElementById('cardName').value = targetName;
+        document.getElementById('cardDesc').value = data.desc || "";
+        document.getElementById('cardFirstMes').value = data.firstMes || "";
+        document.getElementById('cardMesExample').value = data.mesEx || "";
+
+        // D. 自动跳转到预览页 (方便查看和修改)
+        if(typeof switchCardTab === 'function') switchCardTab('preview');
+        
+        // E. 视觉反馈
+        if(window.auth && window.auth.toast) window.auth.toast(`👤 已切换至【${targetName}】面板`);
+        
+        // F. 更新军师菜单状态
+        renderMultiCharMenu(); 
+    };
+
+    // 4. 🔥 覆盖：多人模式菜单渲染 (增加切换功能)
+    window.renderMultiCharMenu = function() {
+        var chat = document.getElementById('advisorChat');
+        var names = window.advisorState.multiChars || [];
+        var currentName = document.getElementById('cardName').value.trim();
+
+        // 生成按钮列表
+        var btnsHtml = names.map(name => {
+            // 判断该角色是否已有数据
+            var hasData = window.projectCharData[name];
+            var isCurrent = (name === currentName);
+            
+            var btnStyle = "background:#e3f2fd; color:#1565c0;"; // 默认蓝色 (生成)
+            var btnText = `⚡ 生成【${name}】设定`;
+            var action = `generateCharSettings('${name}')`;
+
+            if (hasData) {
+                if (isCurrent) {
+                    // 当前正在编辑
+                    btnStyle = "background:#4caf50; color:white; border:1px solid #388e3c;";
+                    btnText = `🟢 编辑中：${name}`;
+                    action = ""; // 点了没反应
+                } else {
+                    // 已有数据，点击切换
+                    btnStyle = "background:#fff; border:1px solid #1565c0; color:#1565c0;";
+                    btnText = `👤 切换至：${name}`;
+                    action = `switchCharPanel('${name}')`;
+                }
+            }
+
+            return `<button class="advisor-action-btn" style="${btnStyle}" onclick="${action}">${btnText}</button>`;
+        }).join('');
+        
+        // 渲染气泡
+        chat.innerHTML += `
+            <div class="advisor-bubble" style="background:#f5f5f5; border-left:4px solid #673ab7;">
+                <b>👥 多人角色管理台</b><br>
+                <div style="font-size:11px; color:#666; margin-bottom:5px;">
+                    点击“切换”可加载该角色的详细设定。<br>
+                    加载后，生成的属性/世界书将自动基于该角色。
+                </div>
+                ${btnsHtml}
+            </div>
+        `;
+        chat.scrollTop = chat.scrollHeight;
+    };
+
+    // 5. 🔗 串联生成逻辑 (生成成功后自动存入花名册)
+    // 我们需要拦截生成成功的时刻。最简单的办法是：在用户点击“确定”时保存。
+    
+    // 覆盖 confirmCharAndGenLore (点击确定按钮的逻辑)
+    var _oldConfirm = window.confirmCharAndGenLore;
+    window.confirmCharAndGenLore = async function(name) {
+        // 1. 先保存数据到花名册
+        saveCurrentCharToCache();
+        
+        // 2. 标记该角色已完成 (用于刷新菜单显示)
+        // (已经在 saveCurrentCharToCache 里存入 window.projectCharData 了)
+
+        // 3. 刷新菜单，让按钮变成“切换”状态
+        renderMultiCharMenu();
+
+        // 4. 执行原有的生成世界书逻辑
+        // 注意：原函数里可能用了 document.getElementById获取值，现在已经是当前角色的值了，没问题
+        if(_oldConfirm) await _oldConfirm(name);
+    };
+
+    // 6. 🛡️ 自动保存守护 (页面刷新防丢)
+    // 监听输入框变化，实时更新到花名册
+    function bindAutoSave() {
+        var inputs = ['cardDesc', 'cardFirstMes', 'cardMesExample'];
+        inputs.forEach(id => {
+            var el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', function() {
+                    // 只有当名字在花名册里时才自动更新
+                    var name = document.getElementById('cardName').value.trim();
+                    if (name && window.projectCharData[name]) {
+                        saveCurrentCharToCache();
+                    }
+                });
+            }
+        });
+    }
+    setTimeout(bindAutoSave, 1000);
+
+    console.log("✅ 多人面板切换系统已就绪");
+
+})();
+
+/* ================= 👥 V42.0 补丁：多人模式智能读档 & 动态加人 ================= */
+(function() {
+    console.log("🚀 执行 V42.0：正在升级多人模式存储与交互逻辑...");
+
+    // 1. 💾 持久化存储键名
+    const MULTI_PROJECT_KEY = 'my_multi_project_v1';
+
+    // 2. 🔄 初始化与读取 (开局自动执行)
+    function loadProjectData() {
+        var json = localStorage.getItem(MULTI_PROJECT_KEY);
+        if (json) {
+            try {
+                var data = JSON.parse(json);
+                // 恢复花名册
+                window.projectCharData = data.charData || {};
+                // 恢复名单列表
+                if (!window.advisorState) window.advisorState = {};
+                window.advisorState.multiChars = data.charList || [];
+                console.log("✅ 多人项目数据已恢复:", window.advisorState.multiChars);
+            } catch (e) {
+                console.error("读取失败:", e);
+            }
+        }
+    }
+    // 立即读取一次
+    loadProjectData();
+
+    // 3. 💾 保存函数 (每次变动都存)
+    window.saveMultiProject = function() {
+        var data = {
+            charData: window.projectCharData || {},
+            charList: window.advisorState.multiChars || []
+        };
+        localStorage.setItem(MULTI_PROJECT_KEY, JSON.stringify(data));
+    };
+
+    // 4. 🔥 覆盖：多人模式入口 (智能判断)
+    window.initMultiCharUI = function() {
+        // A. 检查是否有存档
+        if (window.advisorState.multiChars && window.advisorState.multiChars.length >= 1) {
+            // 有人！直接进面板，不废话
+            window.advisorState.mode = 'multi';
+            
+            var chat = document.getElementById('advisorChat');
+            chat.innerHTML = `
+                <div class="advisor-bubble" style="background:#e3f2fd;">
+                    <b>📂 读取到现有项目</b><br>
+                    检测到名单中有 ${window.advisorState.multiChars.length} 人。<br>
+                    <small style="color:#666;">(若想增加角色，请在输入框说“我要加人”)</small>
+                </div>
+            `;
+            // 渲染面板
+            renderMultiCharMenu();
+            
+            // 提示用户
+            if(window.auth && window.auth.toast) window.auth.toast('✅ 已加载现有角色列表');
+            return;
+        }
+
+        // B. 没人 -> 走老流程 (询问)
+        window.appendMultiChars(true); // true 表示是初始化模式
+    };
+
+    // 5. ➕ 新增/初始化角色逻辑
+    window.appendMultiChars = function(isInit) {
+        var msg = isInit ? "👥 请输入角色人数 (例如: 3):" : "➕ 要加几个人？";
+        var count = prompt(msg);
+        if (!count) return;
+
+        var msg2 = isInit ? "请输入所有人的名字 (用逗号分隔，如: 张三, 李四):" : "请输入新角色的名字 (逗号分隔):";
+        var namesStr = prompt(msg2);
+        if (!namesStr) return;
+        
+        var newNames = namesStr.split(/[,，]/).map(n => n.trim()).filter(n => n);
+        
+        if (!window.advisorState.multiChars) window.advisorState.multiChars = [];
+        
+        // 合并名单
+        window.advisorState.multiChars = window.advisorState.multiChars.concat(newNames);
+        window.advisorState.mode = 'multi';
+
+        // 保存！
+        saveMultiProject();
+
+        // 渲染
+        renderMultiCharMenu();
+        
+        var chat = document.getElementById('advisorChat');
+        chat.innerHTML += `<div class="advisor-bubble">✅ 已添加 ${newNames.length} 位新角色！名单已更新。</div>`;
+        chat.scrollTop = chat.scrollHeight;
+    };
+
+    // 6. 🔥 拦截聊天：检测“加人”指令
+    // 我们需要再次拦截 sendAdvisorMsg，这次是为了加人功能
+    var _oldSendV31 = window.sendAdvisorMsg; // 备份 V31/V36 的逻辑
+
+    window.sendAdvisorMsg = async function() {
+        var input = document.getElementById('advisorInput');
+        var text = input.value.trim();
+        
+        // 仅在多人模式下生效
+        if (window.advisorState.mode === 'multi' && text) {
+            // 关键词检测
+            if (text.includes("加人") || text.includes("增加") || text.includes("添加") || text.includes("新角色")) {
+                
+                // 清空输入框
+                input.value = '';
+                
+                // 弹出确认框
+                if (confirm(`🤖 军师：您是想在现有名单外，再增加新角色吗？`)) {
+                    window.appendMultiChars(false); // false 表示追加模式
+                } else {
+                    // 如果取消，就在聊天框提示一下
+                    var chat = document.getElementById('advisorChat');
+                    chat.innerHTML += `<div class="advisor-bubble">🆗 操作已取消。</div>`;
+                }
+                return; // 拦截结束
+            }
+        }
+
+        // 如果不是加人指令，或者是其他模式，走原来的逻辑 (V31/V36)
+        if (_oldSendV31) _oldSendV31();
+    };
+
+    // 7. 补充：每次生成/切换后也触发保存
+    // 劫持 saveCurrentCharToCache (V41 的函数)
+    var _oldSaveCache = window.saveCurrentCharToCache;
+    window.saveCurrentCharToCache = function() {
+        if (_oldSaveCache) _oldSaveCache();
+        saveMultiProject(); // 顺便存到硬盘
+    };
+
+    console.log("✅ V42.0：多人模式已具备记忆功能");
+
+})();
+
+
+/* ================= 💾 V37.0 补丁：黑匣子自动备份系统 (防丢数据) ================= */
+(function() {
+    console.log("🚀 执行 V37.0：正在启动全自动备份引擎...");
+
+    // 1. 定义黑匣子存储键名
+    const AUTO_SAVE_KEY = 'my_creator_autosave_v1';
+
+    // 2. 📥 核心：收集当前所有数据
+    function collectWorkspaceData() {
+        // 辅助：安全获取输入框
+        var getVal = function(id) { var el = document.getElementById(id); return el ? el.value : ""; };
+
+        return {
+            timestamp: Date.now(),
+            // A. 全局变量 (核心数据)
+            globals: {
+                // 世界书 (防止丢失)
+                worldInfo: window.currentWorldInfo || { entries: [] },
+                // 正则/前端脚本 (防止丢失)
+                regexScripts: window.currentCardRegexes || [],
+                // 导入的美化规范文件内容 (防止刷新后要重新导)
+                styleGuide: window.frontendStyleGuide || "",
+                // 选中的标签
+                selectedTags: window.currentSelectedTags || { identity:[], personality:[], trope:[] },
+                // 军师模式
+                advisorMode: window.advisorMode || 'normal'
+            },
+            // B. 界面输入框 (防止白写)
+            inputs: {
+                cardName: getVal('cardName'),
+                cardDesc: getVal('cardDesc'),
+                cardFirstMes: getVal('cardFirstMes'),
+                cardMesExample: getVal('cardMesExample'),
+                cardScenario: getVal('cardScenario'),
+                cardNote: getVal('cardNote'),     // 深度设定
+                statEditor: getVal('statEditor'), // 属性页代码
+                frontReplace: getVal('frontReplace'), // 前端代码框
+                frontPattern: getVal('frontPattern'), // 前端正则框
+                aiCodePrompt: getVal('aiCodePrompt'), // 美化需求
+                aiWorldPrompt: getVal('aiWorldPrompt') // 世界书需求
+            }
+        };
+    }
+
+    // 3. 💾 核心：保存到本地
+    function saveToBlackBox() {
+        try {
+            var data = collectWorkspaceData();
+            // 只有当有数据时才保存 (防止覆盖为空)
+            // 简单判断：如果名字为空且描述为空且世界书为空，可能还没加载完，不存
+            if (!data.inputs.cardName && !data.inputs.cardDesc && data.globals.worldInfo.entries.length === 0) {
+                return;
+            }
+            
+            localStorage.setItem(AUTO_SAVE_KEY, JSON.stringify(data));
+            
+            // 视觉反馈 (可选：在控制台或者右上角小绿点)
+            // console.log("✅ 黑匣子已自动备份 " + new Date().toLocaleTimeString());
+        } catch (e) {
+            console.error("自动备份失败 (可能是空间满了):", e);
+        }
+    }
+
+    // 4. 📤 核心：从本地恢复
+    window.restoreFromBlackBox = function() {
+        try {
+            var json = localStorage.getItem(AUTO_SAVE_KEY);
+            if (!json) {
+                console.log("📭 黑匣子是空的，跳过恢复。");
+                return;
+            }
+
+            var data = JSON.parse(json);
+            console.log("📦 正在从黑匣子恢复数据...", new Date(data.timestamp).toLocaleString());
+
+            // A. 恢复输入框
+            function setVal(id, val) { 
+                var el = document.getElementById(id); 
+                if (el) el.value = val || ""; 
+            }
+            for (var key in data.inputs) {
+                setVal(key, data.inputs[key]);
+            }
+
+            // B. 恢复全局变量
+            window.currentWorldInfo = data.globals.worldInfo || { entries: [] };
+            window.currentCardRegexes = data.globals.regexScripts || [];
+            window.frontendStyleGuide = data.globals.styleGuide || ""; // 恢复美化文件
+            window.currentSelectedTags = data.globals.selectedTags || { identity:[], personality:[], trope:[] };
+            window.advisorMode = data.globals.advisorMode || 'normal';
+
+            // C. 刷新界面 (让数据可见)
+            if (typeof renderWorldList === 'function') renderWorldList();
+            if (typeof renderRegexList === 'function') renderRegexList();
+            if (typeof renderWizardTags === 'function') renderWizardTags();
+            if (typeof updatePreviewUI === 'function') updatePreviewUI();
+            
+            // D. 恢复同步状态 (属性 <-> 高级)
+            if (typeof syncStatToNote === 'function') syncStatToNote();
+
+            // E. 特殊：如果恢复了美化文件，更新一下按钮状态提示用户
+            if (window.frontendStyleGuide) {
+                // 尝试找原生上传补丁的那个状态栏
+                var statusEl = document.getElementById('native_upload_status');
+                if (statusEl) {
+                    statusEl.innerHTML = `✅ <b>已自动恢复美化文件</b> (大小: ${Math.ceil(window.frontendStyleGuide.length/1024)}KB)`;
+                    status.style.color = "#00b894";
+                }
+            }
+
+            // F. 提示用户
+            if(window.auth && window.auth.toast) window.auth.toast('♻️ 现场已恢复 (防丢数据)');
+
+        } catch (e) {
+            console.error("恢复失败:", e);
+        }
+    };
+
+    // 5. 启动引擎
+    // A. 立即尝试恢复一次
+    setTimeout(window.restoreFromBlackBox, 500); 
+
+    // B. 启动自动保存 (每 3 秒存一次)
+    setInterval(saveToBlackBox, 3000);
+
+    // C. 绑定手动保存 (在输入框打字时也触发保存，双重保险)
+    document.body.addEventListener('input', function(e) {
+        // 简单的防抖，打字停下 1秒 后保存
+        if (window.saveTimer) clearTimeout(window.saveTimer);
+        window.saveTimer = setTimeout(saveToBlackBox, 1000);
+    });
+
+    console.log("✅ V37.0 黑匣子已启动：您的数据现在安全了");
+
+})();
 
 // ================= 👑 写卡器代码结束 =================
 
