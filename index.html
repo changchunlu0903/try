@@ -22903,6 +22903,113 @@ window.openAISettings = function() {
 
 })();
 
+        /* ================= 🧬 V75.0 补丁：文风 & 世界观 -> 世界书 (1:1 直连版) ================= */
+(function() {
+    console.log("🚀 执行 V75.0：已启用全模式【镜像克隆】，拒绝 AI 中间商...");
+
+    // 1. 工具：按钮变绿锁定
+    function lockButton(btn) {
+        if (btn) {
+            btn.innerHTML = "✅ 已归档 (1:1克隆)";
+            btn.style.background = "#d4edda";
+            btn.style.color = "#155724";
+            btn.style.borderColor = "#c3e6cb";
+            btn.disabled = true;
+        }
+    }
+
+    // ================= 🌏 2. 世界观模式：直连写入 =================
+    window.applyWorldView = function(encodedContent, btn) {
+        // 如果是从事件触发，尝试获取按钮
+        if (!btn && event) btn = event.target;
+
+        try {
+            var content = decodeURIComponent(encodedContent);
+            
+            // A. 跳转页面
+            if(typeof switchCardTab === 'function') switchCardTab('world');
+            
+            // B. 直接构建条目 (不调 AI)
+            var newEntry = {
+                id: Date.now(),
+                // 自动提取标题或使用默认
+                comment: "🌏 核心世界观 (镜像)",
+                // 触发词：world, setting, background
+                keys: ["world", "setting", "background", "世界观"], 
+                // 🔥 核心：直接使用原文！
+                content: content, 
+                // 属性：放在最前，常驻生效
+                position: 0, 
+                enabled: true,
+                constant: true, 
+                insertion_position: 0 
+            };
+
+            // C. 注入
+            if (!window.currentWorldInfo) window.currentWorldInfo = { entries: [] };
+            window.currentWorldInfo.entries.push(newEntry);
+
+            // D. 刷新
+            if (typeof renderWorldList === 'function') renderWorldList();
+            if (typeof selectEntry === 'function') selectEntry(window.currentWorldInfo.entries.length - 1);
+
+            // E. 反馈
+            lockButton(btn);
+            if(window.auth && window.auth.toast) window.auth.toast('🌏 世界观已 100% 原样存入！');
+
+        } catch (e) {
+            console.error(e);
+            alert("应用失败: " + e.message);
+        }
+    };
+
+    // ================= ✒️ 3. 文风模式：直连写入 =================
+    window.addStyleToWorld = function(encObj, btn) {
+        if (!btn && event) btn = event.target;
+
+        try {
+            var item = JSON.parse(decodeURIComponent(encObj));
+            
+            // A. 跳转
+            if(typeof switchCardTab === 'function') switchCardTab('world');
+            
+            // B. 直接构建条目 (Style Bible)
+            var newEntry = {
+                id: Date.now(),
+                comment: "✒️ 文风 - " + (item.title || "Style"),
+                // 触发词
+                keys: ["style", "文风", "system", "writing_style"], 
+                // 🔥 核心：直接使用原文！
+                content: item.content || item.prompt, 
+                // 属性：常驻
+                position: 1, 
+                enabled: true,
+                constant: true, 
+                insertion_position: 1
+            };
+            
+            // C. 注入
+            if (!window.currentWorldInfo) window.currentWorldInfo = { entries: [] };
+            window.currentWorldInfo.entries.push(newEntry);
+            
+            // D. 刷新
+            if (typeof renderWorldList === 'function') renderWorldList();
+            if (typeof selectEntry === 'function') selectEntry(window.currentWorldInfo.entries.length - 1);
+            
+            // E. 反馈
+            lockButton(btn);
+            if(window.auth && window.auth.toast) window.auth.toast('✒️ 文风设定已 100% 原样存入！');
+            
+        } catch(e) {
+            console.error(e);
+            alert("注入失败: " + e.message);
+        }
+    };
+
+    console.log("✅ V75.0：所有生成模式均已升级为【直接写入】");
+
+})();
+
 /* ================= 💾 V49.0 补丁：切换至 IndexedDB 海量存储引擎 ================= */
 (function() {
     console.log("🚀 执行 V49.0：正在迁移至海量数据库 (IndexedDB)...");
