@@ -133,6 +133,27 @@
 
 .btn-orange { background: linear-gradient(to bottom, #ffeaa7, #fdcb6e); color: #d35400; }
 
+/* === 新增：个人中心样式 === */
+.profile-box {
+    margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px dashed #ffeaa7;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+.my-avatar-edit {
+    width: 80px; height: 80px; border-radius: 50%; border: 3px solid #ff9a9e;
+    background: #fff; display: flex; align-items: center; justify-content: center;
+    font-size: 40px; cursor: pointer; position: relative; overflow: hidden;
+    box-shadow: 0 5px 15px rgba(255, 154, 158, 0.3); transition: 0.3s;
+}
+.my-avatar-edit:hover { transform: scale(1.05); border-color: #a29bfe; }
+.my-avatar-edit img { width: 100%; height: 100%; object-fit: cover; }
+.edit-hint {
+    position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.5);
+    color: white; font-size: 10px; text-align: center; padding: 2px 0;
+}
+.ipt-name {
+    border: 2px solid #a29bfe; color: #6c5ce7; font-weight: bold; width: 80%;
+}
+
     </style>
 </head>
 <body>
@@ -201,24 +222,38 @@
     </div>
 
     <div class="modal" id="lobbyModal">
-        <div class="modal-card">
-            <h2 style="color:#ff9a9e; margin-bottom:10px;">🃏 萌萌斗地主</h2>
-            <div id="hostUI">
-                <button class="big-btn" style="background:#a29bfe;" onclick="createRoom()">👑 我是房主 (建房)</button>
-                <div id="hostWait" style="display:none; margin-top:15px; color:#888; font-size:12px;">
-                    房号: <span id="roomIdTxt" style="color:#ff6b81; font-weight:bold; cursor:pointer;" onclick="copyId()">生成中...</span>
-                    <br>(发给2个朋友)
-                    <div style="margin-top:5px;">人数: <span id="pCount">1</span>/3</div>
-                    <button class="big-btn" id="startBtn" style="background:#ff7675; opacity:0.5;" disabled onclick="startGame()">✨ 发牌！</button>
-                </div>
-            </div>
-            <div style="margin:15px 0; border-top:1px dashed #eee;"></div>
-            <div id="joinUI">
-                <input type="text" class="ipt-room" id="joinId" placeholder="粘贴房主ID">
-                <button class="big-btn" style="background:#81ecec; color:#555;" onclick="joinRoom()">🚀 加入房间</button>
-            </div>
+       <div class="modal-card">
+    <h2 style="color:#ff9a9e; margin-bottom:10px;">🃏 萌萌斗地主</h2>
+    
+    <div class="profile-box">
+        <div class="my-avatar-edit" onclick="document.getElementById('uploadAvatar').click()">
+            <img id="avatarPreview" src="" style="display:none;">
+            <div id="avatarEmoji">🐰</div>
+            <div class="edit-hint">换头像</div>
+        </div>
+        <input type="file" id="uploadAvatar" accept="image/*" style="display:none" onchange="handleFile(this)">
+        
+        <input type="text" class="ipt-room ipt-name" id="myNickInput" placeholder="给自己起个名..." onchange="saveMyProfile()">
+    </div>
+    <div id="hostUI">
+        <button class="big-btn" style="background:#a29bfe;" onclick="createRoom()">👑 我是房主 (建房)</button>
+        <div id="hostWait" style="display:none; margin-top:15px; color:#888; font-size:12px;">
+            房号: <span id="roomIdTxt" style="color:#ff6b81; font-weight:bold; cursor:pointer;" onclick="copyId()">生成中...</span>
+            <br>(发给2个朋友)
+            <div style="margin-top:5px;">人数: <span id="pCount">1</span>/3</div>
+            <button class="big-btn" id="startBtn" style="background:#ff7675; opacity:0.5;" disabled onclick="startGame()">✨ 发牌！</button>
         </div>
     </div>
+
+    <div style="margin:15px 0; border-top:1px dashed #eee;"></div>
+
+    <div id="joinUI">
+        <input type="text" class="ipt-room" id="joinId" placeholder="粘贴房主ID">
+        <button class="big-btn" style="background:#81ecec; color:#555;" onclick="joinRoom()">🚀 加入房间</button>
+    </div>
+</div>
+
+</div>
 
 <div class="rain-overlay" id="rainLayer"></div>
 
@@ -282,6 +317,9 @@ let allHandsBackup = []; // 房主用来备份所有人的牌
                 btn.disabled = false; btn.style.opacity = 1; btn.innerText = "✨ 人齐了，发牌！";
             }
         }
+
+// 👇 房主也把自己的头像发给新来的人
+    setTimeout(broadcastProfile, 500);
     });
   
                 conn.on('close', () => { alert('有人退出'); location.reload(); });
@@ -296,6 +334,8 @@ let allHandsBackup = []; // 房主用来备份所有人的牌
             hostConn.on('open', () => {
                 document.getElementById('lobbyModal').style.display = 'none';
                 document.getElementById('statusText').innerText = "等待发牌...";
+
+setTimeout(broadcastProfile, 500); 
             });
             hostConn.on('data', data => handleData(data));
             hostConn.on('close', () => { alert('房主断开'); location.reload(); });
@@ -328,6 +368,33 @@ function handleData(data) {
             });
         }
     } 
+
+// 在 handleData 的那一堆 if/else 里加这个：
+else if (data.type === 'UPDATE_PROFILE') {
+    const viewIdx = getRelativeIdx(data.idx); // 算出他是我的左家还是右家
+    const pId = ['p0', 'p1', 'p2'][viewIdx];
+
+    // 更新名字
+    document.querySelector(`#${pId} .p-name`).innerText = data.name;
+
+    // 更新头像
+    if (data.avatar) {
+        document.querySelector(`#${pId} .avatar`).innerHTML = `<img src="${data.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+    }
+
+    // 🔥 如果我是房主，我要帮他转发给第三个人 (除了发件人自己)
+    if (myIdx === 0) {
+        connList.forEach(c => {
+            // 简单处理：全员广播，客户端自己会过滤掉自己(因为viewIdx=0)
+            c.send(data); 
+        });
+
+        // 房主也要把自己的信息回传给新来的人
+        // 简单处理：每当有人更新，房主也广播一次自己的
+        // (稍微延迟一点，防拥堵)
+        // setTimeout(() => { ... }, 1000); // 可选优化
+    }
+}
 
 else if (data.type === 'RECONNECT') {
     // 恢复现场
@@ -1072,6 +1139,82 @@ function autoSelectCards() {
         });
     } else {
         alert("没有能管上的牌... 要不起！");
+    }
+}
+
+// ==================== 👤 个人中心逻辑 ====================
+
+// 1. 初始化：读取本地存储的头像和名字
+let myProfile = {
+    name: localStorage.getItem('ddz_name') || '神秘玩家',
+    avatar: localStorage.getItem('ddz_avatar') || '' // Base64字符串
+};
+
+// 页面加载时刷新显示
+(function initProfileUI() {
+    document.getElementById('myNickInput').value = myProfile.name;
+    updateAvatarUI(myProfile.avatar);
+    
+    // 更新游戏桌面上“我”的信息
+    document.querySelector('#p0 .p-name').innerText = myProfile.name;
+    if(myProfile.avatar) {
+        document.querySelector('#p0 .avatar').innerHTML = `<img src="${myProfile.avatar}" style="width:100%;height:100%;border-radius:50%;">`;
+    }
+})();
+
+// 2. 处理头像上传
+function handleFile(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            // 压缩图片 (防止太大数据传不过去) - 这里直接存原始Base64，如果卡顿需压缩
+            myProfile.avatar = e.target.result;
+            updateAvatarUI(myProfile.avatar);
+            saveMyProfile();
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+// 更新设置面板的头像显示
+function updateAvatarUI(src) {
+    const img = document.getElementById('avatarPreview');
+    const emoji = document.getElementById('avatarEmoji');
+    if (src) {
+        img.src = src; img.style.display = 'block'; emoji.style.display = 'none';
+    } else {
+        img.style.display = 'none'; emoji.style.display = 'block';
+    }
+}
+
+// 3. 保存到本地
+function saveMyProfile() {
+    const nameVal = document.getElementById('myNickInput').value.trim();
+    if(nameVal) myProfile.name = nameVal;
+    
+    localStorage.setItem('ddz_name', myProfile.name);
+    if(myProfile.avatar) localStorage.setItem('ddz_avatar', myProfile.avatar);
+    
+    // 实时更新桌面上的我
+    document.querySelector('#p0 .p-name').innerText = myProfile.name;
+}
+
+// 4. 🔥 核心：广播我的信息给别人
+function broadcastProfile() {
+    const msg = { 
+        type: 'UPDATE_PROFILE', 
+        idx: myIdx, 
+        name: myProfile.name, 
+        avatar: myProfile.avatar 
+    };
+    
+    if (myIdx === 0) {
+        // 房主：发给所有人，并广播
+        handleData(msg); // 更新自己视角的房主信息(虽然本来就是对的)
+        connList.forEach(c => c.send(msg));
+    } else {
+        // 玩家：发给房主，房主会转发
+        hostConn.send(msg);
     }
 }
 
