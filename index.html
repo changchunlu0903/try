@@ -20993,327 +20993,6 @@ window.openAISettings = function() {
 })();
 
 
-/* ================= 🔍 V38.0 补丁：美化方案全屏预览 ================= */
-(function() {
-    console.log("🚀 执行 V38.0：正在安装全屏预览插件...");
-
-    // 1. 🏗️ 构建全屏预览窗口 (Lightbox)
-    function injectPreviewModal() {
-        if (document.getElementById('codePreviewModal')) return;
-
-        var modal = document.createElement('div');
-        modal.id = 'codePreviewModal';
-        modal.className = 'modal-overlay'; // 复用你的弹窗样式
-        modal.style.cssText = "z-index: 20000; display: none; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px);";
-
-        modal.innerHTML = `
-            <div class="modal" style="width: 90%; height: 90%; max-width: 1000px; padding: 0; display: flex; flex-direction: column; background: #eee; border-radius: 10px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
-                
-                <div style="padding: 10px 15px; background: #fff; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-weight: bold; color: #333;">👁️ 效果预览 (全屏模式)</span>
-                    <button onclick="document.getElementById('codePreviewModal').classList.remove('active'); setTimeout(()=>document.getElementById('codePreviewModal').style.display='none', 300);" 
-                            style="border: none; background: none; font-size: 24px; cursor: pointer; color: #666;">×</button>
-                </div>
-
-                <div id="codePreviewStage" style="flex: 1; overflow: auto; padding: 20px; position: relative; display: flex; justify-content: center; align-items: center; background-image: radial-gradient(#ccc 1px, transparent 1px); background-size: 20px 20px;">
-                    <div id="shadowHost" style="width: 100%; max-width: 600px; background: transparent;"></div>
-                </div>
-
-                <div style="padding: 10px; background: #fff; border-top: 1px solid #ddd; text-align: center; color: #888; font-size: 12px;">
-                    💡 这就是应用到卡片后的实际效果
-                </div>
-            </div>
-        `;
-        document.body.appendChild(modal);
-    }
-
-    // 2. 🔍 打开预览函数
-    window.enlargePreview = function(encodedCode) {
-        var code = decodeURIComponent(encodedCode);
-        
-        var modal = document.getElementById('codePreviewModal');
-        var host = document.getElementById('shadowHost');
-        
-        if (!modal || !host) {
-            injectPreviewModal();
-            modal = document.getElementById('codePreviewModal');
-            host = document.getElementById('shadowHost');
-        }
-
-        // 重置 Shadow DOM
-        // 因为 ShadowRoot 不能被重置，所以我们每次都重建 host 元素
-        var parent = host.parentNode;
-        parent.removeChild(host);
-        
-        var newHost = document.createElement('div');
-        newHost.id = 'shadowHost';
-        newHost.style.cssText = "width: 100%; max-width: 800px; min-height: 200px; background: transparent;";
-        parent.appendChild(newHost);
-
-        // 注入代码
-        var shadow = newHost.attachShadow({mode: 'open'});
-        shadow.innerHTML = code;
-
-        // 显示弹窗
-        modal.style.display = 'flex';
-        // 稍微延迟加 active 类以触发动画 (如果 css 有动画的话)
-        setTimeout(() => modal.classList.add('active'), 10);
-    };
-
-    // 3. 🔥 覆盖美化生成逻辑 (runBeautifyGeneration)
-    // 目标：给预览框加上点击事件
-    // 我们必须完整重写这个函数，因为它是闭包里的逻辑
-    
-    // (注意：这里需要复用 V36 的逻辑，但修改 innerHTML 生成部分)
-    window.runBeautifyGenerationOverride = async function(text, loadingId) {
-        var chat = document.getElementById('advisorChat');
-        var config = window.aiConfig || JSON.parse(localStorage.getItem('my_ai_config'));
-        var desc = document.getElementById('cardDesc').value || "通用角色";
-
-        // Prompt (保持不变)
-        var prompt = `
-        你是一个前端UI设计师。
-        用户需求：${text}
-        角色设定：${desc.substring(0, 500)}
-        
-        ${window.tempStyleGuide ? "【强制参考样式规范】:\n" + window.tempStyleGuide.substring(0, 3000) : ""}
-        
-        请设计 3 个不同的 HTML/CSS 方案。
-        必须返回纯 JSON 数组：
-        [
-            {
-                "name": "方案名称",
-                "desc": "设计理念",
-                "regex": "/正则/g",
-                "code": "<style>...</style><div>...</div>"
-            },
-            ...
-        ]
-        `;
-
-        try {
-            var res = await fetchAI(prompt, config);
-            var data = JSON.parse(res.replace(/```json/g, '').replace(/```/g, '').trim());
-            document.getElementById(loadingId).remove();
-
-            if (data.length === 0) throw new Error("生成为空");
-
-            chat.innerHTML += `<div class="advisor-bubble">✨ 设计完成！<b>点击下方灰色区域可放大预览：</b></div>`;
-
-            // 渲染方案
-            data.forEach((item, idx) => {
-                var safeCode = encodeURIComponent(item.code);
-                var safeRegex = encodeURIComponent(item.regex);
-                
-                // 预览容器 ID
-                var previewId = `preview_box_${Date.now()}_${idx}`;
-
-                chat.innerHTML += `
-                    <div class="advisor-bubble" style="border-left:4px solid #9c27b0; padding:10px;">
-                        <b>🎨 方案 ${idx+1}: ${item.name}</b>
-                        <div style="font-size:11px; color:#666; margin-bottom:5px;">${item.desc}</div>
-                        
-                        <div style="background:#eee; padding:10px; border-radius:5px; margin:5px 0; min-height:60px; overflow:hidden; cursor: zoom-in; border: 1px solid #ccc; transition: 0.2s;"
-                             title="点击放大查看全屏效果"
-                             onmouseover="this.style.borderColor='#9c27b0'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'"
-                             onmouseout="this.style.borderColor='#ccc'; this.style.boxShadow='none'"
-                             onclick="window.enlargePreview('${safeCode}')">
-                             
-                            <div id="${previewId}" style="pointer-events: none; transform: scale(0.8); transform-origin: top left; width: 125%;"></div>
-                        </div>
-
-                        <div style="display:flex; gap:5px;">
-                            <button class="advisor-action-btn" style="flex:1; background:#e1bee7; color:#4a148c;" onclick="applyBeautify('${safeCode}', '${safeRegex}')">
-                                ✅ 直接使用
-                            </button>
-                            <button class="advisor-action-btn" style="flex:1; background:#fff; border:1px solid #999; color:#555;" onclick="refineBeautify('${safeCode}', '${item.name}')">
-                                🔧 提意见
-                            </button>
-                        </div>
-                    </div>
-                `;
-                
-                // 延迟渲染缩略图
-                setTimeout(() => {
-                    var container = document.getElementById(previewId);
-                    if(container) {
-                        if (!container.shadowRoot) container.attachShadow({mode: 'open'});
-                        container.shadowRoot.innerHTML = item.code;
-                    }
-                }, 100);
-            });
-            
-            chat.scrollTop = chat.scrollHeight;
-
-        } catch(e) {
-            var loadEl = document.getElementById(loadingId);
-            if(loadEl) loadEl.remove();
-            chat.innerHTML += `<div class="advisor-bubble">❌ 生成失败: ${e.message}</div>`;
-        }
-    };
-
-    // 4. 🔗 替换拦截逻辑
-    // 我们需要修改 sendAdvisorMsg 里的调用，指向新的 runBeautifyGenerationOverride
-    // 这里的做法是：修改 runBeautifyGeneration 变量本身（如果之前是全局定义的话）
-    // 或者我们直接把逻辑注入到 runBeautifyGeneration 这个名字上
-    window.runBeautifyGeneration = window.runBeautifyGenerationOverride;
-
-    // 5. 初始化
-    injectPreviewModal();
-
-    console.log("✅ V38.0 预览功能已就绪");
-
-})();
-
-/* ================= 🚜 V39.0 补丁：跳转功能暴力修复 ================= */
-(function() {
-    console.log("🚀 执行 V39.0：正在重写跨页面导航系统...");
-
-    // 1. 覆盖：跳转核心函数
-    window.jumpToCreator = function(btn, type, encodedPrompt) {
-        console.log("👉 收到跳转指令，目标类型:", type);
-
-        // A. 按钮反馈 (防止用户以为没点到)
-        if (btn) {
-            var oldText = btn.innerText;
-            btn.innerText = "🚀 跳转中...";
-            btn.style.opacity = "0.7";
-            btn.disabled = true; // 防止连点
-            
-            // 2秒后恢复按钮，万一用户想再点一次
-            setTimeout(function() {
-                btn.innerText = "✅ 已填入";
-                btn.style.background = "#d4edda";
-                btn.style.color = "#155724";
-                btn.style.opacity = "1";
-                // btn.disabled = false; // 保持禁用，提示已完成
-            }, 1000);
-        }
-
-        setTimeout(function() {
-            try {
-                var promptText = decodeURIComponent(encodedPrompt);
-                var targetTabId = "";
-                var targetInputId = "";
-                
-                // --- B. 路由分发 (死板但有效) ---
-                
-                // 1. 世界书 (World Info)
-                if (type === 'world') {
-                    targetTabId = 'tab-world';
-                    targetInputId = 'aiWorldPrompt';
-                }
-                // 2. 前端美化 (Frontend)
-                else if (type === 'frontend') {
-                    targetTabId = 'tab-regex';
-                    targetInputId = 'aiCodePrompt';
-                    
-                    // 🔥 特殊处理：确保 AI 面板是开着的
-                    var frontPanel = document.getElementById('uiFrontendMode');
-                    var simplePanel = document.getElementById('uiSimpleMode');
-                    if (frontPanel) frontPanel.style.display = 'block';
-                    if (simplePanel) simplePanel.style.display = 'none';
-                    // 勾选 radio
-                    var radio = document.querySelector('input[value="frontend"]');
-                    if (radio) radio.checked = true;
-                }
-                // 3. 属性/逻辑 (Stats)
-                else if (type === 'stat') {
-                    targetTabId = 'tab-stats';
-                    targetInputId = 'aiStatPrompt';
-                }
-                // 4. 详细设定/文风 (Description)
-                else if (type === 'desc' || type === 'style') {
-                    targetTabId = 'tab-preview';
-                    targetInputId = 'refineInput_desc';
-                    
-                    // 🔥 特殊处理：强制显示修改框
-                    // 无论之前有没有生成过，都要把那个灰色的框弄出来
-                    var refineBox = document.getElementById('refineArea_desc');
-                    
-                    // 如果框不存在，现场造一个 (防止报错)
-                    if (!refineBox) {
-                        var descInput = document.getElementById('cardDesc');
-                        if (descInput) {
-                            refineBox = document.createElement('div');
-                            refineBox.id = 'refineArea_desc';
-                            refineBox.style.cssText = "display:block; margin-top:10px; background:#f0f0f0; padding:8px; border-radius:8px;";
-                            refineBox.innerHTML = `
-                                <div style="display:flex; gap:5px;">
-                                    <input type="text" id="refineInput_desc" class="visual-input" style="flex:1;">
-                                    <button onclick="refineResult('desc')" style="background:#a29bfe; color:white; border:none; padding:5px 15px; border-radius:5px;">🔄 让它改</button>
-                                </div>`;
-                            descInput.parentNode.insertBefore(refineBox, descInput.nextSibling);
-                        }
-                    } else {
-                        refineBox.style.display = 'block';
-                    }
-                }
-
-                // --- C. 执行切换 (暴力操作 DOM) ---
-                
-                // 1. 确保弹窗是开的
-                var modal = document.getElementById('cardCreatorModal');
-                if (modal) {
-                    modal.classList.add('active');
-                    modal.style.display = 'flex';
-                }
-
-                // 2. 切换 Tab 内容
-                var allTabs = document.querySelectorAll('.card-tab-content');
-                allTabs.forEach(function(el) { el.style.display = 'none'; });
-                
-                var targetTabEl = document.getElementById(targetTabId);
-                if (targetTabEl) targetTabEl.style.display = 'block';
-                else throw new Error("找不到目标页面 ID: " + targetTabId);
-
-                // 3. 切换 Tab 按钮高亮
-                var tabBtns = document.querySelectorAll('.card-tab');
-                tabBtns.forEach(function(b) { b.classList.remove('active'); });
-                // 模糊匹配
-                var keyword = targetTabId.replace('tab-', '');
-                for (var i=0; i<tabBtns.length; i++) {
-                    var onClickStr = tabBtns[i].getAttribute('onclick');
-                    if (onClickStr && onClickStr.includes(keyword)) {
-                        tabBtns[i].classList.add('active');
-                        break;
-                    }
-                }
-
-                // --- D. 填入并聚焦 ---
-                var inputEl = document.getElementById(targetInputId);
-                if (inputEl) {
-                    inputEl.value = promptText;
-                    inputEl.focus();
-                    
-                    // 滚动屏幕，把输入框放到中间
-                    inputEl.scrollIntoView({behavior: "smooth", block: "center"});
-                    
-                    // 闪烁特效
-                    var originalBg = inputEl.style.backgroundColor;
-                    inputEl.style.transition = "background 0.3s";
-                    inputEl.style.backgroundColor = "#fff3cd"; // 浅黄色高亮
-                    setTimeout(function() { inputEl.style.backgroundColor = originalBg; }, 800);
-
-                    if(window.auth && window.auth.toast) window.auth.toast('✅ 已自动填入建议，请点击按钮生成');
-                } else {
-                    alert("❌ 导航成功，但找不到输入框: " + targetInputId);
-                }
-
-            } catch (e) {
-                console.error(e);
-                alert("跳转失败: " + e.message);
-                if (btn) {
-                    btn.innerText = "❌ 失败";
-                    btn.disabled = false;
-                }
-            }
-        }, 100);
-    };
-
-    console.log("✅ V39.0：跳转系统已重置");
-
-})();
 
 /* ================= 📊 V40.0 补丁：属性逻辑多模块系统 ================= */
 (function() {
@@ -21826,408 +21505,6 @@ window.openAISettings = function() {
     };
 
     console.log("✅ V42.0：多人模式已具备记忆功能");
-
-})();
-
-/* ================= 📱 V43.0 补丁：属性页移动端布局优化 ================= */
-(function() {
-    console.log("🚀 执行 V43.0：正在为手机端重构属性页布局...");
-
-    // 我们通过注入 CSS 来强制覆盖之前的内联样式
-    // 这样既保留了电脑端的左右布局，又让手机端变成上下布局
-    function injectMobileStyles() {
-        var styleId = 'mobile-layout-fix-v43';
-        if (document.getElementById(styleId)) return;
-
-        var css = `
-            /* === 仅在屏幕宽度小于 768px (手机/平板) 时生效 === */
-            @media screen and (max-width: 768px) {
-                
-                /* 1. 容器改为上下排列 */
-                #stat-modules-container {
-                    flex-direction: column !important;
-                    height: auto !important; /* 高度不再固定，随内容撑开 */
-                    min-height: 600px;       /* 保证足够高 */
-                }
-
-                /* 2. 原左侧列表 -> 变顶部横向菜单 */
-                #statSidebar {
-                    width: 100% !important;
-                    height: auto !important;
-                    border-right: none !important;
-                    border-bottom: 2px solid #6c5ce7 !important;
-                    flex-direction: row !important; /* 横向排列 */
-                    overflow-x: auto !important;    /* 允许横向滚动 */
-                    white-space: nowrap !important; /* 不换行 */
-                    padding: 5px !important;
-                    background: #f0f0f0 !important;
-                }
-
-                /* 列表里的每一项 */
-                #statModuleList {
-                    display: flex !important;
-                    flex-direction: row !important;
-                    gap: 5px !important;
-                }
-
-                #statModuleList > div {
-                    padding: 8px 15px !important;
-                    border: 1px solid #ccc !important;
-                    border-radius: 20px !important;
-                    background: #fff !important;
-                    margin: 0 !important;
-                    flex-shrink: 0 !important; /* 防止被挤压 */
-                    font-size: 13px !important;
-                }
-
-                /* 3. 编辑区拉大 */
-                #stat-modules-container > div:last-child {
-                    width: 100% !important;
-                    padding: 10px !important;
-                }
-
-                /* 4. 代码框强制拉高 */
-                #statEditor {
-                    height: 400px !important; /* 手机上给足高度 */
-                    min-height: 400px !important;
-                    font-size: 14px !important; /* 字体改大一点点 */
-                }
-
-                /* 5. 修改框 (Refine Box) 优化 */
-                #refineArea_stat {
-                    display: flex !important;
-                    flex-direction: column !important; /* 手机上输入框和按钮换行 */
-                }
-                
-                #refineInput_stat {
-                    width: 100% !important;
-                    margin-bottom: 5px !important;
-                    height: 40px !important; /* 输入框加高 */
-                }
-                
-                #refineArea_stat button {
-                    width: 100% !important; /* 按钮占满 */
-                    padding: 10px !important;
-                }
-                
-                /* 6. 那个绿色的说明书盒子也优化一下 */
-                #statGuideBox {
-                    max-height: 150px !important; /* 限制高度，防止占太多地 */
-                    overflow-y: auto !important;
-                }
-            }
-        `;
-
-        var style = document.createElement('style');
-        style.id = styleId;
-        style.type = 'text/css';
-        style.appendChild(document.createTextNode(css));
-        document.head.appendChild(style);
-    }
-
-    // 立即执行
-    injectMobileStyles();
-    
-    // 再次执行以防万一
-    setTimeout(injectMobileStyles, 1000);
-
-    console.log("✅ 移动端布局适配完成");
-
-})();
-
-/* ================= 🎨 V47.0 补丁：属性页修改框 UI 强制修复 ================= */
-(function() {
-    console.log("🚀 执行 V47.0：正在强制重绘属性页修改框...");
-
-    // 1. 注入强制 CSS (使用 !important 覆盖所有旧样式)
-    var styleId = 'fix-refine-ui-v47';
-    if (!document.getElementById(styleId)) {
-        var style = document.createElement('style');
-        style.id = styleId;
-        style.innerHTML = `
-            /* 强制容器横向排列，垂直居中 */
-            #refineArea_stat {
-                display: flex !important;
-                flex-direction: row !important;
-                align-items: center !important;
-                gap: 8px !important;
-                padding: 8px !important;
-                background: #fff7e6 !important;
-                border: 1px dashed #f39c12 !important;
-                border-radius: 8px !important;
-                margin-top: 10px !important;
-                margin-bottom: 10px !important;
-                width: auto !important;
-            }
-
-            /* 1. 左侧标签：不换行，字体小 */
-            #refineArea_stat .refine-label {
-                font-size: 12px !important;
-                color: #d46b08 !important;
-                white-space: nowrap !important;
-                flex-shrink: 0 !important; /* 禁止被压缩 */
-            }
-
-            /* 2. 中间输入框：自动撑满剩余空间 */
-            #refineArea_stat input {
-                flex: 1 !important; /* 核心：占据所有剩余宽度 */
-                width: 100% !important;
-                min-width: 50px !important;
-                height: 34px !important;
-                padding: 0 8px !important;
-                font-size: 13px !important;
-                border: 1px solid #f39c12 !important;
-                background: #fff !important;
-                border-radius: 4px !important;
-                margin: 0 !important;
-            }
-
-            /* 3. 右侧按钮：紧凑，不换行 */
-            #refineArea_stat button {
-                flex-shrink: 0 !important; /* 禁止被压缩 */
-                width: auto !important;
-                padding: 0 12px !important;
-                height: 34px !important;
-                font-size: 12px !important;
-                white-space: nowrap !important;
-                background: #f39c12 !important;
-                color: white !important;
-                border: none !important;
-                border-radius: 4px !important;
-                cursor: pointer !important;
-                margin: 0 !important;
-            }
-        `;
-        document.head.appendChild(style);
-    }
-
-    // 2. 强制重写 HTML 结构 (确保类名和结构符合 CSS)
-    function forceRewriteHTML() {
-        var box = document.getElementById('refineArea_stat');
-        if (!box) return;
-
-        // 获取当前的输入值 (防止重绘时清空用户输入)
-        var oldInput = box.querySelector('input');
-        var currentVal = oldInput ? oldInput.value : "";
-
-        // 重写 HTML
-        box.innerHTML = `
-            <span class="refine-label">🔧 微调:</span>
-            <input type="text" id="refineInput_stat" placeholder="输入修改意见..." value="${currentVal}">
-            <button onclick="window.refineResult('stat')">🔄 让它改</button>
-        `;
-    }
-
-    // 3. 启动巡逻 (防止其他补丁把它改回去)
-    // 每 500 毫秒检查一次，如果发现样式不对立刻重写
-    setInterval(forceRewriteHTML, 500);
-
-    // 立即执行一次
-    setTimeout(forceRewriteHTML, 200);
-
-})();
-
-
-/* ================= 🎨 V46.0 补丁：美化模式强力修复 (API重连+解析增强) ================= */
-(function() {
-    console.log("🚀 执行 V46.0：正在重写 API 调用与 JSON 解析引擎...");
-
-    // ================= 1. 强力 JSON 清洗引擎 (专门修补 AI 的烂代码) =================
-    window.safeExtractJSON = function(str) {
-        try {
-            // A. 尝试直接解析
-            return JSON.parse(str);
-        } catch (e) {
-            console.log("⚠️以此方式解析失败，尝试清洗...");
-            // B. 提取最外层的 [...] 或 {...}
-            var match = str.match(/\[[\s\S]*\]/) || str.match(/\{[\s\S]*\}/);
-            if (!match) throw new Error("AI 没有返回有效的数据格式");
-            
-            var clean = match[0];
-            
-            // C. 暴力清洗：修复常见的 JSON 破坏符
-            // 1. 把未转义的换行符变成 \\n
-            clean = clean.replace(/(?<!\\)\n/g, "\\n");
-            // 2. 清理控制字符
-            clean = clean.replace(/[\u0000-\u0019]+/g, ""); 
-            
-            try {
-                return JSON.parse(clean);
-            } catch (e2) {
-                console.error("清洗后仍无法解析:", clean);
-                throw new Error("AI 生成的代码格式太乱，无法读取。请重试。");
-            }
-        }
-    };
-
-    // ================= 2. 重写 API 调用函数 (确保引用正确) =================
-    window.fetchAI = async function(userPrompt, config) {
-        if(!config || !config.apiKey) throw new Error("未检测到 API Key，请去设置里填写");
-
-        var messages = [{ role: "user", content: userPrompt }];
-
-        // 检查是否有临时破限 (V37+ 兼容)
-        if (window.tempActiveJailbreak) {
-            messages.unshift({ role: "system", content: window.tempActiveJailbreak });
-        }
-
-        console.log("📡 正在发送请求...", config.apiUrl);
-
-        try {
-            const response = await fetch(`${config.apiUrl}/chat/completions`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${config.apiKey}` },
-                body: JSON.stringify({
-                    model: config.model || 'gpt-3.5-turbo',
-                    messages: messages,
-                    temperature: 0.7,
-                    stream: false
-                })
-            });
-
-            if (!response.ok) {
-                var errText = await response.text();
-                throw new Error(`API 报错 (${response.status}): ${errText}`);
-            }
-
-            const data = await response.json();
-            return data.choices[0].message.content;
-
-        } catch (e) {
-            console.error("API 请求失败:", e);
-            throw e; // 抛出错误给界面显示
-        }
-    };
-
-    // ================= 3. 重写美化生成逻辑 (集成 V38 预览功能) =================
-    // 这个函数会覆盖 V36/V38 的逻辑，使用上面新的 fetchAI 和 safeExtractJSON
-    window.runBeautifyGeneration = async function(text, loadingId) {
-        var chat = document.getElementById('advisorChat');
-        
-        // 1. 获取配置
-        var config = window.aiConfig || JSON.parse(localStorage.getItem('my_ai_config'));
-        var desc = document.getElementById('cardDesc').value || "通用角色";
-
-        // 2. 构建 Prompt
-        var styleGuideContent = window.frontendStyleGuide || "";
-        var stylePrompt = "";
-        
-        if (styleGuideContent) {
-            stylePrompt = `
-━━━━━━━━━━━━━━━━━━━━━━━━
-【强制参考样式规范】
-请忽略默认风格，必须严格复用以下 CSS 变量和类名：
-\`\`\`css
-${styleGuideContent.substring(0, 3000)}
-\`\`\`
-━━━━━━━━━━━━━━━━━━━━━━━━
-            `;
-        }
-
-        var prompt = `
-        你是一个前端UI设计师。
-        用户需求：${text}
-        角色设定简述：${desc.substring(0, 200)}...
-        
-        ${stylePrompt}
-        
-        请设计 3 个 HTML/CSS 方案。
-        
-        🔥 **格式极其重要**：
-        1. 返回纯 JSON 数组。
-        2. "code" 字段内必须包含完整的 <style> 和 HTML 结构。
-        3. 严禁在 JSON 字符串内部直接换行，请使用 \\n 代替换行。
-        4. JSON 内部的双引号必须转义 (\\")。
-        
-        格式示例：
-        [
-            {
-                "name": "方案名",
-                "desc": "设计思路",
-                "regex": "/正则/g",
-                "code": "<style>...</style><div>...</div>"
-            }
-        ]
-        `;
-
-        try {
-            // 3. 调用 AI
-            var res = await fetchAI(prompt, config);
-            console.log("🤖 AI 返回原始内容:", res); // 方便调试
-
-            // 4. 解析数据 (使用强力清洗引擎)
-            var data = safeExtractJSON(res);
-            
-            // 移除 Loading
-            var loadEl = document.getElementById(loadingId);
-            if(loadEl) loadEl.remove();
-
-            if (!Array.isArray(data) || data.length === 0) throw new Error("生成数据为空");
-
-            chat.innerHTML += `<div class="advisor-bubble">✨ 设计完成！<b>点击下方灰色区域可放大预览：</b></div>`;
-
-            // 5. 渲染卡片 (集成 V38 预览逻辑)
-            data.forEach((item, idx) => {
-                var safeCode = encodeURIComponent(item.code);
-                var safeRegex = encodeURIComponent(item.regex);
-                var previewId = `preview_box_${Date.now()}_${idx}`;
-
-                chat.innerHTML += `
-                    <div class="advisor-bubble" style="border-left:4px solid #9c27b0; padding:10px;">
-                        <b>🎨 方案 ${idx+1}: ${item.name}</b>
-                        <div style="font-size:11px; color:#666; margin-bottom:5px;">${item.desc}</div>
-                        
-                        <div style="background:#eee; padding:10px; border-radius:5px; margin:5px 0; min-height:60px; overflow:hidden; cursor: zoom-in; border: 1px solid #ccc; transition: 0.2s;"
-                             title="点击放大查看全屏效果"
-                             onmouseover="this.style.borderColor='#9c27b0'"
-                             onmouseout="this.style.borderColor='#ccc'"
-                             onclick="window.enlargePreview('${safeCode}')">
-                             
-                            <div id="${previewId}" style="pointer-events: none; transform: scale(0.8); transform-origin: top left; width: 125%;"></div>
-                        </div>
-
-                        <div style="display:flex; gap:5px;">
-                            <button class="advisor-action-btn" style="flex:1; background:#e1bee7; color:#4a148c;" onclick="applyBeautify('${safeCode}', '${safeRegex}')">
-                                ✅ 使用
-                            </button>
-                            <button class="advisor-action-btn" style="flex:1; background:#fff; border:1px solid #999; color:#555;" onclick="refineBeautify('${safeCode}', '${item.name}')">
-                                🔧 提意见
-                            </button>
-                        </div>
-                    </div>
-                `;
-                
-                // 延迟渲染缩略图
-                setTimeout(() => {
-                    var container = document.getElementById(previewId);
-                    if(container) {
-                        if (!container.shadowRoot) container.attachShadow({mode: 'open'});
-                        container.shadowRoot.innerHTML = item.code;
-                    }
-                }, 100);
-            });
-            
-            chat.scrollTop = chat.scrollHeight;
-
-        } catch(e) {
-            console.error(e);
-            var loadEl = document.getElementById(loadingId);
-            if(loadEl) loadEl.remove();
-            
-            // 🔥 显示详细错误原因
-            chat.innerHTML += `
-                <div class="advisor-bubble" style="background:#fff0f0; color:#c0392b; border:1px solid #e74c3c;">
-                    ❌ <b>生成失败</b><br>
-                    原因：${e.message}<br>
-                    <small>建议：请检查 API Key 是否正确，或者重试一次。</small>
-                </div>
-            `;
-            chat.scrollTop = chat.scrollHeight;
-        }
-    };
-
-    console.log("✅ V46.0：API 连接与 JSON 解析已加固");
-    if(window.auth && window.auth.toast) window.auth.toast('🔧 美化生成功能已修复');
 
 })();
 
@@ -22901,859 +22178,501 @@ ${styleGuideContent.substring(0, 3000)}
 
 })();
 
-
-/* ================= 📦 V50.0 补丁：防卡死双导出系统 (强制复位版) ================= */
+/* ================= 🔪 V71.0：美化模式重写版 (独立运行·无依赖) ================= */
 (function() {
-    console.log("🚀 执行 V50.0：正在安装带保险丝的导出引擎...");
+    console.log("🚀 执行 V71.0：正在暴力重写美化模式...");
 
-    // ================= 1. 基础工具：PNG 隐写算法 =================
-    var crcTable = [];
-    for (var i = 0; i < 256; i++) {
-        var c = i;
-        for (var k = 0; k < 8; k++) c = (c & 1) ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
-        crcTable[i] = c;
-    }
-    function crc32(buf) {
-        var crc = 0xFFFFFFFF;
-        for (var i = 0; i < buf.length; i++) crc = (crc >>> 8) ^ crcTable[(crc ^ buf[i]) & 0xFF];
-        return (crc ^ 0xFFFFFFFF) >>> 0;
-    }
-
-    function injectTavernData(pngBuffer, jsonStr) {
-        var uint8Json = new TextEncoder().encode(jsonStr);
-        var base64Json = btoa(String.fromCharCode.apply(null, uint8Json));
-        var keyword = "chara";
-        var chunkDataLen = keyword.length + 1 + base64Json.length;
-        var chunkData = new Uint8Array(chunkDataLen);
-        for(var i=0; i<keyword.length; i++) chunkData[i] = keyword.charCodeAt(i);
-        chunkData[keyword.length] = 0; 
-        for(var i=0; i<base64Json.length; i++) chunkData[keyword.length + 1 + i] = base64Json.charCodeAt(i);
-        var typeAndData = new Uint8Array(4 + chunkDataLen);
-        typeAndData.set([116, 69, 88, 116], 0); 
-        typeAndData.set(chunkData, 4);
-        var crcVal = crc32(typeAndData);
-        var fullChunkLen = 4 + 4 + chunkDataLen + 4;
-        var fullChunk = new Uint8Array(fullChunkLen);
-        var dataLen = chunkDataLen;
-        fullChunk[0] = (dataLen >>> 24) & 0xFF; fullChunk[1] = (dataLen >>> 16) & 0xFF; fullChunk[2] = (dataLen >>> 8) & 0xFF; fullChunk[3] = dataLen & 0xFF;
-        fullChunk.set(typeAndData, 4);
-        fullChunk[fullChunkLen-4] = (crcVal >>> 24) & 0xFF; fullChunk[fullChunkLen-3] = (crcVal >>> 16) & 0xFF; fullChunk[fullChunkLen-2] = (crcVal >>> 8) & 0xFF; fullChunk[fullChunkLen-1] = crcVal & 0xFF;
-        var newPng = new Uint8Array(pngBuffer.byteLength + fullChunkLen);
-        newPng.set(new Uint8Array(pngBuffer.slice(0, 33)), 0); 
-        newPng.set(fullChunk, 33); 
-        newPng.set(new Uint8Array(pngBuffer.slice(33)), 33 + fullChunkLen); 
-        return newPng;
-    }
-
-    // ================= 2. 核心：安全的导出逻辑 =================
-    window.safeExportCard = async function(btnElement) {
-        // A. 界面锁定 (防止连点)
-        var originalText = btnElement.innerText;
-        btnElement.innerHTML = "📦 打包中...";
-        btnElement.style.background = "#e67e22"; // 橙色状态
-        btnElement.disabled = true;
-
-        // 🔥 B. 启动看门狗 (8秒后强制复位，防止卡死)
-        var watchdogTimer = setTimeout(function() {
-            console.warn("⚠️ 导出耗时过长，强制复位按钮");
-            resetButton(btnElement, originalText);
-            if(window.auth && window.auth.toast) window.auth.toast('⚠️ 导出超时，请重试');
-        }, 8000);
-
-        try {
-            // --- 步骤 1: 获取数据 ---
-            var getVal = function(id) { var el = document.getElementById(id); return el ? el.value : ""; };
-            var name = getVal('cardName').trim() || "未命名角色";
-
-            var cardData = {
-                "spec": "chara_card_v2",
-                "spec_version": "2.0",
-                "data": {
-                    "name": name,
-                    "description": getVal('cardDesc'),
-                    "first_mes": getVal('cardFirstMes'),
-                    "mes_example": getVal('cardMesExample'),
-                    "scenario": getVal('cardScenario'),
-                    "creator_notes": getVal('cardNote') || getVal('statEditor'),
-                    "system_prompt": "",
-                    "post_history_instructions": "",
-                    "alternate_greetings": [],
-                    "character_book": null,
-                    "tags": [],
-                    "creator": "Lili's Workshop",
-                    "character_version": "1.0",
-                    "extensions": {}
-                }
-            };
-
-            // 注入高级数据 (世界书/正则)
-            if (window.currentCardRegexes && window.currentCardRegexes.length > 0) 
-                cardData.data.extensions.regex_scripts = window.currentCardRegexes;
-            if (window.currentWorldInfo && window.currentWorldInfo.entries && window.currentWorldInfo.entries.length > 0) {
-                cardData.data.character_book = {
-                    "name": "Embedded World",
-                    "scan_depth": 100, "token_budget": 500, "recursive_scanning": false, "extensions": {},
-                    "entries": window.currentWorldInfo.entries
-                };
-            }
-
-            var jsonStr = JSON.stringify(cardData, null, 2);
-
-            // --- 步骤 2: 下载 JSON ---
-            downloadBlob(new Blob([jsonStr], {type: "application/json"}), name + ".json");
-
-            // --- 步骤 3: 生成并下载 PNG ---
-            var imgBlob = await generatePngBlob(name, jsonStr);
-            downloadBlob(imgBlob, name + ".png");
-
-            // --- 步骤 4: 成功完成 ---
-            clearTimeout(watchdogTimer); // 取消看门狗
-            
-            btnElement.innerHTML = "✅ 成功";
-            btnElement.style.background = "#00b894"; // 绿色
-            if(window.auth && window.auth.toast) window.auth.toast('🎁 导出成功 (JSON+PNG)');
-
-        } catch (e) {
-            console.error("导出报错:", e);
-            clearTimeout(watchdogTimer);
-            alert("导出出错: " + e.message);
-        } finally {
-            // 无论成功还是失败，2秒后恢复按钮
-            setTimeout(function() {
-                resetButton(btnElement, "💾 导出");
-            }, 2000);
+    // 1. 🛠️ 通用工具：把按钮变废 (防止重复点)
+    window.markBtnAsUsed = function(btn) {
+        if (btn) {
+            btn.innerHTML = "✅ 已执行";
+            btn.style.background = "#d4edda";
+            btn.style.color = "#155724";
+            btn.style.border = "1px solid #c3e6cb";
+            btn.style.cursor = "not-allowed";
+            btn.disabled = true;
         }
     };
 
-    // 辅助：重置按钮状态
-    function resetButton(btn, text) {
-        if(btn) {
-            btn.innerHTML = text;
-            btn.disabled = false;
-            btn.style.background = ""; // 恢复默认颜色
-            btn.style.opacity = "1";
-        }
-    }
-
-    // 辅助：下载文件
-    function downloadBlob(blob, filename) {
-        var url = URL.createObjectURL(blob);
-        var a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        setTimeout(function() { 
-            document.body.removeChild(a); 
-            URL.revokeObjectURL(url);
-        }, 100);
-    }
-
-    // 辅助：生成图片 Blob
-    function generatePngBlob(name, jsonStr) {
-        return new Promise((resolve, reject) => {
-            var imgPreview = document.getElementById('cardAvatarPreview');
-            var canvas = document.createElement('canvas');
-            var ctx = canvas.getContext('2d');
-
-            // 绘制图片的函数
-            function drawAndInject(imgObj) {
-                try {
-                    canvas.width = imgObj.width;
-                    canvas.height = imgObj.height;
-                    ctx.drawImage(imgObj, 0, 0);
-                    
-                    canvas.toBlob(async function(blob) {
-                        if(!blob) { reject(new Error("Canvas转换失败")); return; }
-                        var buffer = await blob.arrayBuffer();
-                        var finalBuffer = injectTavernData(buffer, jsonStr);
-                        resolve(new Blob([finalBuffer], {type: "image/png"}));
-                    }, 'image/png');
-                } catch(e) { reject(e); }
-            }
-
-            // 如果有头像，用头像
-            if (imgPreview && imgPreview.src && imgPreview.style.display !== 'none' && !imgPreview.src.includes('svg')) {
-                var img = new Image();
-                img.crossOrigin = "Anonymous";
-                img.onload = function() { drawAndInject(img); };
-                img.onerror = function() { 
-                    // 图片加载失败，回退到纯色
-                    drawPlaceholder(name, resolve, jsonStr); 
-                };
-                img.src = imgPreview.src;
-            } else {
-                // 没有头像，用纯色
-                drawPlaceholder(name, resolve, jsonStr);
-            }
-        });
-    }
-
-    // 辅助：绘制纯色占位图
-    function drawPlaceholder(name, resolve, jsonStr) {
-        var canvas = document.createElement('canvas');
-        canvas.width = 400; canvas.height = 600;
-        var ctx = canvas.getContext('2d');
-        ctx.fillStyle = "#ffb7c5"; ctx.fillRect(0, 0, 400, 600);
-        ctx.fillStyle = "#fff"; ctx.font = "bold 40px sans-serif";
-        ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.fillText(name.substring(0, 4), 200, 300);
-        
-        canvas.toBlob(async function(blob) {
-            var buffer = await blob.arrayBuffer();
-            var finalBuffer = injectTavernData(buffer, jsonStr);
-            resolve(new Blob([finalBuffer], {type: "image/png"}));
-        }, 'image/png');
-    }
-
-    // ================= 3. 强力绑定：每秒巡逻 =================
-    // 找到所有“导出”按钮，把它们变成我们的安全按钮
-    function hijackButtons() {
-        var buttons = document.querySelectorAll('button');
-        buttons.forEach(function(btn) {
-            // 只要包含“导出”二字，且没有被我们标记过
-            if (btn.innerText.includes("导出") && !btn.dataset.safeExport) {
-                // 克隆按钮以移除旧的事件监听器 (彻底清除旧代码的残留)
-                var newBtn = btn.cloneNode(true);
-                btn.parentNode.replaceChild(newBtn, btn);
-                
-                // 绑定新逻辑
-                newBtn.onclick = function() { window.safeExportCard(newBtn); };
-                newBtn.dataset.safeExport = "true"; // 标记已处理
-                
-                console.log("✅ 已升级导出按钮:", newBtn);
-            }
-        });
-    }
-
-    // 立即执行 & 循环执行
-    hijackButtons();
-    setInterval(hijackButtons, 1000);
-
-    console.log("✅ V50.0 防卡死导出系统已启动");
-
-})();
-
-
-/* ================= 💾 V44.0 补丁：全家桶强力存档系统 (防漏版) ================= */
-(function() {
-    console.log("🚀 执行 V44.0：正在重写存档内核，确保万无一失...");
-
-    // ================= 1. 核心：数据打包机 (搜刮所有变量) =================
-    function collectTotalSnapshot() {
-        // 辅助：获取输入框
-        var getVal = function(id) { var el = document.getElementById(id); return el ? el.value : ""; };
-
-        return {
-            meta: {
-                id: Date.now(),
-                title: getVal('cardName').trim() || "未命名工程",
-                timestamp: new Date().toLocaleString(),
-                version: "V44.0"
-            },
-            // A. 界面输入框 (基础)
-            inputs: {
-                cardName: getVal('cardName'),
-                cardDesc: getVal('cardDesc'),
-                cardFirstMes: getVal('cardFirstMes'),
-                cardMesExample: getVal('cardMesExample'),
-                cardScenario: getVal('cardScenario'),
-                cardNote: getVal('cardNote'),
-                // 编辑器草稿
-                statEditor: getVal('statEditor'), 
-                frontReplace: getVal('frontReplace'),
-                frontPattern: getVal('frontPattern'),
-                aiCodePrompt: getVal('aiCodePrompt'),
-                aiWorldPrompt: getVal('aiWorldPrompt'),
-                aiStatPrompt: getVal('aiStatPrompt')
-            },
-            // B. 核心数据结构 (新旧全包)
-            data: {
-                // 1. 世界书 & 正则
-                worldInfo: window.currentWorldInfo || { entries: [] },
-                regexScripts: window.currentCardRegexes || [],
-                
-                // 2. 标签系统 (含自定义分类)
-                wizardData: window.wizardData || {}, // V29 自定义分类
-                selectedTags: window.currentSelectedTags || {}, // V25 选中状态
-                
-                // 3. 属性/逻辑多模块 (V40)
-                statModules: window.statModules || [],
-                
-                // 4. 多人模式花名册 (V41)
-                projectCharData: window.projectCharData || {},
-                
-                // 5. 军师状态 (V25/V36)
-                advisorState: window.advisorState || { mode: 'menu', multiChars: [] },
-                
-                // 6. 美化规范文件 (V34)
-                styleGuide: window.frontendStyleGuide || "",
-                
-                // 7. 军师聊天记录 (HTML)
-                advisorChat: document.getElementById('advisorChat') ? document.getElementById('advisorChat').innerHTML : ""
-            }
+    // 2. 🛠️ 预览放大工具 (防止缺失报错)
+    if (typeof window.enlargePreview !== 'function') {
+        window.enlargePreview = function(encCode) {
+            var code = decodeURIComponent(encCode);
+            var win = window.open("", "_blank");
+            win.document.write(code);
         };
     }
 
-    // ================= 2. 核心：数据恢复机 (还原并刷新UI) =================
-    function restoreTotalSnapshot(snapshot) {
-        if (!snapshot || !snapshot.data) {
-            alert("❌ 存档格式过时或损坏，无法完整读取！");
+    // ================= 🎨 核心功能函数 (全部挂载到 window) =================
+
+    // A. 应用 UI 代码
+    window.applyBeautify = function(encCode, encRegex, btn) {
+        try {
+            var code = decodeURIComponent(encCode);
+            var regex = decodeURIComponent(encRegex);
+
+            // 1. 强切 Tab
+            if(typeof switchCardTab === 'function') switchCardTab('regex');
+            
+            // 2. 强开面板
+            var uiPanel = document.getElementById('uiFrontendMode');
+            if(uiPanel) uiPanel.style.display = 'block';
+            var simplePanel = document.getElementById('uiSimpleMode');
+            if(simplePanel) simplePanel.style.display = 'none';
+
+            // 3. 填值
+            var elCode = document.getElementById('frontReplace');
+            var elRegex = document.getElementById('frontPattern');
+            if(elCode) elCode.value = code;
+            if(elRegex) elRegex.value = regex;
+
+            // 4. 填测试词
+            var rawKey = regex.replace(/^\//, '').replace(/\/g[im]*$/, '').replace(/\\/g, '').replace(/\[|\]/g, '');
+            var elTest = document.getElementById('regexTestInput');
+            if(elTest) elTest.value = rawKey;
+
+            // 5. 运行测试
+            if(typeof runRegexTest === 'function') runRegexTest();
+
+            // 6. 锁定按钮
+            markBtnAsUsed(btn);
+            
+            if(window.auth && window.auth.toast) window.auth.toast('✅ UI已应用');
+
+        } catch(e) {
+            alert("应用出错: " + e.message);
+        }
+    };
+
+    // B. 提意见 (Refine)
+    window.refineBeautify = function(encCode, name) {
+        // 1. 存缓存
+        if (!window.lastGeneratedData) window.lastGeneratedData = {};
+        window.lastGeneratedData.frontend = { code: decodeURIComponent(encCode), name: name, regex: "" };
+        
+        // 2. 标记状态
+        if (!window.advisorState) window.advisorState = {};
+        window.advisorState.pendingRefine = 'frontend';
+
+        // 3. 界面提示
+        var input = document.getElementById('advisorInput');
+        var chat = document.getElementById('advisorChat');
+        
+        input.value = "";
+        input.placeholder = `🔧 对【${name}】哪里不满意？请告诉我...`;
+        input.focus();
+        input.style.border = "2px solid #e91e63"; // 粉色框提醒
+        
+        chat.innerHTML += `<div class="advisor-bubble" style="background:#ffebee; color:#c62828;">👂 请输入修改意见 (针对 ${name})...</div>`;
+        chat.scrollTop = chat.scrollHeight;
+    };
+
+    // C. 生成配套世界书 (橙色按钮)
+    window.generateUIWorldInfo = async function(encCode, encRegex, btn) {
+        if(btn) { btn.innerText = "⏳ 解析中..."; btn.disabled = true; }
+
+        try {
+            var code = decodeURIComponent(encCode);
+            var regex = decodeURIComponent(encRegex);
+            var charName = document.getElementById('cardName').value || "Char";
+            
+            var config = window.aiConfig || JSON.parse(localStorage.getItem('my_ai_config'));
+            if (!config || !config.apiKey) throw new Error("API Key未配置");
+
+            // 发送请求
+            var prompt = `分析UI代码，生成System Note。\n角色：${charName}\n代码：${code.substring(0,300)}...\n正则：${regex}\n返回JSON:{title, keys, content}`;
+            
+            var res = await fetch(`${config.apiUrl}/chat/completions`, {
+                method: 'POST', headers: {'Content-Type':'application/json','Authorization':`Bearer ${config.apiKey}`},
+                body: JSON.stringify({model: config.model, messages:[{role:"user", content:prompt}]})
+            });
+            var json = await res.json();
+            var content = json.choices[0].message.content;
+            var data = JSON.parse(content.replace(/```json/g,'').replace(/```/g,'').trim());
+            if(Array.isArray(data)) data = data[0];
+
+            // 注入
+            if(typeof switchCardTab === 'function') switchCardTab('world');
+            if(!window.currentWorldInfo) window.currentWorldInfo = { entries: [] };
+            
+            window.currentWorldInfo.entries.push({
+                id: Date.now(), comment: "UI-"+(data.title||"特效"), keys:data.keys||["ui"], content:data.content,
+                position:1, enabled:true, constant:true, insertion_position:1
+            });
+            
+            if (typeof renderWorldList === 'function') renderWorldList();
+            
+            markBtnAsUsed(btn);
+            if(window.auth && window.auth.toast) window.auth.toast('✅ 配套指令已生成');
+
+        } catch(e) {
+            console.error(e);
+            if(btn) { btn.innerText = "❌ 失败"; btn.disabled = false; }
+        }
+    };
+
+    // ================= 🧠 生成逻辑 (包含按钮渲染) =================
+
+    window.runBeautifyGeneration = async function(text, loadingId) {
+        var chat = document.getElementById('advisorChat');
+        var config = window.aiConfig || JSON.parse(localStorage.getItem('my_ai_config'));
+        var desc = document.getElementById('cardDesc').value || "通用角色";
+
+        // 简单的 Prompt，不再依赖外部变量
+        var prompt = `
+        你是一个前端UI设计师。
+        用户需求：${text}
+        角色设定：${desc.substring(0, 200)}...
+        请设计 3 个 HTML/CSS 方案。
+        必须返回纯 JSON 数组，包含 code, regex, name, desc。
+        JSON 内部双引号必须转义。
+        `;
+
+        try {
+            var res = await fetch(`${config.apiUrl}/chat/completions`, {
+                method: 'POST', headers: {'Content-Type':'application/json','Authorization':`Bearer ${config.apiKey}`},
+                body: JSON.stringify({model: config.model, messages:[{role:"user", content:prompt}]})
+            });
+            var json = await res.json();
+            var content = json.choices[0].message.content;
+            var data = JSON.parse(content.replace(/```json/g,'').replace(/```/g,'').trim());
+            
+            var loadEl = document.getElementById(loadingId);
+            if(loadEl) loadEl.remove();
+
+            chat.innerHTML += `<div class="advisor-bubble">✨ 设计完成！请选择：</div>`;
+
+            data.forEach((item, idx) => {
+                // 🔥 核心：编码数据，防止 HTML 属性截断
+                var safeCode = encodeURIComponent(item.code);
+                var safeRegex = encodeURIComponent(item.regex);
+                var previewId = `preview_box_${Date.now()}_${idx}`;
+
+                chat.innerHTML += `
+                    <div class="advisor-bubble" style="border-left:4px solid #9c27b0; padding:10px;">
+                        <b>🎨 方案 ${idx+1}: ${item.name}</b>
+                        <div style="font-size:11px; color:#666; margin-bottom:5px;">${item.desc}</div>
+                        
+                        <div style="background:#eee; padding:10px; border-radius:5px; margin:5px 0; min-height:60px; overflow:hidden; cursor: zoom-in; border: 1px solid #ccc;"
+                             onclick="window.enlargePreview('${safeCode}')" title="点击放大">
+                            <div id="${previewId}" style="pointer-events: none; transform: scale(0.8); transform-origin: top left; width: 125%;"></div>
+                        </div>
+
+                        <div style="display:flex; flex-direction:column; gap:5px;">
+                            <div style="display:flex; gap:5px;">
+                                <button class="advisor-action-btn" style="flex:1; background:#e1bee7; color:#4a148c;" 
+                                    onclick="window.applyBeautify('${safeCode}', '${safeRegex}', this)">
+                                    ✅ 直接使用
+                                </button>
+                                <button class="advisor-action-btn" style="flex:1; background:#fff; border:1px solid #999; color:#555;" 
+                                    onclick="window.refineBeautify('${safeCode}', '${item.name}')">
+                                    🔧 提意见
+                                </button>
+                            </div>
+                            <button class="advisor-action-btn" style="background:#fff3e0; color:#e65100; border:1px solid #ffe0b2; font-size:11px;" 
+                                    onclick="window.generateUIWorldInfo('${safeCode}', '${safeRegex}', this)">
+                                🌍 生成配套世界书 (AI指令)
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                // 渲染预览
+                setTimeout(() => {
+                    var container = document.getElementById(previewId);
+                    if(container) {
+                        if (!container.shadowRoot) container.attachShadow({mode: 'open'});
+                        container.shadowRoot.innerHTML = item.code;
+                    }
+                }, 100);
+            });
+            chat.scrollTop = chat.scrollHeight;
+
+        } catch(e) {
+            console.error(e);
+            var loadEl = document.getElementById(loadingId);
+            if(loadEl) loadEl.remove();
+            chat.innerHTML += `<div class="advisor-bubble">❌ 生成失败: ${e.message}</div>`;
+        }
+    };
+
+    // ================= ⚡️ 拦截逻辑 (确保请求能进来) =================
+    // 强制劫持 sendAdvisorMsg，确保美化模式的请求能被处理
+    
+    var _originalSend = window.sendAdvisorMsg; // 备份一下，万一有其他模式
+
+    window.sendAdvisorMsg = async function() {
+        var input = document.getElementById('advisorInput');
+        var text = input.value.trim();
+        if(!text) return;
+
+        // A. 拦截“提意见” (Refine)
+        if (window.advisorState.pendingRefine === 'frontend') {
+            window.advisorState.pendingRefine = null;
+            
+            input.value = '';
+            input.placeholder = "请点击上方按钮选择功能...";
+            input.style.border = "1px solid #ccc";
+
+            var chat = document.getElementById('advisorChat');
+            chat.innerHTML += `<div style="text-align:right; margin:5px 0; color:#6a1b9a; font-size:12px; padding:5px; background:#f3e5f5; border-radius:8px; display:inline-block; margin-left:auto;">${text}</div><div style="clear:both;"></div>`;
+            
+            var loadingId = 'loading-' + Date.now();
+            chat.insertAdjacentHTML('beforeend', `<div id="${loadingId}" class="ai-loading">🎨 正在修改...</div>`);
+            
+            await window.runBeautifyGeneration(text, loadingId);
             return;
         }
 
-        console.log("📦 正在恢复全量数据...");
-        var d = snapshot.data;
-        var i = snapshot.inputs;
-
-        // A. 恢复输入框
-        function setVal(id, val) { 
-            var el = document.getElementById(id); 
-            if (el) el.value = val || ""; 
-        }
-        for (var key in i) setVal(key, i[key]);
-
-        // B. 恢复全局变量 (深拷贝防止引用)
-        window.currentWorldInfo = JSON.parse(JSON.stringify(d.worldInfo || { entries: [] }));
-        window.currentCardRegexes = JSON.parse(JSON.stringify(d.regexScripts || []));
-        
-        window.wizardData = d.wizardData || window.wizardData; // 恢复自定义分类
-        window.currentSelectedTags = d.selectedTags || { identity:[], personality:[], trope:[] };
-        
-        window.statModules = d.statModules || []; // 恢复属性模块
-        window.projectCharData = d.projectCharData || {}; // 恢复多人数据
-        
-        window.advisorState = d.advisorState || { mode: 'menu', multiChars: [] };
-        window.advisorMode = window.advisorState.mode; // 兼容旧变量
-        
-        window.frontendStyleGuide = d.styleGuide || "";
-
-        // C. 恢复聊天记录
-        var chatBox = document.getElementById('advisorChat');
-        if (chatBox) chatBox.innerHTML = d.advisorChat || "";
-
-        // D. 🔥 核心：触发所有 UI 刷新 (不然数据有了界面没变)
-        
-        // 1. 刷新标签 (会重新生成自定义分类按钮)
-        if (typeof renderWizardTags === 'function') renderWizardTags();
-        
-        // 2. 刷新世界书列表
-        if (typeof renderWorldList === 'function') renderWorldList();
-        
-        // 3. 刷新正则列表
-        if (typeof renderRegexList === 'function') renderRegexList();
-        
-        // 4. 刷新属性模块列表
-        if (typeof renderStatModuleList === 'function') {
-            renderStatModuleList();
-            // 选中第一个
-            if (window.statModules.length > 0 && typeof loadStatModule === 'function') {
-                loadStatModule(0);
-            }
-        }
-        
-        // 5. 刷新多人模式菜单 (如果当前是多人模式)
-        if (window.advisorState.mode === 'multi' && typeof renderMultiCharMenu === 'function') {
-            renderMultiCharMenu();
-        }
-        
-        // 6. 刷新美化文件按钮状态
-        if (window.frontendStyleGuide) {
-            var statusEl = document.getElementById('native_upload_status');
-            if (statusEl) {
-                statusEl.innerHTML = `✅ <b>已从存档恢复美化文件</b> (大小: ${Math.ceil(window.frontendStyleGuide.length/1024)}KB)`;
-                status.style.color = "#00b894";
-            }
-        }
-
-        // 7. 刷新手机预览
-        if (typeof updatePreviewUI === 'function') updatePreviewUI();
-
-        // E. 提示
-        if(window.auth && window.auth.toast) window.auth.toast('📂 完美读档成功！');
-    }
-
-    // ================= 3. 覆盖：新建存档 (Save) =================
-    window.createNewSave = function() {
-        try {
-            var snapshot = collectTotalSnapshot();
-            var saves = JSON.parse(localStorage.getItem('my_creator_saves') || "[]");
+        // B. 拦截“美化模式”
+        if (window.advisorState.mode === 'beautify') {
+            input.value = '';
             
-            // 同名覆盖检查
-            var idx = saves.findIndex(s => s.meta.title === snapshot.meta.title);
-            if (idx !== -1) {
-                if (!confirm(`存档【${snapshot.meta.title}】已存在，要覆盖吗？`)) return;
-                saves[idx] = snapshot;
-            } else {
-                saves.unshift(snapshot);
-            }
-
-            localStorage.setItem('my_creator_saves', JSON.stringify(saves));
+            var chat = document.getElementById('advisorChat');
+            chat.innerHTML += `<div style="text-align:right; margin:5px 0; color:#6a1b9a; font-size:12px; padding:5px; background:#f3e5f5; border-radius:8px; display:inline-block; margin-left:auto;">${text}</div><div style="clear:both;"></div>`;
             
-            if (typeof renderSaveList === 'function') renderSaveList();
-            if(window.auth && window.auth.toast) window.auth.toast('💾 全量数据已强制保存！');
+            var loadingId = 'loading-' + Date.now();
+            chat.insertAdjacentHTML('beforeend', `<div id="${loadingId}" class="ai-loading">🎨 正在设计 UI...</div>`);
+            chat.scrollTop = chat.scrollHeight;
 
-        } catch (e) {
-            console.error(e);
-            alert("❌ 保存失败 (可能是存储空间不足): " + e.message);
+            await window.runBeautifyGeneration(text, loadingId);
+            return;
         }
+
+        // C. 其他模式放行
+        if (_originalSend) _originalSend();
     };
 
-    // ================= 4. 覆盖：读取存档 (Load) =================
-    window.loadSave = function(idx) {
-        if (!confirm('⚠️ 确定读取吗？当前未保存的进度将被覆盖。')) return;
-        
-        var saves = JSON.parse(localStorage.getItem('my_creator_saves') || "[]");
-        var save = saves[idx];
-        
-        if (save) {
-            restoreTotalSnapshot(save);
-            document.getElementById('saveManagerModal').style.display = 'none';
-        } else {
-            alert("存档读取错误");
-        }
-    };
-
-    // ================= 5. 覆盖：完结清空 (Clear All) =================
-    window.finishAndClear = function() {
-        if(!confirm('🚨 高危操作：确定要【彻底清空】当前工作台吗？\n\n所有内容（包括多人数据、属性模块、美化文件）都将重置。\n建议先存档！')) return;
-
-        // A. 清空输入框
-        var inputs = document.querySelectorAll('#cardCreatorModal input[type="text"], #cardCreatorModal textarea');
-        inputs.forEach(i => i.value = '');
-
-        // B. 重置所有全局变量 (回到初始状态)
-        window.currentWorldInfo = { entries: [] };
-        window.currentCardRegexes = [];
-        window.wizardData = { // 恢复默认标签
-            identity: { title: "1. 身份/种族", tags: ["皇子", "摄政王", "魔尊", "师尊"] },
-            personality: { title: "2. 性格特点", tags: ["疯批", "清冷", "腹黑", "傲娇"] },
-            trope: { title: "3. 萌点/外貌", tags: ["白毛", "眼镜", "西装", "伤痕"] }
-        };
-        window.currentSelectedTags = { identity:[], personality:[], trope:[] };
-        
-        window.statModules = [];
-        window.currentStatIdx = 0;
-        
-        window.projectCharData = {};
-        window.advisorState = { mode: 'menu', multiChars: [] };
-        window.advisorMode = 'menu';
-        
-        window.frontendStyleGuide = "";
-
-        // C. 清空聊天
-        var chatBox = document.getElementById('advisorChat');
-        if(chatBox) chatBox.innerHTML = "";
-
-        // D. 强制刷新所有 UI
-        if(typeof renderWorldList === 'function') renderWorldList();
-        if(typeof renderRegexList === 'function') renderRegexList();
-        if(typeof renderWizardTags === 'function') renderWizardTags();
-        if(typeof renderStatModuleList === 'function') renderStatModuleList();
-        if(typeof showAdvisorMenu === 'function') showAdvisorMenu(); // 回到军师菜单
-        
-        // E. 重置美化上传状态
-        var statusEl = document.getElementById('native_upload_status');
-        if(statusEl) statusEl.innerHTML = "状态：已重置";
-
-        if(window.auth && window.auth.toast) window.auth.toast('🧹 工作台已彻底扫除干净');
-    };
-
-    // ================= 6. 覆盖：删除存档 (Delete) =================
-    window.deleteSave = function(idx) {
-        if(!confirm('确定永久删除这个存档吗？')) return;
-        var saves = JSON.parse(localStorage.getItem('my_creator_saves') || "[]");
-        saves.splice(idx, 1);
-        localStorage.setItem('my_creator_saves', JSON.stringify(saves));
-        if (typeof renderSaveList === 'function') renderSaveList();
-    };
-
-    console.log("✅ 全家桶存档系统已就绪：什么都丢不了！");
+    console.log("✅ V71.0：美化模式已暴力重置 (独立运行版)");
+    if(window.auth && window.auth.toast) window.auth.toast('🎨 美化模式已修复');
 
 })();
 
-
-/* ================= 💾 V49.0 补丁：切换至 IndexedDB 海量存储引擎 ================= */
+/* ================= 🛡️ V72.0 补丁：安全交互模式 (数据分离版) ================= */
 (function() {
-    console.log("🚀 执行 V49.0：正在迁移至海量数据库 (IndexedDB)...");
+    console.log("🚀 执行 V72.0：启动安全交互协议，正在接管点击事件...");
 
-    const DB_NAME = "RoyalCreatorDB";
-    const DB_VERSION = 1;
-    const STORE_SAVES = "archives"; // 存档表
-    const STORE_AUTO = "autosave";  // 自动备份表
+    // 1. 建立数据保险箱
+    window.beautifyCache = {}; // 存储结构: { id: { code, regex, name, desc } }
 
-    // ================= 1. 数据库底层工具 =================
-    const dbSystem = {
-        open: function() {
-            return new Promise((resolve, reject) => {
-                const req = indexedDB.open(DB_NAME, DB_VERSION);
-                req.onupgradeneeded = function(e) {
-                    const db = e.target.result;
-                    if (!db.objectStoreNames.contains(STORE_SAVES)) {
-                        db.createObjectStore(STORE_SAVES, { keyPath: "id" });
-                    }
-                    if (!db.objectStoreNames.contains(STORE_AUTO)) {
-                        db.createObjectStore(STORE_AUTO, { keyPath: "key" });
-                    }
-                };
-                req.onsuccess = (e) => resolve(e.target.result);
-                req.onerror = (e) => reject(e);
-            });
-        },
-        put: async function(storeName, data) {
-            const db = await this.open();
-            return new Promise((resolve, reject) => {
-                const tx = db.transaction(storeName, "readwrite");
-                const store = tx.objectStore(storeName);
-                const req = store.put(data);
-                req.onsuccess = () => resolve(true);
-                req.onerror = (e) => reject(e);
-            });
-        },
-        getAll: async function(storeName) {
-            const db = await this.open();
-            return new Promise((resolve, reject) => {
-                const tx = db.transaction(storeName, "readonly");
-                const store = tx.objectStore(storeName);
-                const req = store.getAll();
-                req.onsuccess = () => resolve(req.result);
-                req.onerror = (e) => reject(e);
-            });
-        },
-        get: async function(storeName, key) {
-            const db = await this.open();
-            return new Promise((resolve, reject) => {
-                const tx = db.transaction(storeName, "readonly");
-                const store = tx.objectStore(storeName);
-                const req = store.get(key);
-                req.onsuccess = () => resolve(req.result);
-                req.onerror = (e) => reject(e);
-            });
-        },
-        delete: async function(storeName, key) {
-            const db = await this.open();
-            return new Promise((resolve, reject) => {
-                const tx = db.transaction(storeName, "readwrite");
-                const store = tx.objectStore(storeName);
-                const req = store.delete(key);
-                req.onsuccess = () => resolve(true);
-                req.onerror = (e) => reject(e);
-            });
-        }
-    };
+    // 2. 覆盖生成逻辑：生成不带代码的“安全按钮”
+    window.runBeautifyGeneration = async function(text, loadingId) {
+        var chat = document.getElementById('advisorChat');
+        var config = window.aiConfig || JSON.parse(localStorage.getItem('my_ai_config'));
+        var desc = document.getElementById('cardDesc').value || "通用角色";
 
-    // ================= 2. 数据采集器 (复用 V44 逻辑) =================
-    function collectBigData() {
-        var getVal = (id) => { var el = document.getElementById(id); return el ? el.value : ""; };
-        return {
-            inputs: {
-                cardName: getVal('cardName'), cardDesc: getVal('cardDesc'),
-                cardFirstMes: getVal('cardFirstMes'), cardMesExample: getVal('cardMesExample'),
-                cardScenario: getVal('cardScenario'), cardNote: getVal('cardNote'),
-                statEditor: getVal('statEditor'), 
-                aiCodePrompt: getVal('aiCodePrompt'), aiWorldPrompt: getVal('aiWorldPrompt'),
-                frontReplace: getVal('frontReplace'), frontPattern: getVal('frontPattern')
-            },
-            globals: {
-                worldInfo: window.currentWorldInfo || { entries: [] },
-                regexScripts: window.currentCardRegexes || [],
-                wizardData: window.wizardData || {},
-                selectedTags: window.currentSelectedTags || { identity:[], personality:[], trope:[] },
-                statModules: window.statModules || [],
-                projectCharData: window.projectCharData || {},
-                advisorState: window.advisorState || { mode: 'menu', multiChars: [] },
-                styleGuide: window.frontendStyleGuide || "",
-                advisorChat: document.getElementById('advisorChat') ? document.getElementById('advisorChat').innerHTML : ""
-            }
-        };
-    }
+        // 简单的 Prompt
+        var prompt = `
+        你是一个前端UI设计师。
+        用户需求：${text}
+        角色设定：${desc.substring(0, 200)}...
+        请设计 3 个 HTML/CSS 方案。
+        必须返回纯 JSON 数组，包含 code, regex, name, desc。
+        JSON 内部双引号必须转义。
+        `;
 
-    // ================= 3. 覆盖：自动保存 (改为存入 IndexedDB) =================
-    // 停止旧的定时器
-    if (window.saveTimer) clearInterval(window.saveTimer);
-    
-    // 新的自动保存 (每 5 秒一次，不卡顿)
-    window.saveToBlackBox = async function() {
         try {
-            var data = collectBigData();
-            // 如果是空数据就不存
-            if (!data.inputs.cardName && !data.globals.worldInfo.entries.length) return;
+            var res = await fetch(`${config.apiUrl}/chat/completions`, {
+                method: 'POST', headers: {'Content-Type':'application/json','Authorization':`Bearer ${config.apiKey}`},
+                body: JSON.stringify({model: config.model, messages:[{role:"user", content:prompt}]})
+            });
+            var json = await res.json();
+            var content = json.choices[0].message.content;
+            // 强力解析
+            var data = JSON.parse(content.replace(/```json/g,'').replace(/```/g,'').trim());
             
-            await dbSystem.put(STORE_AUTO, { key: "latest_autosave", data: data, time: Date.now() });
-            // console.log("✅ 数据库自动备份完成");
-        } catch (e) {
-            console.error("自动备份出错:", e);
-        }
-    };
-    setInterval(window.saveToBlackBox, 5000);
+            var loadEl = document.getElementById(loadingId);
+            if(loadEl) loadEl.remove();
 
-    // 覆盖恢复函数
-    window.restoreFromBlackBox = async function() {
-        try {
-            var record = await dbSystem.get(STORE_AUTO, "latest_autosave");
-            if (record && record.data) {
-                console.log("📦 从数据库恢复现场...");
-                restoreTotalSnapshot({ data: record.data.globals, inputs: record.data.inputs });
-            }
-        } catch (e) { console.error("恢复失败:", e); }
-    };
-    // 启动时尝试恢复
-    setTimeout(window.restoreFromBlackBox, 1000);
+            chat.innerHTML += `<div class="advisor-bubble">✨ 设计完成！(V72 安全模式)：</div>`;
 
+            data.forEach((item, idx) => {
+                // 🔥 核心改变：生成唯一 ID，存入保险箱
+                var uniqueId = "ui_" + Date.now() + "_" + idx;
+                window.beautifyCache[uniqueId] = item;
 
-    // ================= 4. 覆盖：手动存档 (Create Save) =================
-    window.createNewSave = async function() {
-        var name = document.getElementById('cardName').value.trim() || "未命名工程";
-        var btn = document.querySelector('button[onclick*="createNewSave"]');
-        if(btn) btn.innerHTML = "💾 正在写入数据库...";
+                var previewId = `preview_${uniqueId}`;
 
-        try {
-            var fullData = collectBigData();
-            var saveItem = {
-                id: Date.now(), // 唯一键
-                title: name,
-                timestamp: new Date().toLocaleString(),
-                data: fullData.globals,
-                inputs: fullData.inputs
-            };
+                // 按钮不再包含代码，只包含 data-id
+                chat.innerHTML += `
+                    <div class="advisor-bubble" style="border-left:4px solid #00bcd4; padding:10px;">
+                        <b>🎨 方案 ${idx+1}: ${item.name}</b>
+                        <div style="font-size:11px; color:#666; margin-bottom:5px;">${item.desc}</div>
+                        
+                        <div style="background:#eee; padding:10px; border-radius:5px; margin:5px 0; min-height:60px; overflow:hidden;"
+                             onclick="window.enlargePreviewCache('${uniqueId}')" title="点击放大">
+                            <div id="${previewId}" style="pointer-events: none; transform: scale(0.8); transform-origin: top left; width: 125%;"></div>
+                        </div>
 
-            await dbSystem.put(STORE_SAVES, saveItem);
-            
-            if(window.auth && window.auth.toast) window.auth.toast('✅ 存入海量数据库成功！');
-            renderSaveList(); // 刷新列表
-
-        } catch (e) {
-            alert("保存失败: " + e.message);
-        } finally {
-            if(btn) btn.innerHTML = "➕ 新建存档 (当前进度)";
-        }
-    };
-
-    // ================= 5. 覆盖：读取存档列表 (Render List) =================
-    window.renderSaveList = async function() {
-        var list = document.getElementById('saveSlotList');
-        if (!list) return;
-        list.innerHTML = '<div style="text-align:center;color:#999;padding:20px;">⏳ 正在读取数据库...</div>';
-
-        try {
-            var saves = await dbSystem.getAll(STORE_SAVES);
-            // 按时间倒序
-            saves.sort((a, b) => b.id - a.id);
-
-            list.innerHTML = "";
-            if (saves.length === 0) {
-                list.innerHTML = '<div style="text-align:center;color:#999;padding:20px;">暂无存档</div>';
-                return;
-            }
-
-            saves.forEach((save) => {
-                var div = document.createElement('div');
-                div.style.cssText = "background:#fff; border:1px solid #ddd; margin-bottom:10px; padding:10px; border-radius:8px; cursor:pointer; position:relative; transition:0.2s;";
-                div.onmouseover = function() { this.style.borderColor = '#6c5ce7'; };
-                div.onmouseout = function() { this.style.borderColor = '#ddd'; };
-                
-                // 计算数据大小 (估算)
-                var size = JSON.stringify(save).length;
-                var sizeStr = size > 1024*1024 ? (size/1024/1024).toFixed(2)+"MB" : (size/1024).toFixed(0)+"KB";
-
-                div.innerHTML = `
-                    <div style="font-weight:bold; color:#333;">${save.title}</div>
-                    <div style="font-size:10px; color:#999;">📅 ${save.timestamp} | 📦 ${sizeStr}</div>
-                    <button onclick="event.stopPropagation(); deleteSave(${save.id})" style="position:absolute; right:10px; top:10px; border:none; background:none; color:#e74c3c; cursor:pointer; font-size:14px; padding:5px;">🗑️</button>
+                        <div style="display:flex; flex-direction:column; gap:5px;">
+                            <div style="display:flex; gap:5px;">
+                                <button class="safe-btn-apply advisor-action-btn" data-id="${uniqueId}" style="flex:1; background:#e0f7fa; color:#006064;">
+                                    ✅ 应用 UI
+                                </button>
+                                <button class="safe-btn-refine advisor-action-btn" data-id="${uniqueId}" style="flex:1; background:#fff; border:1px solid #999; color:#555;">
+                                    🔧 提意见
+                                </button>
+                            </div>
+                            <button class="safe-btn-lore advisor-action-btn" data-id="${uniqueId}" style="background:#fff3e0; color:#e65100; border:1px solid #ffe0b2; font-size:11px;">
+                                🌍 生成配套世界书
+                            </button>
+                        </div>
+                    </div>
                 `;
                 
-                // 绑定点击读取 (传入 ID)
-                div.onclick = function() { loadSaveDB(save.id); };
-                list.appendChild(div);
+                // 渲染预览
+                setTimeout(() => {
+                    var container = document.getElementById(previewId);
+                    if(container) {
+                        if (!container.shadowRoot) container.attachShadow({mode: 'open'});
+                        container.shadowRoot.innerHTML = item.code;
+                    }
+                }, 100);
             });
+            chat.scrollTop = chat.scrollHeight;
 
-        } catch (e) {
-            list.innerHTML = '<div style="text-align:center;color:red;">数据库读取错误</div>';
-        }
-    };
-
-    // ================= 6. 覆盖：读取单个存档 (Load) =================
-    window.loadSaveDB = async function(id) {
-        if (!confirm('⚠️ 确定读取吗？当前未保存的进度将被覆盖。')) return;
-        
-        try {
-            var save = await dbSystem.get(STORE_SAVES, id);
-            if (save) {
-                // 复用 V44 的恢复逻辑 (如果存在)
-                if (typeof restoreTotalSnapshot === 'function') {
-                    restoreTotalSnapshot(save);
-                } else {
-                    alert("恢复函数丢失，请重新加载页面");
-                }
-                document.getElementById('saveManagerModal').style.display = 'none';
-            }
-        } catch (e) {
-            alert("读取失败: " + e.message);
-        }
-    };
-    // 兼容旧调用
-    window.loadSave = function(idx) { console.log("旧版读取已禁用，请使用新版列表点击"); };
-
-    // ================= 7. 覆盖：删除存档 (Delete) =================
-    window.deleteSave = async function(id) {
-        if(!confirm('确定永久删除这个存档吗？')) return;
-        try {
-            await dbSystem.delete(STORE_SAVES, id);
-            renderSaveList();
         } catch(e) {
-            alert("删除失败: " + e.message);
+            console.error(e);
+            var loadEl = document.getElementById(loadingId);
+            if(loadEl) loadEl.remove();
+            chat.innerHTML += `<div class="advisor-bubble">❌ 生成失败: ${e.message}</div>`;
         }
     };
 
-    // ================= 8. 覆盖：完结清空 =================
-    window.finishAndClear = async function() {
-        if(!confirm('🚨 确定要清空工作台吗？\n(这不会删除数据库里的存档，只会清空当前界面)')) return;
-        
-        // 1. 清空自动保存
-        try { await dbSystem.delete(STORE_AUTO, "latest_autosave"); } catch(e){}
-
-        // 2. 清空界面 (复用旧逻辑)
-        var inputs = document.querySelectorAll('#cardCreatorModal input[type="text"], #cardCreatorModal textarea');
-        inputs.forEach(i => i.value = '');
-        
-        window.currentWorldInfo = { entries: [] };
-        window.currentCardRegexes = [];
-        window.statModules = [];
-        window.projectCharData = {};
-        window.advisorState = { mode: 'menu', multiChars: [] };
-        window.frontendStyleGuide = "";
-        
-        var chatBox = document.getElementById('advisorChat');
-        if(chatBox) chatBox.innerHTML = "";
-
-        // 刷新 UI
-        if(typeof renderWorldList === 'function') renderWorldList();
-        if(typeof renderRegexList === 'function') renderRegexList();
-        if(typeof renderStatModuleList === 'function') renderStatModuleList();
-        if(typeof showAdvisorMenu === 'function') showAdvisorMenu();
-
-        if(window.auth && window.auth.toast) window.auth.toast('🧹 工作台已重置 (数据库存档安全)');
+    // 3. 🛠️ 预览放大工具 (从缓存读取)
+    window.enlargePreviewCache = function(id) {
+        var data = window.beautifyCache[id];
+        if (data) {
+            var win = window.open("", "_blank");
+            win.document.write(data.code);
+        }
     };
 
-    console.log("✅ V49.0：海量存储引擎已就绪，告别内存不足！");
-    if(window.auth && window.auth.toast) window.auth.toast('💾 数据库已升级：容量无上限');
-
-})();
-
-/* ================= 🚑 V51.0 补丁：核心恢复逻辑补全 ================= */
-(function() {
-    console.log("🚀 执行 V51.0：正在修复恢复函数丢失问题...");
-
-    // 1. 🔥 重新定义核心恢复函数 (无论之前有没有，强制重写)
-    window.restoreTotalSnapshot = function(snapshot) {
-        if (!snapshot) return;
-
-        console.log("📦 正在执行数据恢复...");
+    // 4. 🔥 核心：全局事件委托 (Event Delegation)
+    // 我们不再依赖 onclick，而是直接监听 body 的点击
+    // 只要点击的元素带有特定的 class，就触发逻辑
+    document.body.addEventListener('click', function(e) {
+        var target = e.target;
         
-        // 兼容 V44 (data/inputs) 和 V49 (data.globals/data.inputs) 的结构差异
-        var d = snapshot.data || snapshot.globals; // 全局变量
-        var i = snapshot.inputs; // 输入框内容
+        // 如果点的是按钮内部的文字，就往上找按钮
+        if (target.tagName !== 'BUTTON') {
+            target = target.closest('button');
+        }
+        if (!target) return;
 
-        // 如果结构不对，尝试直接读取 (容错)
-        if (!d && snapshot.worldInfo) d = snapshot; 
+        // 检查是否有我们的 ID
+        var id = target.getAttribute('data-id');
+        if (!id) return;
 
-        if (!d || !i) {
-            console.warn("⚠️ 存档结构可能不完整，尝试尽力恢复...");
+        // 从保险箱取数据
+        var data = window.beautifyCache[id];
+        if (!data) {
+            console.warn("数据已过期或丢失");
+            return;
         }
 
-        // --- A. 恢复输入框 ---
-        function setVal(id, val) { 
-            var el = document.getElementById(id); 
-            if (el) el.value = val || ""; 
-        }
-        if (i) {
-            for (var key in i) setVal(key, i[key]);
-        }
+        // --- 分流处理 ---
 
-        // --- B. 恢复全局变量 ---
-        if (d) {
-            window.currentWorldInfo = d.worldInfo || { entries: [] };
-            window.currentCardRegexes = d.regexScripts || [];
-            
-            window.wizardData = d.wizardData || window.wizardData;
-            window.currentSelectedTags = d.selectedTags || { identity:[], personality:[], trope:[] };
-            
-            window.statModules = d.statModules || [];
-            window.projectCharData = d.projectCharData || {};
-            
-            window.advisorState = d.advisorState || { mode: 'menu', multiChars: [] };
-            window.advisorMode = window.advisorState.mode;
-            
-            window.frontendStyleGuide = d.styleGuide || "";
+        // A. 点击了【应用 UI】
+        if (target.classList.contains('safe-btn-apply')) {
+            console.log("⚡ V72: 触发应用 UI");
+            e.preventDefault();
+            e.stopPropagation(); // 阻止其他拦截器
 
-            // 恢复聊天记录
-            var chatBox = document.getElementById('advisorChat');
-            if (chatBox && d.advisorChat) chatBox.innerHTML = d.advisorChat;
-        }
-
-        // --- C. 强制刷新所有 UI (让数据可见) ---
-        
-        // 1. 刷新标签
-        if (typeof renderWizardTags === 'function') renderWizardTags();
-        
-        // 2. 刷新世界书
-        if (typeof renderWorldList === 'function') renderWorldList();
-        
-        // 3. 刷新正则
-        if (typeof renderRegexList === 'function') renderRegexList();
-        
-        // 4. 刷新属性模块
-        if (typeof renderStatModuleList === 'function') {
-            renderStatModuleList();
-            // 尝试选中第一个模块
-            if (window.statModules.length > 0 && typeof loadStatModule === 'function') {
-                loadStatModule(0);
-            }
-        }
-        
-        // 5. 刷新多人模式菜单
-        if (window.advisorState.mode === 'multi' && typeof renderMultiCharMenu === 'function') {
-            renderMultiCharMenu();
-        }
-        
-        // 6. 刷新美化文件状态
-        var statusEl = document.getElementById('native_upload_status');
-        if (statusEl && window.frontendStyleGuide) {
-            statusEl.innerHTML = `✅ <b>已恢复美化文件</b> (大小: ${Math.ceil(window.frontendStyleGuide.length/1024)}KB)`;
-            status.style.color = "#00b894";
-        }
-
-        // 7. 刷新预览
-        if (typeof updatePreviewUI === 'function') updatePreviewUI();
-
-        console.log("✅ 数据恢复完成");
-        if(window.auth && window.auth.toast) window.auth.toast('📂 数据已成功加载');
-    };
-
-    // 2. 再次绑定 IndexedDB 的读取逻辑 (防止 V49 的绑定失效)
-    if (window.dbSystem) {
-        window.loadSaveDB = async function(id) {
-            if (!confirm('⚠️ 确定读取吗？当前未保存的进度将被覆盖。')) return;
             try {
-                var save = await dbSystem.get("archives", id);
-                if (save) {
-                    // V49 存的数据结构是 { id, title, data: globals, inputs: inputs }
-                    // 所以这里传进去的对象要有 data 和 inputs
-                    window.restoreTotalSnapshot({ data: save.data, inputs: save.inputs });
-                    document.getElementById('saveManagerModal').style.display = 'none';
+                if(typeof switchCardTab === 'function') switchCardTab('regex');
+                var uiPanel = document.getElementById('uiFrontendMode');
+                if(uiPanel) uiPanel.style.display = 'block';
+
+                document.getElementById('frontReplace').value = data.code;
+                document.getElementById('frontPattern').value = data.regex;
+                
+                // 填测试词
+                var rawKey = data.regex.replace(/^\//, '').replace(/\/g[im]*$/, '').replace(/\\/g, '').replace(/\[|\]/g, '');
+                document.getElementById('regexTestInput').value = rawKey;
+
+                if(typeof runRegexTest === 'function') runRegexTest();
+
+                // 变色锁定
+                target.innerHTML = "✅ 已应用";
+                target.style.background = "#d4edda";
+                target.disabled = true;
+                
+                if(window.auth && window.auth.toast) window.auth.toast('✅ UI已应用');
+            } catch(err) { alert("应用出错: " + err.message); }
+        }
+
+        // B. 点击了【提意见】
+        if (target.classList.contains('safe-btn-refine')) {
+            console.log("⚡ V72: 触发提意见");
+            e.preventDefault();
+            
+            // 存入全局缓存供 AI 知道改什么
+            if (!window.lastGeneratedData) window.lastGeneratedData = {};
+            window.lastGeneratedData.frontend = data;
+            
+            if (!window.advisorState) window.advisorState = {};
+            window.advisorState.pendingRefine = 'frontend';
+
+            var input = document.getElementById('advisorInput');
+            input.value = "";
+            input.placeholder = `🔧 对【${data.name}】哪里不满意？`;
+            input.focus();
+            input.style.border = "2px solid #e91e63";
+            
+            var chat = document.getElementById('advisorChat');
+            chat.innerHTML += `<div class="advisor-bubble" style="background:#ffebee; color:#c62828;">👂 请输入修改意见...</div>`;
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        // C. 点击了【生成配套世界书】
+        if (target.classList.contains('safe-btn-lore')) {
+            console.log("⚡ V72: 触发配套生成");
+            e.preventDefault();
+            
+            target.innerHTML = "⏳ 解析中...";
+            target.disabled = true;
+
+            // 独立发起请求，防止 fetchAI 被污染
+            (async function() {
+                try {
+                    var config = window.aiConfig || JSON.parse(localStorage.getItem('my_ai_config'));
+                    var charName = document.getElementById('cardName').value || "Char";
+                    var prompt = `分析UI代码，生成System Note。\n角色：${charName}\n代码：${data.code.substring(0,300)}...\n正则：${data.regex}\n返回JSON:{title, keys, content}`;
+                    
+                    var res = await fetch(`${config.apiUrl}/chat/completions`, {
+                        method: 'POST', headers: {'Content-Type':'application/json','Authorization':`Bearer ${config.apiKey}`},
+                        body: JSON.stringify({model: config.model, messages:[{role:"user", content:prompt}]})
+                    });
+                    var json = await res.json();
+                    var aiData = JSON.parse(json.choices[0].message.content.replace(/```json/g,'').replace(/```/g,'').trim());
+                    if(Array.isArray(aiData)) aiData = aiData[0];
+
+                    if(typeof switchCardTab === 'function') switchCardTab('world');
+                    if(!window.currentWorldInfo) window.currentWorldInfo = { entries: [] };
+                    
+                    window.currentWorldInfo.entries.push({
+                        id: Date.now(), comment: "UI-"+(aiData.title||"特效"), keys:aiData.keys||["ui"], content:aiData.content,
+                        position:1, enabled:true, constant:true, insertion_position:1
+                    });
+                    
+                    if (typeof renderWorldList === 'function') renderWorldList();
+                    
+                    target.innerHTML = "✅ 已生成";
+                    target.style.background = "#d4edda";
+                    if(window.auth && window.auth.toast) window.auth.toast('✅ 配套指令已生成');
+                } catch(err) {
+                    console.error(err);
+                    target.innerHTML = "❌ 失败";
+                    target.disabled = false;
                 }
-            } catch (e) {
-                alert("读取失败: " + e.message);
-            }
-        };
-    }
+            })();
+        }
 
-    // 3. 立即尝试执行一次自动恢复 (如果之前报错导致中断)
-    if (typeof restoreFromBlackBox === 'function') {
-        setTimeout(restoreFromBlackBox, 500);
-    }
+    }, true); // Use capture phase to catch event early
 
-    console.log("✅ V51.0：恢复系统已修复");
+    console.log("✅ V72.0：安全交互模式已启动。现在点击美化按钮应该稳如泰山。");
+    if(window.auth && window.auth.toast) window.auth.toast('🛡️ 交互系统已重构');
 
 })();
 
