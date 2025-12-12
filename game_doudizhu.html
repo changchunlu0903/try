@@ -189,14 +189,13 @@
     <div class="played-area pa-center" id="playedMe"></div>
 </div>
 
-<div class="modal" id="resultModal">
-    <div class="modal-box">
+<div class="modal" id="resultModal" style="display: none;"> <div class="modal-box">
         <h2 id="resultTitle" class="result-title">胜利！</h2>
         <p id="resultText">地主赢了！</p>
-        
         <button class="modal-btn" style="background:#ff9a9e;" onclick="tryRestart()">再来一局</button>
     </div>
 </div>
+
 
 <div class="rain-overlay" id="rainLayer"></div>
 
@@ -614,66 +613,105 @@ function canBeat(my, enemy) {
 
         // 7. 处理动作反馈
         // === 替换这个函数：处理动作 + 胜负检测 ===
+
+// === 7. 处理动作反馈 (完整修复版) ===
 function handleRemoteAction(data) {
+    // 1. 计算是谁操作的 (0=我, 1=左, 2=右)
     const viewIdx = getRelativeIdx(data.idx);
     const areaId = ['playedMe', 'played1', 'played2'][viewIdx];
     const area = document.getElementById(areaId);
+    
+    // 清空这块区域之前的文字（比如“不出”）
     area.innerHTML = ''; 
 
+    // 清除所有头像的高亮状态
     document.querySelectorAll('.player').forEach(p => p.classList.remove('active'));
 
+    // --- 分情况处理动作 ---
+
+    // A. 不抢
     if(data.act === 'pass_call') {
         area.innerHTML = '<span style="font-size:20px; color:#aaa; font-weight:bold;">不抢</span>';
+        // 如果我是房主，立刻把话筒传给下一个人
         if(myIdx === 0) passTurn(data.idx, true);
     } 
+    
+    // B. 抢地主
     else if(data.act === 'call') {
         area.innerHTML = '<span style="font-size:20px; color:#ff9a9e; font-weight:bold;">抢地主!</span>';
+        
+        // 简化逻辑：只要有人抢，房主就判定他是地主
         if(myIdx === 0) { 
             setTimeout(() => {
+                // 1. 广播地主是谁
                 const msg = { type: 'LANDLORD', idx: data.idx };
-                handleData(msg); connList.forEach(c => c.send(msg));
+                handleData(msg); 
+                connList.forEach(c => c.send(msg));
+                
+                // 2. 1秒后让地主开始出牌
                 setTimeout(() => {
                     const turnMsg = { type: 'TURN', idx: data.idx, isBid: false };
-                    handleData(turnMsg); connList.forEach(c => c.send(turnMsg));
+                    handleData(turnMsg); 
+                    connList.forEach(c => c.send(turnMsg));
                 }, 1000);
             }, 1000);
         }
     } 
+    
+    // C. 出牌 (最核心的逻辑)
     else if(data.act === 'play') {
-        // 渲染牌
+        // 1. 渲染打出的牌
         data.cards.forEach(c => {
             let div = document.createElement('div');
-            div.style.cssText = "display:inline-block; background:#fff; border:1px solid #ccc; width:40px; height:55px; border-radius:4px; margin-left:-20px; font-size:12px; line-height:55px; text-align:center; box-shadow:1px 1px 3px rgba(0,0,0,0.2);";
-            div.className = (['♥','♦'].includes(c.s) || c.v>15) ? 'red' : 'black';
+            // 样式：为了让牌好看一点，稍微重叠
+            div.style.cssText = "display:inline-block; background:#fff; border:1px solid #ccc; width:45px; height:60px; border-radius:4px; margin-left:-30px; font-size:14px; line-height:60px; text-align:center; box-shadow:2px 2px 5px rgba(0,0,0,0.2); font-weight:bold;";
+            
+            // 颜色判断
+            div.className = (['♥','♦'].includes(c.s) || c.v > 15) ? 'red' : 'black';
+            div.style.color = div.className === 'red' ? '#e74c3c' : '#2d3436';
+            
+            // 显示点数 (把 S 变成小王图标)
             let txt = DISPLAY_MAP[c.r] || c.r;
             div.innerText = txt;
             area.appendChild(div);
         });
         
-        // 更新剩余张数 & 检查胜负
+        // 2. 播放震动 (手机端)
+        if(navigator.vibrate) navigator.vibrate(30);
+
+        // 3. 更新全局记录 (关键！方便下家判断能不能管)
+        if(myIdx === 0) {
+            lastPlayed = { idx: data.idx, typeInfo: data.typeInfo };
+        }
+        
+        // 4. 更新剩余牌数 & 检查胜负
         let currentCount = 0;
         if(viewIdx !== 0) {
+            // 如果是别人，更新显示的数字
             const cntEl = document.getElementById('count' + viewIdx);
             currentCount = parseInt(cntEl.innerText) - data.cards.length;
             cntEl.innerText = currentCount;
         } else {
-            currentCount = myCards.length; // 如果是我自己
+            // 如果是我自己，直接看手牌数组长度
+            currentCount = myCards.length;
         }
 
-        // 🔥🔥🔥 胜负判定点 🔥🔥🔥
-        if (currentCount <= 0) {
-            // 游戏结束！
-            // 如果我是房主，广播 GAME_OVER
+        // 🔥🔥🔥 胜负判定 (加了安全锁) 🔥🔥🔥
+        // 只有在“打牌阶段 (playing)” 且 “牌出完了”，才算赢
+        if (currentCount <= 0 && gamePhase === 'playing') {
             if(myIdx === 0) {
                 const overMsg = { type: 'GAME_OVER', winnerIdx: data.idx };
                 handleData(overMsg);
                 connList.forEach(c => c.send(overMsg));
             }
-            return; // 结束了就不往下走了
+            return; // 游戏结束，不再轮转
         }
 
+        // 5. 没人赢 -> 房主让下一个人出牌
         if(myIdx === 0) passTurn(data.idx, false);
     }
+    
+    // D. 不出
     else if(data.act === 'pass') {
         area.innerHTML = '<span style="font-size:20px; color:#aaa; font-weight:bold;">不出</span>';
         if(myIdx === 0) passTurn(data.idx, false);
@@ -981,23 +1019,37 @@ function tryRestart() {
 }
 
 // 清理桌面 (重置所有状态)
+
+// === 替换这个函数：彻底清理桌面 ===
 function resetTable() {
-    // 清空手牌、出牌、底牌UI
+    // 1. 清空 UI
     document.getElementById('handArea').innerHTML = '';
     document.getElementById('diPaiBox').style.opacity = 0;
     document.getElementById('diPaiBox').innerHTML = '';
     ['playedMe', 'played1', 'played2'].forEach(id => document.getElementById(id).innerHTML = '');
     
-    // 隐藏皇冠
+    // 2. 隐藏皇冠 & 还原头像边框
     document.querySelectorAll('.crown').forEach(el => el.style.display = 'none');
-    
-    // 重置变量
+    document.querySelectorAll('.avatar').forEach(el => el.style.border = "3px solid #fff");
+    document.querySelectorAll('.p-name').forEach(el => {
+        el.style.background = "rgba(255,255,255,0.8)";
+        // 去掉名字后面的 (地主) 字样
+        el.innerText = el.innerText.replace(" (地主)", "");
+    });
+
+    // 3. 强制隐藏结算弹窗 (双重保险)
+    document.getElementById('resultModal').style.display = 'none';
+
+    // 4. 重置核心变量
     myCards = [];
     diPai = [];
     landlordIdx = -1;
-    gamePhase = 'idle';
-    // 这里的 lastPlayed 记得在上面定义过，如果没有就加上：let lastPlayed = {idx:-1};
-    if(typeof lastPlayed !== 'undefined') lastPlayed = { idx: -1, typeInfo: null };
+    // 🔥 关键：重置为 idle (空闲) 状态，防止误判胜利
+    gamePhase = 'idle'; 
+    lastPlayed = { idx: -1, typeInfo: null };
+
+    // 5. 停止倒计时
+    if(typeof stopTimer === 'function') stopTimer();
 }
 
 // 2. 聊天功能
