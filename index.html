@@ -22835,6 +22835,74 @@ window.openAISettings = function() {
 
 })();
 
+        /* ================= 🧬 V74.0 补丁：多人模式 -> 世界书 (1:1 直连克隆版) ================= */
+(function() {
+    console.log("🚀 执行 V74.0：多人模式确认按钮已升级为【直接克隆】...");
+
+    // 覆盖：多人模式专属的确认函数
+    window.confirmCharAndGenLore = function(name) {
+        // 1. 先保存到多人花名册 (缓存)
+        // 这样切换别人时，这个人的数据不会丢
+        if (typeof saveCurrentCharToCache === 'function') saveCurrentCharToCache();
+
+        // 2. 获取当前的设定内容
+        var desc = document.getElementById('cardDesc').value;
+        
+        if (!desc || desc.length < 10) {
+            alert("⚠️ 设定太短了，没法生成世界书！");
+            return;
+        }
+
+        // 3. 🔥 核心：直接构建世界书条目 (不调 AI)
+        var newEntry = {
+            id: Date.now(),
+            // 备注：角色名 - 设定
+            comment: `${name} - 核心设定 (多人镜像)`,
+            // 触发词：角色名, 我, 你
+            keys: [name, "你", "我", "user"],
+            // 内容：直接复制详细设定！
+            content: desc,
+            // 属性：高优先级，常驻
+            position: 1, 
+            enabled: true,
+            constant: true, 
+            insertion_position: 1
+        };
+
+        // 4. 注入世界书
+        if (!window.currentWorldInfo) window.currentWorldInfo = { entries: [] };
+        
+        // 检查是否已经存在同名条目，避免重复添加
+        var existIdx = window.currentWorldInfo.entries.findIndex(e => e.comment === `${name} - 核心设定 (多人镜像)`);
+        if (existIdx !== -1) {
+            // 如果有了，就更新它
+            window.currentWorldInfo.entries[existIdx] = newEntry;
+        } else {
+            // 如果没有，就加新的
+            window.currentWorldInfo.entries.push(newEntry);
+        }
+
+        // 5. 刷新界面
+        if (typeof renderWorldList === 'function') renderWorldList();
+        if (typeof renderMultiCharMenu === 'function') renderMultiCharMenu(); // 刷新菜单状态(变绿)
+
+        // 6. 提示与跳转
+        if(window.auth && window.auth.toast) window.auth.toast(`✅ 【${name}】设定已保存至世界书！`);
+        
+        var chat = document.getElementById('advisorChat');
+        if (chat) {
+            chat.innerHTML += `<div class="advisor-bubble">🎉 【${name}】已归档！设定已1:1克隆进世界书。<br>请点击菜单继续下一个角色。</div>`;
+            chat.scrollTop = chat.scrollHeight;
+        }
+        
+        // 自动跳到世界书页让你看一眼
+        // if(typeof switchCardTab === 'function') switchCardTab('world'); 
+    };
+
+    console.log("✅ V74.0：多人模式确认按钮已修复");
+
+})();
+
 /* ================= 💾 V49.0 补丁：切换至 IndexedDB 海量存储引擎 ================= */
 (function() {
     console.log("🚀 执行 V49.0：正在迁移至海量数据库 (IndexedDB)...");
