@@ -22676,6 +22676,389 @@ window.openAISettings = function() {
 
 })();
 
+/* ================= 💾 V49.0 补丁：切换至 IndexedDB 海量存储引擎 ================= */
+(function() {
+    console.log("🚀 执行 V49.0：正在迁移至海量数据库 (IndexedDB)...");
+
+    const DB_NAME = "RoyalCreatorDB";
+    const DB_VERSION = 1;
+    const STORE_SAVES = "archives"; // 存档表
+    const STORE_AUTO = "autosave";  // 自动备份表
+
+    // ================= 1. 数据库底层工具 =================
+    const dbSystem = {
+        open: function() {
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open(DB_NAME, DB_VERSION);
+                req.onupgradeneeded = function(e) {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(STORE_SAVES)) {
+                        db.createObjectStore(STORE_SAVES, { keyPath: "id" });
+                    }
+                    if (!db.objectStoreNames.contains(STORE_AUTO)) {
+                        db.createObjectStore(STORE_AUTO, { keyPath: "key" });
+                    }
+                };
+                req.onsuccess = (e) => resolve(e.target.result);
+                req.onerror = (e) => reject(e);
+            });
+        },
+        put: async function(storeName, data) {
+            const db = await this.open();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(storeName, "readwrite");
+                const store = tx.objectStore(storeName);
+                const req = store.put(data);
+                req.onsuccess = () => resolve(true);
+                req.onerror = (e) => reject(e);
+            });
+        },
+        getAll: async function(storeName) {
+            const db = await this.open();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(storeName, "readonly");
+                const store = tx.objectStore(storeName);
+                const req = store.getAll();
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = (e) => reject(e);
+            });
+        },
+        get: async function(storeName, key) {
+            const db = await this.open();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(storeName, "readonly");
+                const store = tx.objectStore(storeName);
+                const req = store.get(key);
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = (e) => reject(e);
+            });
+        },
+        delete: async function(storeName, key) {
+            const db = await this.open();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(storeName, "readwrite");
+                const store = tx.objectStore(storeName);
+                const req = store.delete(key);
+                req.onsuccess = () => resolve(true);
+                req.onerror = (e) => reject(e);
+            });
+        }
+    };
+
+    // ================= 2. 数据采集器 (复用 V44 逻辑) =================
+    function collectBigData() {
+        var getVal = (id) => { var el = document.getElementById(id); return el ? el.value : ""; };
+        return {
+            inputs: {
+                cardName: getVal('cardName'), cardDesc: getVal('cardDesc'),
+                cardFirstMes: getVal('cardFirstMes'), cardMesExample: getVal('cardMesExample'),
+                cardScenario: getVal('cardScenario'), cardNote: getVal('cardNote'),
+                statEditor: getVal('statEditor'), 
+                aiCodePrompt: getVal('aiCodePrompt'), aiWorldPrompt: getVal('aiWorldPrompt'),
+                frontReplace: getVal('frontReplace'), frontPattern: getVal('frontPattern')
+            },
+            globals: {
+                worldInfo: window.currentWorldInfo || { entries: [] },
+                regexScripts: window.currentCardRegexes || [],
+                wizardData: window.wizardData || {},
+                selectedTags: window.currentSelectedTags || { identity:[], personality:[], trope:[] },
+                statModules: window.statModules || [],
+                projectCharData: window.projectCharData || {},
+                advisorState: window.advisorState || { mode: 'menu', multiChars: [] },
+                styleGuide: window.frontendStyleGuide || "",
+                advisorChat: document.getElementById('advisorChat') ? document.getElementById('advisorChat').innerHTML : ""
+            }
+        };
+    }
+
+    // ================= 3. 覆盖：自动保存 (改为存入 IndexedDB) =================
+    // 停止旧的定时器
+    if (window.saveTimer) clearInterval(window.saveTimer);
+    
+    // 新的自动保存 (每 5 秒一次，不卡顿)
+    window.saveToBlackBox = async function() {
+        try {
+            var data = collectBigData();
+            // 如果是空数据就不存
+            if (!data.inputs.cardName && !data.globals.worldInfo.entries.length) return;
+            
+            await dbSystem.put(STORE_AUTO, { key: "latest_autosave", data: data, time: Date.now() });
+            // console.log("✅ 数据库自动备份完成");
+        } catch (e) {
+            console.error("自动备份出错:", e);
+        }
+    };
+    setInterval(window.saveToBlackBox, 5000);
+
+    // 覆盖恢复函数
+    window.restoreFromBlackBox = async function() {
+        try {
+            var record = await dbSystem.get(STORE_AUTO, "latest_autosave");
+            if (record && record.data) {
+                console.log("📦 从数据库恢复现场...");
+                restoreTotalSnapshot({ data: record.data.globals, inputs: record.data.inputs });
+            }
+        } catch (e) { console.error("恢复失败:", e); }
+    };
+    // 启动时尝试恢复
+    setTimeout(window.restoreFromBlackBox, 1000);
+
+
+    // ================= 4. 覆盖：手动存档 (Create Save) =================
+    window.createNewSave = async function() {
+        var name = document.getElementById('cardName').value.trim() || "未命名工程";
+        var btn = document.querySelector('button[onclick*="createNewSave"]');
+        if(btn) btn.innerHTML = "💾 正在写入数据库...";
+
+        try {
+            var fullData = collectBigData();
+            var saveItem = {
+                id: Date.now(), // 唯一键
+                title: name,
+                timestamp: new Date().toLocaleString(),
+                data: fullData.globals,
+                inputs: fullData.inputs
+            };
+
+            await dbSystem.put(STORE_SAVES, saveItem);
+            
+            if(window.auth && window.auth.toast) window.auth.toast('✅ 存入海量数据库成功！');
+            renderSaveList(); // 刷新列表
+
+        } catch (e) {
+            alert("保存失败: " + e.message);
+        } finally {
+            if(btn) btn.innerHTML = "➕ 新建存档 (当前进度)";
+        }
+    };
+
+    // ================= 5. 覆盖：读取存档列表 (Render List) =================
+    window.renderSaveList = async function() {
+        var list = document.getElementById('saveSlotList');
+        if (!list) return;
+        list.innerHTML = '<div style="text-align:center;color:#999;padding:20px;">⏳ 正在读取数据库...</div>';
+
+        try {
+            var saves = await dbSystem.getAll(STORE_SAVES);
+            // 按时间倒序
+            saves.sort((a, b) => b.id - a.id);
+
+            list.innerHTML = "";
+            if (saves.length === 0) {
+                list.innerHTML = '<div style="text-align:center;color:#999;padding:20px;">暂无存档</div>';
+                return;
+            }
+
+            saves.forEach((save) => {
+                var div = document.createElement('div');
+                div.style.cssText = "background:#fff; border:1px solid #ddd; margin-bottom:10px; padding:10px; border-radius:8px; cursor:pointer; position:relative; transition:0.2s;";
+                div.onmouseover = function() { this.style.borderColor = '#6c5ce7'; };
+                div.onmouseout = function() { this.style.borderColor = '#ddd'; };
+                
+                // 计算数据大小 (估算)
+                var size = JSON.stringify(save).length;
+                var sizeStr = size > 1024*1024 ? (size/1024/1024).toFixed(2)+"MB" : (size/1024).toFixed(0)+"KB";
+
+                div.innerHTML = `
+                    <div style="font-weight:bold; color:#333;">${save.title}</div>
+                    <div style="font-size:10px; color:#999;">📅 ${save.timestamp} | 📦 ${sizeStr}</div>
+                    <button onclick="event.stopPropagation(); deleteSave(${save.id})" style="position:absolute; right:10px; top:10px; border:none; background:none; color:#e74c3c; cursor:pointer; font-size:14px; padding:5px;">🗑️</button>
+                `;
+                
+                // 绑定点击读取 (传入 ID)
+                div.onclick = function() { loadSaveDB(save.id); };
+                list.appendChild(div);
+            });
+
+        } catch (e) {
+            list.innerHTML = '<div style="text-align:center;color:red;">数据库读取错误</div>';
+        }
+    };
+
+    // ================= 6. 覆盖：读取单个存档 (Load) =================
+    window.loadSaveDB = async function(id) {
+        if (!confirm('⚠️ 确定读取吗？当前未保存的进度将被覆盖。')) return;
+        
+        try {
+            var save = await dbSystem.get(STORE_SAVES, id);
+            if (save) {
+                // 复用 V44 的恢复逻辑 (如果存在)
+                if (typeof restoreTotalSnapshot === 'function') {
+                    restoreTotalSnapshot(save);
+                } else {
+                    alert("恢复函数丢失，请重新加载页面");
+                }
+                document.getElementById('saveManagerModal').style.display = 'none';
+            }
+        } catch (e) {
+            alert("读取失败: " + e.message);
+        }
+    };
+    // 兼容旧调用
+    window.loadSave = function(idx) { console.log("旧版读取已禁用，请使用新版列表点击"); };
+
+    // ================= 7. 覆盖：删除存档 (Delete) =================
+    window.deleteSave = async function(id) {
+        if(!confirm('确定永久删除这个存档吗？')) return;
+        try {
+            await dbSystem.delete(STORE_SAVES, id);
+            renderSaveList();
+        } catch(e) {
+            alert("删除失败: " + e.message);
+        }
+    };
+
+    // ================= 8. 覆盖：完结清空 =================
+    window.finishAndClear = async function() {
+        if(!confirm('🚨 确定要清空工作台吗？\n(这不会删除数据库里的存档，只会清空当前界面)')) return;
+        
+        // 1. 清空自动保存
+        try { await dbSystem.delete(STORE_AUTO, "latest_autosave"); } catch(e){}
+
+        // 2. 清空界面 (复用旧逻辑)
+        var inputs = document.querySelectorAll('#cardCreatorModal input[type="text"], #cardCreatorModal textarea');
+        inputs.forEach(i => i.value = '');
+        
+        window.currentWorldInfo = { entries: [] };
+        window.currentCardRegexes = [];
+        window.statModules = [];
+        window.projectCharData = {};
+        window.advisorState = { mode: 'menu', multiChars: [] };
+        window.frontendStyleGuide = "";
+        
+        var chatBox = document.getElementById('advisorChat');
+        if(chatBox) chatBox.innerHTML = "";
+
+        // 刷新 UI
+        if(typeof renderWorldList === 'function') renderWorldList();
+        if(typeof renderRegexList === 'function') renderRegexList();
+        if(typeof renderStatModuleList === 'function') renderStatModuleList();
+        if(typeof showAdvisorMenu === 'function') showAdvisorMenu();
+
+        if(window.auth && window.auth.toast) window.auth.toast('🧹 工作台已重置 (数据库存档安全)');
+    };
+
+    console.log("✅ V49.0：海量存储引擎已就绪，告别内存不足！");
+    if(window.auth && window.auth.toast) window.auth.toast('💾 数据库已升级：容量无上限');
+
+})();
+
+/* ================= 🚑 V51.0 补丁：核心恢复逻辑补全 ================= */
+(function() {
+    console.log("🚀 执行 V51.0：正在修复恢复函数丢失问题...");
+
+    // 1. 🔥 重新定义核心恢复函数 (无论之前有没有，强制重写)
+    window.restoreTotalSnapshot = function(snapshot) {
+        if (!snapshot) return;
+
+        console.log("📦 正在执行数据恢复...");
+        
+        // 兼容 V44 (data/inputs) 和 V49 (data.globals/data.inputs) 的结构差异
+        var d = snapshot.data || snapshot.globals; // 全局变量
+        var i = snapshot.inputs; // 输入框内容
+
+        // 如果结构不对，尝试直接读取 (容错)
+        if (!d && snapshot.worldInfo) d = snapshot; 
+
+        if (!d || !i) {
+            console.warn("⚠️ 存档结构可能不完整，尝试尽力恢复...");
+        }
+
+        // --- A. 恢复输入框 ---
+        function setVal(id, val) { 
+            var el = document.getElementById(id); 
+            if (el) el.value = val || ""; 
+        }
+        if (i) {
+            for (var key in i) setVal(key, i[key]);
+        }
+
+        // --- B. 恢复全局变量 ---
+        if (d) {
+            window.currentWorldInfo = d.worldInfo || { entries: [] };
+            window.currentCardRegexes = d.regexScripts || [];
+            
+            window.wizardData = d.wizardData || window.wizardData;
+            window.currentSelectedTags = d.selectedTags || { identity:[], personality:[], trope:[] };
+            
+            window.statModules = d.statModules || [];
+            window.projectCharData = d.projectCharData || {};
+            
+            window.advisorState = d.advisorState || { mode: 'menu', multiChars: [] };
+            window.advisorMode = window.advisorState.mode;
+            
+            window.frontendStyleGuide = d.styleGuide || "";
+
+            // 恢复聊天记录
+            var chatBox = document.getElementById('advisorChat');
+            if (chatBox && d.advisorChat) chatBox.innerHTML = d.advisorChat;
+        }
+
+        // --- C. 强制刷新所有 UI (让数据可见) ---
+        
+        // 1. 刷新标签
+        if (typeof renderWizardTags === 'function') renderWizardTags();
+        
+        // 2. 刷新世界书
+        if (typeof renderWorldList === 'function') renderWorldList();
+        
+        // 3. 刷新正则
+        if (typeof renderRegexList === 'function') renderRegexList();
+        
+        // 4. 刷新属性模块
+        if (typeof renderStatModuleList === 'function') {
+            renderStatModuleList();
+            // 尝试选中第一个模块
+            if (window.statModules.length > 0 && typeof loadStatModule === 'function') {
+                loadStatModule(0);
+            }
+        }
+        
+        // 5. 刷新多人模式菜单
+        if (window.advisorState.mode === 'multi' && typeof renderMultiCharMenu === 'function') {
+            renderMultiCharMenu();
+        }
+        
+        // 6. 刷新美化文件状态
+        var statusEl = document.getElementById('native_upload_status');
+        if (statusEl && window.frontendStyleGuide) {
+            statusEl.innerHTML = `✅ <b>已恢复美化文件</b> (大小: ${Math.ceil(window.frontendStyleGuide.length/1024)}KB)`;
+            status.style.color = "#00b894";
+        }
+
+        // 7. 刷新预览
+        if (typeof updatePreviewUI === 'function') updatePreviewUI();
+
+        console.log("✅ 数据恢复完成");
+        if(window.auth && window.auth.toast) window.auth.toast('📂 数据已成功加载');
+    };
+
+    // 2. 再次绑定 IndexedDB 的读取逻辑 (防止 V49 的绑定失效)
+    if (window.dbSystem) {
+        window.loadSaveDB = async function(id) {
+            if (!confirm('⚠️ 确定读取吗？当前未保存的进度将被覆盖。')) return;
+            try {
+                var save = await dbSystem.get("archives", id);
+                if (save) {
+                    // V49 存的数据结构是 { id, title, data: globals, inputs: inputs }
+                    // 所以这里传进去的对象要有 data 和 inputs
+                    window.restoreTotalSnapshot({ data: save.data, inputs: save.inputs });
+                    document.getElementById('saveManagerModal').style.display = 'none';
+                }
+            } catch (e) {
+                alert("读取失败: " + e.message);
+            }
+        };
+    }
+
+    // 3. 立即尝试执行一次自动恢复 (如果之前报错导致中断)
+    if (typeof restoreFromBlackBox === 'function') {
+        setTimeout(restoreFromBlackBox, 500);
+    }
+
+    console.log("✅ V51.0：恢复系统已修复");
+
+})();
 
 // ================= 👑 写卡器代码结束 =================
 
