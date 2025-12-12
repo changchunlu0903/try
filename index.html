@@ -22764,6 +22764,77 @@ window.openAISettings = function() {
 
 })();
 
+        /* ================= 🧬 V73.0 补丁：详细设定 -> 世界书 (1:1 镜像克隆版) ================= */
+(function() {
+    console.log("🚀 执行 V73.0：已启用【镜像克隆】模式，设定将原样存入世界书...");
+
+    // 覆盖：确认设定并生成世界书
+    window.confirmDescAndGenLore = function(arg) {
+        // 1. 获取数据
+        // 兼容按钮点击(event) 或 多人模式传参(name string)
+        var name = (typeof arg === 'string') ? arg : document.getElementById('cardName').value.trim();
+        var desc = document.getElementById('cardDesc').value; // 不 trim，保留格式
+
+        if (!name) name = "未命名角色";
+
+        // 2. 校验
+        if (!desc || desc.length < 5) {
+            alert("⚠️ 详细设定是空的！请先生成或填写内容。");
+            return;
+        }
+
+        // 3. 视觉反馈 (让输入框闪一下绿光)
+        var descBox = document.getElementById('cardDesc');
+        if(descBox) {
+            var oldBg = descBox.style.backgroundColor;
+            descBox.style.transition = "background 0.3s";
+            descBox.style.backgroundColor = "#d4edda"; 
+            setTimeout(() => descBox.style.backgroundColor = oldBg, 500);
+        }
+
+        // 4. 确认流程
+        if (confirm(`✅ 设定已确认！\n\n是否将这段设定【原封不动】地存入世界书？\n(1:1 克隆，保留所有 XML 格式和细节)`)) {
+            
+            // --- A. 跳转到世界书页 ---
+            if(typeof switchCardTab === 'function') switchCardTab('world');
+
+            // --- B. 构造条目 (无需 AI，直接构建) ---
+            var newEntry = {
+                id: Date.now(),
+                // 备注：名字 - 核心设定
+                comment: `${name} - 核心设定 (镜像)`,
+                // 触发词：名字, 我, 你 (确保必定触发)
+                keys: [name, "你", "我", "user", "System"], 
+                // 🔥 内容：直接等于详细设定！
+                content: desc, 
+                // 属性：放在最前，常驻生效
+                position: 0, // 0 = Before Char (最优先)
+                enabled: true,
+                constant: true, // 设为常驻，让设定永远生效
+                insertion_position: 0 // 插入位置：顶层
+            };
+
+            // --- C. 注入数据 ---
+            if (!window.currentWorldInfo) window.currentWorldInfo = { entries: [] };
+            window.currentWorldInfo.entries.push(newEntry);
+
+            // --- D. 刷新列表并选中 ---
+            if (typeof renderWorldList === 'function') renderWorldList();
+            if (typeof selectEntry === 'function') selectEntry(window.currentWorldInfo.entries.length - 1);
+
+            // --- E. 提示成功 ---
+            if(window.auth && window.auth.toast) window.auth.toast('🧬 设定已 100% 克隆至世界书！');
+            
+            // 如果是多人模式，顺便保存一下进度
+            if (typeof saveCurrentCharToCache === 'function') saveCurrentCharToCache();
+            if (typeof renderMultiCharMenu === 'function') renderMultiCharMenu();
+        }
+    };
+
+    console.log("✅ V73.0：设定确认逻辑已改为【直接复制】");
+
+})();
+
 /* ================= 💾 V49.0 补丁：切换至 IndexedDB 海量存储引擎 ================= */
 (function() {
     console.log("🚀 执行 V49.0：正在迁移至海量数据库 (IndexedDB)...");
