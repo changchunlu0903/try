@@ -283,26 +283,29 @@
     let myId = null, myIdx = -1; 
     let myCards = [], diPai = [];
     let landlordIdx = -1;
-    let gamePhase = 'idle'; 
+    let gamePhase = 'idle'; // idle, bidding, playing
     let lastPlayed = { idx: -1, typeInfo: null, cards: [] }; 
     let allHandsBackup = [];
+    let isDragging = false; // 滑动选牌开关
 
-    // --- 👤 个人中心数据 ---
+    // 👤 个人中心数据
     let myProfile = {
         name: localStorage.getItem('ddz_name') || '',
         avatar: localStorage.getItem('ddz_avatar') || '' 
     };
 
     // ================= 1. 初始化 =================
-    // 页面加载时自动恢复名字/头像显示
     window.onload = function() {
+        // 恢复头像和名字显示
         if(myProfile.name) {
             document.getElementById('myNickInput').value = myProfile.name;
-            document.querySelector('#p0 .p-name').innerText = myProfile.name;
+            const p0Name = document.querySelector('#p0 .p-name');
+            if(p0Name) p0Name.innerText = myProfile.name;
         }
         if(myProfile.avatar) {
             updateAvatarUI(myProfile.avatar);
-            document.querySelector('#p0 .avatar').innerHTML = `<img src="${myProfile.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+            const p0Avatar = document.querySelector('#p0 .avatar');
+            if(p0Avatar) p0Avatar.innerHTML = `<img src="${myProfile.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
         }
     };
 
@@ -310,35 +313,39 @@
         peer = new Peer(null, { debug: 2 });
         peer.on('open', id => {
             myId = id;
-            document.getElementById('roomIdTxt').innerText = id;
+            const roomTxt = document.getElementById('roomIdTxt');
+            if(roomTxt) roomTxt.innerText = id;
             document.getElementById('statusText').innerText = "服务就绪";
         });
-        peer.on('error', err => alert('联机出错: ' + err.type));
+        peer.on('error', err => {
+            console.error(err);
+            alert('联机出错: ' + err.type);
+        });
     } catch(e) { alert('组件加载失败'); }
 
     // ================= 2. 房主逻辑 =================
     function createRoom() {
+        if(!peer || !peer.id) return alert('联机服务未就绪，请刷新');
         document.getElementById('joinUI').style.display = 'none';
         document.getElementById('hostWait').style.display = 'block';
         myIdx = 0; 
         
-        // 房主也要更新自己的名字到桌面
-        saveMyProfile();
+        saveMyProfile(); // 确保最新名字生效
 
         peer.on('connection', conn => {
             connList.push(conn);
             conn.on('data', data => handleData(data));
             conn.on('open', () => {
-                // 1. 发送欢迎信息 (含房主头像名字)
+                // 1. 发送欢迎 (含房主资料)
                 conn.send({ 
                     type: 'WELCOME', 
                     idx: connList.length,
-                    hostProfile: myProfile // 把房主资料发给新人
+                    hostProfile: myProfile 
                 });
 
-                // 2. 如果是重连
+                // 2. 重连检测
                 if (allHandsBackup.length > 0) {
-                    let pIdx = connList.length; // 简单按顺序补位
+                    let pIdx = connList.length;
                     conn.send({ type: 'RECONNECT', idx: pIdx, cards: allHandsBackup[pIdx], diPai: diPai, landlord: landlordIdx });
                 } else {
                     // 3. 正常进房
@@ -349,8 +356,8 @@
                     }
                 }
                 
-                // 4. 广播房主资料给所有人(刷新一下)
-                broadcastProfile();
+                // 4. 广播房主资料
+                setTimeout(broadcastProfile, 500);
             });
             conn.on('close', () => { alert('有人退出'); location.reload(); });
         });
@@ -358,25 +365,25 @@
 
     // ================= 3. 玩家逻辑 =================
     function joinRoom() {
+        if(!peer || !peer.id) return alert('联机服务未就绪，请刷新');
+        
         const id = document.getElementById('joinId').value.trim();
+        // 获取名字，优先用输入框
         const nameInput = document.getElementById('myNickInput').value.trim();
-        // 优先用输入框的名字，如果没有就用缓存的
         if(nameInput) myProfile.name = nameInput;
         if(!myProfile.name) myProfile.name = "神秘玩家";
         
-        saveMyProfile(); // 保存最新名字
+        saveMyProfile(); // 保存
 
         if(!id) return alert('请输入房号');
         
-        // 🔥 连接时带上我的资料
+        // 连接
         hostConn = peer.connect(id, { metadata: { name: myProfile.name, avatar: myProfile.avatar } });
         
         hostConn.on('open', () => {
             document.getElementById('lobbyModal').style.display = 'none';
             document.getElementById('statusText').innerText = "等待发牌...";
-            
-            // 连上后再次广播自己的资料，确保大家都能看到
-            setTimeout(broadcastProfile, 500);
+            setTimeout(broadcastProfile, 500); // 连上后广播头像
         });
         hostConn.on('data', data => handleData(data));
         hostConn.on('close', () => { alert('房主断开'); location.reload(); });
@@ -385,15 +392,13 @@
     // ================= 4. 消息分发 =================
     function handleData(data) {
         if(data.type === 'WELCOME') {
-            myIdx = data.idx; updateNames();
-            // 收到房主资料，更新界面上的“上家”或“下家”
+            myIdx = data.idx; 
+            updateNames(); // 更新上家下家文字
             if(data.hostProfile) updatePlayerUI(0, data.hostProfile);
         } 
         else if(data.type === 'UPDATE_PROFILE') {
-            // 收到别人更新头像/名字
             const viewIdx = getRelativeIdx(data.idx);
             updatePlayerUI(viewIdx, data);
-            // 房主负责转发给第三人
             if(myIdx === 0) connList.forEach(c => c.send(data));
         }
         else if(data.type === 'START') {
@@ -401,24 +406,25 @@
             document.getElementById('lobbyModal').style.display = 'none';
             diPai = data.diPai; myCards = data.hands[myIdx];
             sortAndRenderHand(); updateCounts();
-            gamePhase = 'bidding'; document.getElementById('statusText').innerText = "抢地主！";
+            
+            gamePhase = 'bidding'; 
+            document.getElementById('statusText').innerText = "抢地主！";
+            
             if(data.turn === myIdx) { showBtns(['btnCall', 'btnNoCall']); highlightPlayer(0); }
             else { highlightPlayer(getRelativeIdx(data.turn)); }
-        } else if(data.type === 'ACTION') {
-            handleRemoteAction(data);
-        } else if(data.type === 'LANDLORD') {
-            setLandlord(data.idx);
-        } else if(data.type === 'TURN') {
-            handleTurn(data);
-        } else if(data.type === 'GAME_OVER') {
-            showResult(data);
-        } else if(data.type === 'RECONNECT') {
+        } 
+        else if(data.type === 'ACTION') { handleRemoteAction(data); }
+        else if(data.type === 'LANDLORD') { setLandlord(data.idx); }
+        else if(data.type === 'TURN') { handleTurn(data); }
+        else if(data.type === 'GAME_OVER') { showResult(data); }
+        else if(data.type === 'RECONNECT') {
             document.getElementById('lobbyModal').style.display = 'none';
             myIdx = data.idx; myCards = data.cards; diPai = data.diPai; landlordIdx = data.landlord;
             sortAndRenderHand(); updateNames();
             if(landlordIdx !== -1) setLandlord(landlordIdx);
             gamePhase = 'playing';
-        } else if (data.type === 'CHAT') {
+        } 
+        else if (data.type === 'CHAT') {
              const viewIdx = getRelativeIdx(data.idx);
              showBubble(viewIdx, data.content);
              if (myIdx === 0) connList.forEach(c => c.send(data));
@@ -438,12 +444,11 @@
         handleData(msg); connList.forEach(c => c.send(msg));
     }
 
-    // ================= 6. 核心规则判定 (修复版) =================
+    // ================= 6. 核心规则 =================
     function getCardType(cards) {
         const len = cards.length;
         const vals = cards.map(c => c.v);
-        let counts = {};
-        vals.forEach(x => { counts[x] = (counts[x] || 0) + 1; });
+        let counts = {}; vals.forEach(x => { counts[x] = (counts[x] || 0) + 1; });
         let maxCount = Math.max(...Object.values(counts));
         let keys = Object.keys(counts).map(Number).sort((a,b)=>b-a);
 
@@ -458,7 +463,7 @@
         }
         if (len === 5 && maxCount === 3 && keys.length === 2) {
             let mainVal = keys.find(k => counts[k] === 3);
-            return { type: '3+2', val: mainVal }; // 3带2(对子)
+            return { type: '3+2', val: mainVal };
         }
         if (len >= 5 && maxCount === 1 && vals[0] < 15) {
             if (vals[0] - vals[len-1] === len - 1) return { type: 'straight', val: vals[0], len: len };
@@ -478,19 +483,17 @@
             return my.val > enemy.val;
         }
         if(enemy.type === 'bomb') return false;
-        
         if(my.type !== enemy.type) return false;
         if((my.type === 'straight' || my.type === 'pairs') && my.len !== enemy.len) return false;
         return my.val > enemy.val;
     }
 
-    // ================= 7. 智能提示 (修复版) =================
+    // ================= 7. 智能提示 =================
     function autoSelectCards() {
         document.querySelectorAll('.poker.selected').forEach(p => p.classList.remove('selected'));
         let suggestion = [];
         const mySorted = [...myCards].sort((a,b) => a.v - b.v);
-        let counts = {};
-        mySorted.forEach(c => counts[c.v] = (counts[c.v]||0)+1);
+        let counts = {}; mySorted.forEach(c => counts[c.v] = (counts[c.v]||0)+1);
 
         if (!lastPlayed || lastPlayed.idx === -1 || lastPlayed.idx === myIdx) {
             if(mySorted.length > 0) suggestion.push(mySorted[0]);
@@ -525,8 +528,6 @@
                     }
                 }
             }
-            
-            // 炸弹兜底
             if (suggestion.length === 0 && tType !== 'rocket') {
                 for (let v in counts) {
                     if (counts[v] === 4 && (tType !== 'bomb' || parseInt(v) > tVal)) {
@@ -588,13 +589,10 @@
                 div.innerText = DISPLAY_MAP[c.r] || c.r;
                 area.appendChild(div);
             });
-            
-            // 绑定放大点击事件
             area.onclick = () => showZoomCards(data.cards);
             area.style.pointerEvents = "auto"; 
 
             if(navigator.vibrate) navigator.vibrate(30);
-
             if(myIdx === 0) lastPlayed = { idx: data.idx, typeInfo: data.typeInfo, cards: data.cards };
 
             let currentCount = 0;
@@ -602,10 +600,9 @@
                 const cntEl = document.getElementById('count' + viewIdx);
                 currentCount = parseInt(cntEl.innerText) - data.cards.length;
                 cntEl.innerText = currentCount;
-            } else {
-                currentCount = myCards.length;
-            }
+            } else { currentCount = myCards.length; }
 
+            // 🔥 胜负锁
             if (currentCount <= 0 && gamePhase === 'playing') {
                 if(myIdx === 0) {
                     const overMsg = { type: 'GAME_OVER', winnerIdx: data.idx };
@@ -613,7 +610,6 @@
                 }
                 return;
             }
-
             if(myIdx === 0) passTurn(data.idx, false);
         }
         else if(data.act === 'pass') {
@@ -682,7 +678,6 @@
         else hostConn.send(msg);
     }
 
-    let isDragging = false;
     function sortAndRenderHand() {
         myCards.sort((a,b) => b.v - a.v);
         const box = document.getElementById('handArea');
@@ -703,7 +698,7 @@
 
     function showZoomCards(cards) {
         const box = document.getElementById('zoomCards');
-        if(!box) return; // 防止没加html报错
+        if(!box) return; 
         box.innerHTML = '';
         cards.forEach(c => {
             let div = document.createElement('div');
@@ -761,69 +756,41 @@
     function showResult(data) {
         const isWin = (data.winnerIdx === landlordIdx && myIdx === landlordIdx) || (data.winnerIdx !== landlordIdx && myIdx !== landlordIdx);
         document.getElementById('resultTitle').innerText = isWin ? "🎉 胜利！" : "😭 惜败...";
+        document.getElementById('resultText').innerText = data.winnerIdx === landlordIdx ? "地主赢了" : "农民赢了";
         document.getElementById('resultModal').style.display = 'flex';
-        // 触发特效 (如果有)
         if(isWin && typeof createFireworks === 'function') createFireworks();
         if(!isWin && typeof startRain === 'function') startRain();
     }
     
-    // --- 个人资料相关 ---
-    // === 1. 保存并实时更新界面 ===
-function saveMyProfile() {
-    const nameVal = document.getElementById('myNickInput').value.trim();
-    if(nameVal) myProfile.name = nameVal;
-    
-    // 存到浏览器缓存
-    localStorage.setItem('ddz_name', myProfile.name);
-    if(myProfile.avatar) localStorage.setItem('ddz_avatar', myProfile.avatar);
-    
-    // 🔥 关键修复：立刻更新桌面上“我 (#p0)”的显示
-    // 1. 更新名字
-    document.querySelector('#p0 .p-name').innerText = myProfile.name;
-    
-    // 2. 更新头像 (如果有图，就用图覆盖 Emoji)
-    if(myProfile.avatar) {
-        const p0Avatar = document.querySelector('#p0 .avatar');
-        p0Avatar.innerHTML = `<img src="${myProfile.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+    // 👤 个人资料相关
+    function saveMyProfile() {
+        const nameVal = document.getElementById('myNickInput').value.trim();
+        if(nameVal) myProfile.name = nameVal;
+        localStorage.setItem('ddz_name', myProfile.name);
+        if(myProfile.avatar) localStorage.setItem('ddz_avatar', myProfile.avatar);
+        document.querySelector('#p0 .p-name').innerText = myProfile.name;
+        if(myProfile.avatar) document.querySelector('#p0 .avatar').innerHTML = `<img src="${myProfile.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
     }
-}
     function updateAvatarUI(src) {
-    const img = document.getElementById('avatarPreview');
-    const emoji = document.getElementById('avatarEmoji');
-    if (src) {
-        img.src = src; 
-        img.style.display = 'block'; 
-        emoji.style.display = 'none'; // 有图就隐藏 Emoji
-    } else {
-        img.style.display = 'none'; 
-        emoji.style.display = 'block';
+        const img = document.getElementById('avatarPreview');
+        const emoji = document.getElementById('avatarEmoji');
+        if(img) { 
+            if(src) { img.src=src; img.style.display='block'; emoji.style.display='none'; }
+            else { img.style.display='none'; emoji.style.display='block'; }
+        }
     }
-}
-    // === 2. 处理文件上传 (选完图立刻刷新) ===
-function handleFile(input) {
-    if (input.files && input.files[0]) {
-        const reader = new FileReader();
-        
-        reader.onload = function(e) {
-            // 拿到图片的 Base64 数据
-            myProfile.avatar = e.target.result;
-            
-            // 1. 更新设置弹窗里的预览图
-            updateAvatarUI(myProfile.avatar);
-            
-            // 2. 存起来，并刷新桌面的头像
-            saveMyProfile();
-            
-            // 3. 如果已经连上房主，顺便广播给别人看
-            if(connList.length > 0 || hostConn) {
+    function handleFile(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                myProfile.avatar = e.target.result;
+                updateAvatarUI(myProfile.avatar);
+                saveMyProfile();
                 setTimeout(broadcastProfile, 500);
-            }
-        };
-        
-        reader.readAsDataURL(input.files[0]);
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
     }
-}
-
     function broadcastProfile() {
         const msg = { type: 'UPDATE_PROFILE', idx: myIdx, name: myProfile.name, avatar: myProfile.avatar };
         sendMsg(msg);
