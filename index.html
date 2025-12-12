@@ -19439,6 +19439,1310 @@ window.openAISettings = function() {
 
 })();
 
+/* ================= 🚀 V25.0 补丁：军师多模式 & 多人世界观构建系统 ================= */
+(function() {
+    console.log("🚀 执行 V25.0：军师进化 | 多人模式 | 规范导入 | 自动世界书");
+
+    // ================= 1. 详细设定 -> 自动关联世界书 (Requirement 1) =================
+    
+    // 备份之前的生成函数
+    var _oldAutoGenDesc = window.autoGenDesc;
+
+    window.autoGenDesc = async function() {
+        // 先执行原有的生成逻辑 (V17.0/V18.0 的逻辑)
+        await _oldAutoGenDesc();
+
+        // 设定一个定时器检测是否生成完成 (通过检测编辑框是否显示)
+        // 因为 _oldAutoGenDesc 内部也是异步的，且失败不报错，所以我们监听结果
+        var checkInterval = setInterval(function() {
+            var refineBox = document.getElementById('refineArea_desc');
+            var descVal = document.getElementById('cardDesc').value;
+            
+            // 如果修改框出来了，且内容不为空，说明生成成功了
+            if (refineBox && refineBox.style.display === 'block' && descVal.length > 10) {
+                clearInterval(checkInterval);
+                
+                // 🔥 核心逻辑：询问是否生成人设世界书
+                setTimeout(function() {
+                    if(confirm("✅ 详细设定已生成！\n\n是否立即基于此设定，生成专属的【人设世界书】(World Info)？\n(这将把角色的特征存入世界书，防止AI遗忘)")) {
+                        // 1. 跳转
+                        if(typeof switchCardTab === 'function') switchCardTab('world');
+                        
+                        // 2. 填入指令
+                        var prompt = `基于详细设定生成【人物专属词条】。
+                        包含：外貌关键词、性格关键词、重要身世。
+                        触发词(keys)设为角色的名字。`;
+                        document.getElementById('aiWorldPrompt').value = prompt;
+                        
+                        // 3. 执行生成
+                        if(typeof generateWorldEntry === 'function') generateWorldEntry();
+                    }
+                }, 500);
+            }
+        }, 1000);
+        
+        // 10秒后停止检测，防止死循环
+        setTimeout(() => clearInterval(checkInterval), 10000);
+    };
+
+
+    // ================= 2. 前端美化规范导入 (Requirement 2) =================
+
+    // 全局变量存储规范
+    window.frontendStyleGuide = "";
+
+    // A. 插入按钮
+    function injectFrontendBtn() {
+        var container = document.querySelector('#uiFrontendMode label'); // 找到“AI 建筑师”那个标签
+        if (container && !document.getElementById('btnImportGuide')) {
+            var btn = document.createElement('span');
+            btn.id = 'btnImportGuide';
+            btn.innerHTML = "📜 导入美化规范";
+            btn.style.cssText = "font-size:10px; background:#fff; border:1px solid #6c5ce7; color:#6c5ce7; padding:2px 8px; border-radius:4px; margin-left:10px; cursor:pointer;";
+            btn.onclick = function() {
+                var guide = prompt("请输入/粘贴你的前端美化规范 (CSS要求/配色方案/布局风格)：", window.frontendStyleGuide);
+                if (guide !== null) {
+                    window.frontendStyleGuide = guide;
+                    auth.toast('✅ 规范已导入，下次生成将严格遵守！');
+                }
+            };
+            container.appendChild(btn);
+        }
+    }
+    // 尝试插入
+    setTimeout(injectFrontendBtn, 1000);
+
+    // B. 覆盖生成函数，带上规范
+    var _oldGenFront = window.generateFrontendCode;
+    window.generateFrontendCode = async function() {
+        // 劫持输入框
+        var reqEl = document.getElementById('aiCodePrompt');
+        var originalReq = reqEl.value;
+
+        // 如果有规范，悄悄拼接到 Prompt 里
+        if (window.frontendStyleGuide) {
+            // 我们不修改输入框显示的文字，只在发送给AI时修改
+            // 但因为我们封装了 fetchAI，这里采用更暴力的劫持方式：
+            // 临时修改输入框的值，调用原函数，然后再改回来
+            reqEl.value = `${originalReq}\n\n【强制遵守以下UI规范】：${window.frontendStyleGuide}`;
+        }
+
+        await _oldGenFront();
+
+        // 还原输入框 (让用户感觉不到发生了什么)
+        if (window.frontendStyleGuide) {
+            reqEl.value = originalReq;
+        }
+    };
+
+
+    // ================= 3. 添加大类标签 (Requirement 3) =================
+
+    // A. 插入“添加分类”按钮
+    function injectCategoryBtn() {
+        var box = document.querySelector('.wizard-box');
+        if (box && !document.getElementById('btnAddCategory')) {
+            var btn = document.createElement('div');
+            btn.id = 'btnAddCategory';
+            btn.innerHTML = "➕ 添加新分类 (如: 缺点/雷点)";
+            btn.style.cssText = "text-align:center; padding:10px; border:2px dashed #ddd; border-radius:10px; color:#aaa; cursor:pointer; margin-top:10px; font-size:12px; font-weight:bold;";
+            
+            btn.onclick = function() {
+                var catName = prompt("请输入新分类的名称 (如: 缺点):");
+                if (catName) {
+                    // 英文 Key (随机生成防止冲突)
+                    var key = 'custom_' + Date.now();
+                    // 写入数据源
+                    if(!window.wizardData) window.wizardData = {};
+                    window.wizardData[key] = { title: `${Object.keys(window.wizardData).length + 1}. ${catName}`, tags: [] };
+                    // 保存并刷新
+                    localStorage.setItem('my_wizard_data_v2', JSON.stringify(window.wizardData));
+                    if(typeof renderWizardTags === 'function') renderWizardTags();
+                    
+                    // 初始化选中状态
+                    if(!window.currentSelectedTags) window.currentSelectedTags = {};
+                    window.currentSelectedTags[key] = [];
+                }
+            };
+            
+            // 插在那个“一键生成”按钮之前
+            var genBtn = document.getElementById('btnOneClickGen');
+            if (genBtn) box.insertBefore(btn, genBtn);
+            else box.appendChild(btn);
+        }
+    }
+    // 重新渲染时会覆盖，所以要在 renderWizardTags 里调用
+    var _oldRenderTags = window.renderWizardTags;
+    window.renderWizardTags = function() {
+        // 渲染原有的组
+        Object.keys(window.wizardData).forEach(key => {
+            // 如果这个组还没有容器，创建一个
+            var containerId = 'tagGroup' + key.charAt(0).toUpperCase() + key.slice(1);
+            if (!document.getElementById(containerId)) {
+                var box = document.querySelector('.wizard-box');
+                var genBtn = document.getElementById('btnOneClickGen') || document.getElementById('btnAddCategory'); // 插在按钮前
+                
+                var title = document.createElement('div');
+                title.id = 'title_' + key;
+                title.className = 'tag-group-title';
+                title.onclick = function() { editWizardTitle(key); };
+                
+                var wrapper = document.createElement('div'); // 按钮容器
+                wrapper.style.textAlign = 'right'; wrapper.style.marginBottom = '5px';
+                wrapper.innerHTML = `<span class="add-tag-btn" onclick="addCustomWizardTag('${key}')">+加标签</span>`;
+
+                var content = document.createElement('div');
+                content.id = containerId;
+                content.className = 'tag-select-container';
+
+                if(genBtn) {
+                    box.insertBefore(title, genBtn);
+                    box.insertBefore(wrapper, genBtn);
+                    box.insertBefore(content, genBtn);
+                } else {
+                    box.appendChild(title); box.appendChild(wrapper); box.appendChild(content);
+                }
+            }
+            // 渲染
+            renderSingleGroup(key);
+        });
+        
+        injectCategoryBtn(); // 确保按钮在最后
+    };
+
+
+    // ================= 4 & 5. 军师模式菜单 & 多人/世界观模式 (Requirement 4 & 5) =================
+
+    // 状态管理
+    window.advisorState = { mode: 'menu', multiChars: [] }; // menu, normal, expert, multi, world
+
+    // 覆盖分析入口 (点击军师时)
+    window.analyzeCardNeeds = function() {
+        showAdvisorMenu();
+    };
+
+    // 显示菜单
+    function showAdvisorMenu() {
+        var box = document.getElementById('aiAdvisorBox');
+        if(box) box.style.display = 'flex';
+        var chat = document.getElementById('advisorChat');
+        
+        // 菜单 HTML
+        var menuHtml = `
+            <div class="advisor-bubble" style="background:#f3f0ff;">
+                <b>🧠 军师已就位，请选择模式：</b>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-top:10px;">
+                    <button class="advisor-tool-btn" onclick="setAdvisorMode('normal')">🟢 1. 普通模式</button>
+                    <button class="advisor-tool-btn" onclick="setAdvisorMode('pro')">🔴 2. 专家模式</button>
+                    <button class="advisor-tool-btn" onclick="initMultiCharUI()">👥 3. 多人模式</button>
+                    <button class="advisor-tool-btn" onclick="initWorldViewMode()">🌏 4. 世界观模式</button>
+                </div>
+            </div>
+        `;
+        chat.innerHTML = menuHtml;
+        window.advisorState.mode = 'menu';
+    }
+
+    // 设置模式
+    window.setAdvisorMode = function(mode) {
+        window.advisorState.mode = mode;
+        window.advisorMode = mode; // 兼容旧逻辑
+        
+        var chat = document.getElementById('advisorChat');
+        var input = document.getElementById('advisorInput');
+        
+        if (mode === 'normal') {
+            chat.innerHTML += `<div class="advisor-bubble">🟢 已进入普通模式。请告诉我您的需求。</div>`;
+            input.placeholder = "🟢 和军师聊聊人设...";
+        } else if (mode === 'pro') {
+            chat.innerHTML += `<div class="advisor-bubble">🔴 已进入专家模式。全权限指令就绪。</div>`;
+            input.placeholder = "🔴 输入修改指令...";
+        }
+    };
+
+    // --- 多人模式逻辑 ---
+    window.initMultiCharUI = function() {
+        // 可以在这里弹窗让用户填，或者直接在聊天框显示
+        var count = prompt("请输入人数 (例如: 3):");
+        if (!count) return;
+        
+        var namesStr = prompt("请输入所有人的名字 (用逗号分隔，如: 张三, 李四):");
+        if (!namesStr) return;
+        
+        var names = namesStr.split(/[,，]/).map(n => n.trim()).filter(n => n);
+        
+        window.advisorState.mode = 'multi';
+        window.advisorState.multiChars = names;
+        
+        renderMultiCharMenu();
+    };
+
+    function renderMultiCharMenu() {
+        var chat = document.getElementById('advisorChat');
+        var btns = window.advisorState.multiChars.map(name => {
+            return `<button class="advisor-action-btn" onclick="generateCharSettings('${name}')">👤 生成【${name}】的设定</button>`;
+        }).join('');
+        
+        chat.innerHTML = `
+            <div class="advisor-bubble" style="background:#e3f2fd;">
+                <b>👥 多人模式已开启</b><br>
+                当前队列：${window.advisorState.multiChars.join(', ')}<br>
+                请点击下方按钮，逐个生成：
+                ${btns}
+                <br>
+                <small style="color:#666">提示：生成完记得点确定(保存)，然后再点下一个。</small>
+            </div>
+        `;
+    }
+
+    window.generateCharSettings = async function(name) {
+        // 1. 填入名字
+        document.getElementById('cardName').value = name;
+        
+        // 2. 清空旧设定
+        document.getElementById('cardDesc').value = '';
+        
+        // 3. 询问标签
+        // 这里简化处理：让军师根据名字自动猜标签，或者弹窗问
+        // 为了流畅体验，我们直接调用生成，Prompt里让AI自由发挥
+        
+        var chat = document.getElementById('advisorChat');
+        chat.innerHTML += `<div class="ai-loading">🧠 正在构思【${name}】的人设...</div>`;
+        
+        var config = window.aiConfig || JSON.parse(localStorage.getItem('my_ai_config'));
+        var prompt = `我是创造者。请为多人剧本中的角色【${name}】写一段详细设定(500字)。纯文本。`;
+        
+        try {
+            var res = await fetchAI(prompt, config);
+            var cleanText = res.replace(/```/g, '').trim();
+            
+            document.getElementById('cardDesc').value = cleanText;
+            
+            // 4. 显示确认按钮
+            chat.innerHTML += `
+                <div class="advisor-bubble">
+                    ✅ 【${name}】设定已生成！请检查左侧。<br>
+                    <button class="advisor-action-btn" onclick="confirmCharAndGenLore('${name}')">
+                        💾 确定 (并生成专属世界书)
+                    </button>
+                </div>
+            `;
+            
+            // 切换到预览页看效果
+            if(typeof switchCardTab === 'function') switchCardTab('preview');
+            
+        } catch(e) {
+            alert("生成失败");
+        }
+    };
+
+    window.confirmCharAndGenLore = async function(name) {
+        // 1. 自动生成世界书
+        if(typeof switchCardTab === 'function') switchCardTab('world');
+        document.getElementById('aiWorldPrompt').value = `为角色【${name}】生成专属World Info设定，内容基于当前的详细设定。`;
+        await generateWorldEntry();
+        
+        // 2. 提示下一步
+        var chat = document.getElementById('advisorChat');
+        chat.innerHTML += `<div class="advisor-bubble">🎉 【${name}】处理完毕！请继续点击上面菜单选择下一个人。</div>`;
+    };
+
+
+    // --- 世界观模式逻辑 ---
+    window.initWorldViewMode = function() {
+        window.advisorState.mode = 'world_view';
+        var chat = document.getElementById('advisorChat');
+        chat.innerHTML = `
+            <div class="advisor-bubble" style="background:#e8f5e9;">
+                <b>🌏 世界观构建模式</b><br>
+                请在下方输入框告诉我，你想要什么样的世界观？<br>
+                (例如：赛博朋克+修仙，或者是克苏鲁风格的校园)
+            </div>
+        `;
+    };
+
+    // 拦截发送消息，处理世界观请求
+    var _oldSend = window.sendAdvisorMsg;
+    window.sendAdvisorMsg = async function() {
+        // 如果是世界观模式
+        if (window.advisorState.mode === 'world_view') {
+            var input = document.getElementById('advisorInput');
+            var text = input.value.trim();
+            if(!text) return;
+            
+            // 用户上屏
+            var chat = document.getElementById('advisorChat');
+            chat.innerHTML += `<div style="text-align:right; margin:5px; padding:5px; background:#eee; border-radius:5px; display:inline-block; margin-left:auto;">${text}</div><div style="clear:both"></div>`;
+            input.value = '';
+            
+            chat.insertAdjacentHTML('beforeend', `<div class="ai-loading">🧠 正在构筑宏大世界... (生成3个方案)</div>`);
+            
+            var config = window.aiConfig || JSON.parse(localStorage.getItem('my_ai_config'));
+            
+            // Prompt: 生成3个方案，返回JSON
+            var prompt = `
+            用户想要的世界观：${text}。
+            请提供 3 个不少于 100 字的具体世界观建议（方案）。
+            
+            返回纯 JSON 数组：
+            [
+                { "title": "方案一标题", "content": "100字以上的详细描述..." },
+                { "title": "方案二标题", "content": "..." },
+                { "title": "方案三标题", "content": "..." }
+            ]
+            `;
+            
+            try {
+                var res = await fetchAI(prompt, config);
+                var data = JSON.parse(res.replace(/```json/g, '').replace(/```/g, '').trim());
+                
+                chat.innerHTML = ''; // 清屏
+                
+                data.forEach(item => {
+                    // 安全转义内容
+                    var safeContent = encodeURIComponent(item.content);
+                    
+                    chat.innerHTML += `
+                        <div class="advisor-bubble">
+                            <b style="color:#d35400">🌏 ${item.title}</b>
+                            <div style="font-size:12px; margin:5px 0; max-height:100px; overflow-y:auto;">${item.content}</div>
+                            <button class="advisor-action-btn" onclick="applyWorldView('${safeContent}')">
+                                👉 采用此方案 (生成世界书)
+                            </button>
+                        </div>
+                    `;
+                });
+                
+            } catch(e) {
+                chat.innerHTML += `<div class="advisor-bubble">❌ 生成失败: ${e.message}</div>`;
+            }
+            return; // 拦截结束
+        }
+        
+        // 否则走普通/专家/多人模式逻辑
+        // 注意：多人模式也在 Menu 里，不需要拦截 sendMsg，因为它是点按钮触发的
+        _oldSend();
+    };
+
+    window.applyWorldView = function(encodedContent) {
+        var content = decodeURIComponent(encodedContent);
+        
+        // 跳转到世界书页
+        if(typeof switchCardTab === 'function') switchCardTab('world');
+        
+        // 填入
+        document.getElementById('aiWorldPrompt').value = `创建一个核心世界观条目，内容如下：${content}`;
+        
+        // 自动生成
+        if(typeof generateWorldEntry === 'function') generateWorldEntry();
+        
+        auth.toast('🌏 世界观已开始构筑...');
+    };
+
+})();
+
+/* ================= 📂 V25.1 补丁：美化规范文件导入系统 ================= */
+(function() {
+    console.log("🚀 执行 V25.1：美化规范已升级为【文件导入】模式...");
+
+    // 全局变量存储规范内容
+    window.frontendStyleGuide = "";
+
+    // 1. 🛠️ 重写按钮注入逻辑 (移除旧按钮，换成文件上传版)
+    function upgradeFrontendBtn() {
+        var container = document.querySelector('#uiFrontendMode label'); // 找到“AI 建筑师”那个标签
+        if (!container) return;
+
+        // 如果旧按钮存在，先删掉，防止重复
+        var oldBtn = document.getElementById('btnImportGuide');
+        if (oldBtn) oldBtn.remove();
+
+        // --- A. 创建可见按钮 ---
+        var btn = document.createElement('span');
+        btn.id = 'btnImportGuide';
+        btn.innerHTML = "📂 导入美化文件 (CSS/TXT)";
+        btn.style.cssText = "font-size:10px; background:#fff; border:1px solid #6c5ce7; color:#6c5ce7; padding:3px 8px; border-radius:4px; margin-left:10px; cursor:pointer; font-weight:normal;";
+        
+        // 点击按钮 -> 触发文件选择
+        btn.onclick = function() {
+            document.getElementById('styleGuideFileInput').click();
+        };
+
+        // --- B. 创建隐形文件输入框 ---
+        var fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.id = 'styleGuideFileInput';
+        fileInput.style.display = 'none';
+        // 不限制文件类型 (accept 留空)
+        
+        // --- C. 文件读取逻辑 ---
+        fileInput.onchange = function(e) {
+            var file = e.target.files[0];
+            if (!file) return;
+
+            var reader = new FileReader();
+            
+            // 设定回调：读取成功后执行
+            reader.onload = function(evt) {
+                // 1. 获取文件内容
+                var content = evt.target.result;
+                
+                // 2. 存入全局变量
+                window.frontendStyleGuide = content;
+                
+                // 3. 界面反馈
+                if(window.auth && window.auth.toast) {
+                    window.auth.toast(`✅ 规范文件【${file.name}】已加载！`);
+                } else {
+                    alert(`✅ 规范文件【${file.name}】已加载！`);
+                }
+
+                // 4. 按钮变色，提示已加载
+                btn.innerHTML = `📄 使用规范: ${file.name}`;
+                btn.style.background = "#e0c3fc";
+                btn.style.color = "#fff";
+                btn.style.borderColor = "#a29bfe";
+                btn.title = "点击可更换文件";
+                
+                console.log("已加载美化规范长度:", content.length);
+            };
+
+            // 开始读取 (作为文本读取，无论什么后缀)
+            reader.readAsText(file);
+            
+            // 清空 value，允许重复上传同一个文件
+            this.value = '';
+        };
+
+        // 插入 DOM
+        container.appendChild(btn);
+        container.appendChild(fileInput);
+    }
+
+    // 立即执行替换
+    setTimeout(upgradeFrontendBtn, 1000);
+    // 保险起见，再执行一次 (防止 Tab 切换导致元素重建)
+    setInterval(function() {
+        if (!document.getElementById('btnImportGuide')) {
+            upgradeFrontendBtn();
+        }
+    }, 2000);
+
+
+    // 2. 🔥 覆盖生成函数：强制带上文件内容
+    var _oldGenFront = window.generateFrontendCode;
+    window.generateFrontendCode = async function() {
+        var reqEl = document.getElementById('aiCodePrompt');
+        if (!reqEl) return;
+
+        var originalReq = reqEl.value; // 用户输入的需求
+        var finalPrompt = originalReq;
+
+        // 🔥 核心逻辑：如果有导入的文件，拼接到 Prompt 里
+        if (window.frontendStyleGuide && window.frontendStyleGuide.length > 0) {
+            console.log("🎨 正在应用文件中的美化规范...");
+            
+            // 构造更强的提示词
+            finalPrompt = `
+${originalReq}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 【最高优先级 UI 设计规范】 🚨
+请完全忽略你默认的样式习惯，**严格按照**以下文件的代码风格、配色变量和布局逻辑来编写代码：
+
+\`\`\`css
+${window.frontendStyleGuide.substring(0, 5000)} 
+\`\`\`
+(以上是样式规范文件内容，请提取其中的设计语言并应用到本次生成中)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            `;
+            
+            // 临时修改输入框的值，欺骗后续的 fetchAI 函数
+            reqEl.value = finalPrompt;
+        }
+
+        // 调用之前的生成逻辑
+        if (_oldGenFront) {
+            await _oldGenFront();
+        } else {
+            // 如果旧函数不存在（极少情况），这里直接弹窗提示
+            alert("请先加载之前的生成逻辑补丁");
+        }
+
+        // 还原输入框 (让用户界面保持整洁，不显示那一大坨文件内容)
+        if (window.frontendStyleGuide) {
+            reqEl.value = originalReq;
+        }
+    };
+
+})();
+
+/* ================= ✅ V25.2 补丁：设定确认按钮 & 流程优化 ================= */
+(function() {
+    console.log("🚀 执行 V25.2：添加【确定设定】按钮，移除自动弹窗...");
+
+    // ================= 1. 定义核心逻辑：点击确定后做什么 =================
+    window.confirmDescAndGenLore = function() {
+        var desc = document.getElementById('cardDesc').value.trim();
+        var name = document.getElementById('cardName').value.trim();
+
+        // 1. 校验
+        if (desc.length < 10) {
+            alert("⚠️ 详细设定太短了，请先生成或手写一点内容吧！");
+            return;
+        }
+
+        // 2. 视觉反馈 (闪烁一下表示确认)
+        var descBox = document.getElementById('cardDesc');
+        var oldBg = descBox.style.backgroundColor;
+        descBox.style.transition = "background 0.3s";
+        descBox.style.backgroundColor = "#d4edda"; // 变绿
+        setTimeout(() => descBox.style.backgroundColor = oldBg, 500);
+
+        // 3. 询问流程
+        if (confirm(`✅ 设定已确认！\n\n是否立即基于【${name}】的这段设定，生成专属的【人设世界书】(World Info)？\n\n(这将把外貌、性格存入世界书，防止AI遗忘)`)) {
+            
+            // A. 跳转到世界书页
+            if(typeof switchCardTab === 'function') switchCardTab('world');
+            
+            // B. 自动填入精准指令
+            // 既然已经确认了设定，我们就把这段设定作为“绝对真理”喂给 AI
+            var prompt = `
+请基于以下【经过确认的详细设定】，生成一个【人物专属 World Info 条目】。
+
+【角色名】：${name}
+【详细设定】：${desc.substring(0, 800)}...
+
+要求：
+1. Comment (备注) 填 "${name} - 核心设定"。
+2. Keys (触发词) 填 "${name}, 你, 我, ${name}的名字"。
+3. Content (内容) 请提炼设定中的【外貌特征】、【性格关键词】、【重要身世】，合并成一段精简的描述。
+`;
+            document.getElementById('aiWorldPrompt').value = prompt;
+            
+            // C. 滚动到生成区
+            document.getElementById('aiWorldPrompt').scrollIntoView({behavior: "smooth", block: "center"});
+
+            // D. 自动执行生成
+            if(typeof generateWorldEntry === 'function') {
+                // 稍微延迟一下，让用户看到跳转过程
+                if(window.auth && window.auth.toast) window.auth.toast('🚀 正在跳转并生成...');
+                setTimeout(generateWorldEntry, 800);
+            }
+        }
+    };
+
+    // ================= 2. UI 注入：添加按钮 =================
+    function injectConfirmBtn() {
+        var descBox = document.getElementById('cardDesc');
+        if (!descBox) return;
+
+        // 防止重复添加
+        if (document.getElementById('btnConfirmDesc')) return;
+
+        // 创建按钮容器 (放在 textarea 下面)
+        var btnContainer = document.createElement('div');
+        btnContainer.style.marginTop = "5px";
+        btnContainer.style.marginBottom = "15px";
+        btnContainer.style.textAlign = "right"; // 靠右放
+
+        // 创建按钮
+        var btn = document.createElement('button');
+        btn.id = 'btnConfirmDesc';
+        btn.className = 'small-btn'; 
+        btn.innerHTML = "✅ 确定设定 (并生成世界书)";
+        // 样式：绿色醒目
+        btn.style.cssText = "background:linear-gradient(135deg, #00b894, #00cec9); color:white; border:none; padding:8px 20px; border-radius:20px; font-weight:bold; cursor:pointer; box-shadow:0 2px 5px rgba(0,0,0,0.1);";
+        
+        btn.onclick = window.confirmDescAndGenLore;
+
+        btnContainer.appendChild(btn);
+
+        // 插入到 textarea 后面
+        // 如果 textarea 后面有二次编辑框 (refineArea)，插在编辑框后面更合理
+        var refineBox = document.getElementById('refineArea_desc');
+        if (refineBox) {
+            refineBox.parentNode.insertBefore(btnContainer, refineBox.nextSibling);
+        } else {
+            descBox.parentNode.insertBefore(btnContainer, descBox.nextSibling);
+        }
+    }
+
+    // 立即执行注入，并启动定时器防止被页面重绘覆盖
+    injectConfirmBtn();
+    setInterval(injectConfirmBtn, 2000);
+
+
+    // ================= 3. 逻辑覆盖：移除 V25.0 的自动弹窗 =================
+    // 我们重写 autoGenDesc，去掉最后的 confirm 逻辑，只保留生成逻辑
+    
+    window.autoGenDesc = async function() {
+        var name = document.getElementById('cardName').value.trim();
+        if (!name) { 
+            if(window.auth && window.auth.toast) window.auth.toast('先给角色起个名字吧！'); 
+            return; 
+        }
+        
+        // 获取标签
+        var tagStr = "无";
+        if(window.currentSelectedTags) {
+            var allTags = [
+                ...window.currentSelectedTags.identity, 
+                ...window.currentSelectedTags.personality, 
+                ...window.currentSelectedTags.trope
+            ];
+            tagStr = allTags.join('、');
+        }
+
+        var config = window.aiConfig || JSON.parse(localStorage.getItem('my_ai_config'));
+        if (!config || !config.apiKey) { 
+            if(window.auth && window.auth.toast) window.auth.toast('⚠️ 未填API Key');
+            // 没key也显示编辑框，方便手动写
+            var refineBox = document.getElementById('refineArea_desc');
+            if(refineBox) refineBox.style.display = 'block';
+            return; 
+        }
+
+        var btn = event.target;
+        var oldText = btn.innerText;
+        btn.innerText = '✍️ 正在写...'; btn.style.pointerEvents = 'none';
+
+        var prompt = `我是创造者。请为角色【${name}】写一段“详细设定”。
+        【强制要求】：必须基于这些属性生成：${tagStr}。
+        包含外貌、性格、身世。300字左右。直接输出纯文本。`;
+
+        try {
+            var res = await fetchAI(prompt, config);
+            var cleanText = res.replace(/```/g, '').trim();
+            
+            // 填入
+            document.getElementById('cardDesc').value = cleanText;
+            
+            // 存入缓存
+            if (!window.lastGeneratedData) window.lastGeneratedData = {};
+            window.lastGeneratedData.desc = cleanText;
+            
+            // 显示二次编辑框
+            var refineBox = document.getElementById('refineArea_desc');
+            if(refineBox) refineBox.style.display = 'block';
+
+            if(typeof updateJsonSource === 'function') updateJsonSource();
+            
+            // 🔥 核心修改：这里不再弹窗，而是提示用户去点确定
+            if(window.auth && window.auth.toast) window.auth.toast('✅ 设定生成完毕！请检查内容，满意后点击【确定设定】');
+            
+            // 高亮确定按钮，引导用户
+            var confirmBtn = document.getElementById('btnConfirmDesc');
+            if(confirmBtn) {
+                confirmBtn.innerHTML = "✨ 请点击此处确认";
+                confirmBtn.style.transform = "scale(1.1)";
+                setTimeout(() => {
+                    confirmBtn.innerHTML = "✅ 确定设定 (并生成世界书)";
+                    confirmBtn.style.transform = "scale(1)";
+                }, 2000);
+            }
+
+        } catch (e) {
+            console.error(e);
+            if(window.auth && window.auth.toast) window.auth.toast('❌ 生成出错，请重试');
+        } finally {
+            btn.innerText = oldText; btn.style.pointerEvents = 'auto';
+        }
+    };
+
+})();
+
+/* ================= 🔓 V26.0 补丁：无门槛召唤军师 ================= */
+(function() {
+    console.log("🚀 执行 V26.0：已移除军师打开限制，允许空卡操作...");
+
+    // 1. 覆盖：强制打开军师窗口 (无视字数，无视内容)
+    window.forceOpenAdvisor = function() {
+        var box = document.getElementById('aiAdvisorBox');
+        if (!box) {
+            alert("❌ 错误：找不到军师窗口 (id='aiAdvisorBox')");
+            return;
+        }
+
+        // 强制显示
+        box.style.display = 'flex';
+        
+        // 如果加载了 V25.0 的菜单功能，直接显示菜单
+        if (typeof showAdvisorMenu === 'function') {
+            showAdvisorMenu();
+        } else {
+            // 保底逻辑
+            var chat = document.getElementById('advisorChat');
+            chat.innerHTML = `<div class="advisor-bubble">🧠 军师已就位。请问主公有何吩咐？</div>`;
+        }
+        
+        // 视觉反馈
+        if(window.auth && window.auth.toast) window.auth.toast('🧠 军师已就位 (无门槛模式)');
+    };
+
+    // 2. 覆盖：旧的分析入口 (防止旧代码阻拦)
+    window.analyzeCardNeeds = function() {
+        // 直接转接到强制打开函数
+        window.forceOpenAdvisor();
+    };
+
+    // 3. 覆盖：自动检测入口
+    window.checkAndOpenAdvisor = function(isForce) {
+        // 如果是强制 (isForce)，或者窗口已经是开着的，就刷新一下
+        // 如果是自动检测 (比如刚生成完设定)，我们不再强制弹窗，以免打扰你手动操作
+        // 这里主要服务于“一键生成”后的逻辑
+        var box = document.getElementById('aiAdvisorBox');
+        if (isForce && box) {
+            box.style.display = 'flex';
+        }
+    };
+
+    // 4. 确保按钮绑定了新的无门槛函数
+    // 每秒检查一次，防止被其他补丁覆盖回去
+    setInterval(function() {
+        var btn = document.querySelector('button[onclick*="forceOpenAdvisor"]'); 
+        // 也就是那个“🧠 召唤军师”按钮
+        if (btn && btn.onclick !== window.forceOpenAdvisor) {
+            btn.onclick = window.forceOpenAdvisor;
+        }
+    }, 1000);
+
+    console.log("✅ 限制已解除：现在可以先开军师，再写人设了");
+
+})();
+
+/* ================= 📐 V28.0 补丁：按钮归位修正 (修复标签错位) ================= */
+(function() {
+    console.log("🚀 执行 V28.0：正在将按钮融合进标题栏...");
+
+    // 1. 核心逻辑 (保持不变)
+    window.confirmDescAndGenLore = function(e) {
+        // 防止点击穿透触发其他标签点击事件
+        if(e) e.stopPropagation(); 
+
+        var desc = document.getElementById('cardDesc').value.trim();
+        var name = document.getElementById('cardName').value.trim();
+
+        if (desc.length < 10) {
+            alert("⚠️ 详细设定太短了，请先生成或手写一点内容吧！");
+            return;
+        }
+
+        // 视觉反馈
+        var descBox = document.getElementById('cardDesc');
+        var oldBg = descBox.style.backgroundColor;
+        descBox.style.transition = "background 0.3s";
+        descBox.style.backgroundColor = "#d4edda"; 
+        setTimeout(() => descBox.style.backgroundColor = oldBg, 500);
+
+        if (confirm(`✅ 设定已确认！\n\n是否立即基于【${name}】的这段设定，生成专属的【人设世界书】(World Info)？`)) {
+            if(typeof switchCardTab === 'function') switchCardTab('world');
+            var prompt = `请基于以下【经过确认的详细设定】，生成一个【人物专属 World Info 条目】。\n【角色名】：${name}\n【详细设定】：${desc.substring(0, 800)}...\n要求：\n1. Comment 填 "${name} - 核心设定"。\n2. Keys 填 "${name}, 你, 我"。\n3. Content 提炼外貌、性格、身世。`;
+            var promptEl = document.getElementById('aiWorldPrompt');
+            if(promptEl) { promptEl.value = prompt; promptEl.scrollIntoView({behavior: "smooth", block: "center"}); }
+            if(typeof generateWorldEntry === 'function') {
+                if(window.auth && window.auth.toast) window.auth.toast('🚀 正在跳转并生成...');
+                setTimeout(generateWorldEntry, 800);
+            }
+        }
+    };
+
+    // 2. UI 注入：融合进 Label
+    function fixButtonPosition() {
+        var descBox = document.getElementById('cardDesc');
+        if (!descBox) return;
+
+        // A. 找到 Label (通常是输入框的前一个元素)
+        var label = descBox.previousElementSibling;
+        
+        // 如果前一个不是 label (可能被之前的补丁插了别的东西)，尝试往上找找
+        if (!label || label.tagName !== 'LABEL') {
+            // 如果父级是 field-group，那 label 应该是父级的第一个子元素
+            if (descBox.parentNode.className.includes('field-group') || descBox.parentNode.className.includes('wrapper')) {
+                label = descBox.parentNode.querySelector('label');
+            }
+        }
+
+        if (!label) return; // 找不到标签就算了，防止报错
+
+        // B. 清理旧按钮 (不论在哪里)
+        var oldBtn = document.getElementById('btnConfirmDesc');
+        if (oldBtn) oldBtn.remove();
+        // 清理旧的容器 (V27产生的 flex 容器)
+        var prev = descBox.previousElementSibling;
+        if (prev && prev.tagName === 'DIV' && prev.style.display === 'flex' && !prev.classList.contains('field-group-fixed')) {
+            prev.remove();
+        }
+
+        // C. 创建新按钮
+        var btn = document.createElement('span'); // 用 span 防止换行
+        btn.id = 'btnConfirmDesc';
+        btn.innerHTML = "✅ 确定设定 (并生成世界书)";
+        btn.style.cssText = "float: right; font-size: 11px; background: #00b894; color: white; padding: 2px 10px; border-radius: 10px; cursor: pointer; font-weight: bold; margin-left: 10px; transform: translateY(-2px);";
+        btn.onclick = window.confirmDescAndGenLore;
+
+        // D. 插入到 Label 内部
+        // 确保 Label 是块级或 flex，能容纳浮动或右对齐
+        label.style.display = "block"; 
+        label.style.width = "100%";
+        
+        // 重置一下 Label 文字，防止重复添加
+        // 这里假设原来的文字是 "📝 详细设定 (Description)"
+        // 我们只保留文本节点，去掉旧的子元素
+        var textOnly = label.innerText.replace("✅ 确定设定 (并生成世界书)", "").trim();
+        label.innerHTML = textOnly; 
+        
+        // 插入按钮
+        label.appendChild(btn);
+    }
+
+    // 立即执行 & 循环检查 (防止被重绘覆盖)
+    fixButtonPosition();
+    setInterval(fixButtonPosition, 2000);
+
+})();
+
+/* ================= 🔧 V29.0 补丁：修复“添加分类无效”问题 ================= */
+(function() {
+    console.log("🚀 执行 V29.0：正在重构分类渲染引擎...");
+
+    // 1. 确保数据源存在
+    if (!window.wizardData) {
+        window.wizardData = JSON.parse(localStorage.getItem('my_wizard_data_v2')) || {
+            identity: { title: "1. 身份/种族", tags: ["皇子", "摄政王", "魔尊", "师尊"] },
+            personality: { title: "2. 性格特点", tags: ["疯批", "清冷", "腹黑", "傲娇"] },
+            trope: { title: "3. 萌点/外貌", tags: ["白毛", "眼镜", "西装", "伤痕"] }
+        };
+    }
+
+    // 2. 覆盖：渲染单个标签组 (增强健壮性)
+    window.renderSingleGroup = function(key) {
+        var data = window.wizardData[key];
+        // 容错：如果数据坏了，给个默认值
+        if (!data) return;
+
+        // 计算 ID：例如 custom_123 -> tagGroupCustom_123
+        var containerId = 'tagGroup' + key.charAt(0).toUpperCase() + key.slice(1);
+        var titleId = 'title_' + key;
+
+        // A. 检查容器是否存在，不存在就创建
+        var container = document.getElementById(containerId);
+        if (!container) {
+            // 找到父容器
+            var wizardBox = document.querySelector('.wizard-box');
+            if (!wizardBox) return;
+
+            // 找到插入锚点：插在“添加分类”按钮前面
+            var anchor = document.getElementById('btnAddCategory') || document.getElementById('btnOneClickGen');
+
+            // 创建标题栏
+            var titleDiv = document.createElement('div');
+            titleDiv.id = titleId;
+            titleDiv.className = 'tag-group-title';
+            titleDiv.onclick = function() { editWizardTitle(key); };
+            titleDiv.innerHTML = `${data.title} <span onclick="event.stopPropagation(); addCustomWizardTag('${key}')" style="font-size:12px; color:#6c5ce7; cursor:pointer; margin-left:10px; border:1px solid #6c5ce7; border-radius:4px; padding:0 4px; background:white;">+加标签</span>`;
+
+            // 创建标签容器
+            container = document.createElement('div');
+            container.id = containerId;
+            container.className = 'tag-select-container';
+
+            // 插入 DOM
+            if (anchor) {
+                wizardBox.insertBefore(titleDiv, anchor);
+                wizardBox.insertBefore(container, anchor);
+            } else {
+                wizardBox.appendChild(titleDiv);
+                wizardBox.appendChild(container);
+            }
+        } else {
+            // 如果容器已存在，更新一下标题（防止改名后不刷新）
+            var titleEl = document.getElementById(titleId);
+            if (titleEl) {
+                titleEl.innerHTML = `${data.title} <span onclick="event.stopPropagation(); addCustomWizardTag('${key}')" style="font-size:12px; color:#6c5ce7; cursor:pointer; margin-left:10px; border:1px solid #6c5ce7; border-radius:4px; padding:0 4px; background:white;">+加标签</span>`;
+            }
+        }
+
+        // B. 渲染标签内容
+        container.innerHTML = ''; // 清空旧的
+        
+        // 确保 tags 是数组
+        if (!Array.isArray(data.tags)) data.tags = [];
+
+        data.tags.forEach((t, idx) => {
+            var span = document.createElement('span');
+            span.className = 'wizard-tag';
+            span.innerText = t;
+
+            // 恢复选中状态 (使用全局选中数据)
+            if (!window.currentSelectedTags) window.currentSelectedTags = {};
+            if (!window.currentSelectedTags[key]) window.currentSelectedTags[key] = [];
+            
+            if (window.currentSelectedTags[key].includes(t)) {
+                span.classList.add('selected');
+            }
+
+            // 删除按钮
+            var delBtn = document.createElement('span');
+            delBtn.className = 'tag-delete-btn';
+            delBtn.innerText = '×';
+            delBtn.onclick = function(e) { e.stopPropagation(); deleteWizardTag(key, idx); };
+            span.appendChild(delBtn);
+
+            // 点击逻辑
+            span.onclick = function(e) {
+                if(e.target === delBtn) return;
+                this.classList.toggle('selected');
+                if (this.classList.contains('selected')) {
+                    if (!window.currentSelectedTags[key].includes(t)) window.currentSelectedTags[key].push(t);
+                } else {
+                    window.currentSelectedTags[key] = window.currentSelectedTags[key].filter(item => item !== t);
+                }
+            };
+            container.appendChild(span);
+        });
+    };
+
+    // 3. 覆盖：主渲染函数 (遍历所有 Key)
+    window.renderWizardTags = function() {
+        // 遍历所有数据中的 Key
+        Object.keys(window.wizardData).forEach(key => {
+            renderSingleGroup(key);
+        });
+        
+        // 确保“添加分类”按钮存在且在最下方
+        injectCategoryBtn();
+    };
+
+    // 4. 修复：注入添加按钮 (确保它永远在最下面)
+    function injectCategoryBtn() {
+        var box = document.querySelector('.wizard-box');
+        if (!box) return;
+
+        var btn = document.getElementById('btnAddCategory');
+        // 如果没有，创建它
+        if (!btn) {
+            btn = document.createElement('div');
+            btn.id = 'btnAddCategory';
+            btn.innerHTML = "➕ 添加新分类 (如: 缺点/雷点)";
+            btn.style.cssText = "text-align:center; padding:10px; border:2px dashed #ddd; border-radius:10px; color:#aaa; cursor:pointer; margin-top:15px; margin-bottom:10px; font-size:12px; font-weight:bold; transition:0.2s;";
+            btn.onmouseover = function(){ this.style.borderColor = '#6c5ce7'; this.style.color = '#6c5ce7'; };
+            btn.onmouseout = function(){ this.style.borderColor = '#ddd'; this.style.color = '#aaa'; };
+            
+            // 🔥 绑定点击事件
+            btn.onclick = function() {
+                var catName = prompt("请输入新分类名称 (例如：缺点、雷点、特殊癖好):");
+                if (catName && catName.trim() !== "") {
+                    // 生成唯一 Key
+                    var newKey = 'custom_' + Date.now();
+                    // 写入数据
+                    window.wizardData[newKey] = { 
+                        title: `${Object.keys(window.wizardData).length + 1}. ${catName.trim()}`, 
+                        tags: [] 
+                    };
+                    // 初始化选中数组
+                    if(!window.currentSelectedTags) window.currentSelectedTags = {};
+                    window.currentSelectedTags[newKey] = [];
+
+                    // 保存
+                    localStorage.setItem('my_wizard_data_v2', JSON.stringify(window.wizardData));
+                    
+                    // 刷新界面
+                    renderWizardTags();
+                    
+                    auth.toast(`✅ 分类【${catName}】已添加`);
+                    
+                    // 自动滚动到底部，让你看到新加的
+                    setTimeout(() => {
+                        var newTitle = document.getElementById('title_' + newKey);
+                        if(newTitle) newTitle.scrollIntoView({behavior: "smooth", block: "center"});
+                    }, 300);
+                }
+            };
+            
+            // 插在“一键生成”按钮之前，或者最后
+            var genBtn = document.getElementById('btnOneClickGen');
+            if (genBtn) box.insertBefore(btn, genBtn);
+            else box.appendChild(btn);
+        } else {
+            // 如果已经存在，确保它在正确的位置 (所有标签组之后)
+            // 简单粗暴：重新插一次到 genBtn 之前
+            var genBtn = document.getElementById('btnOneClickGen');
+            if (genBtn) box.insertBefore(btn, genBtn);
+            else box.appendChild(btn);
+        }
+    }
+
+    // 5. 立即执行一次渲染
+    setTimeout(renderWizardTags, 500);
+
+})();
+
+/* ================= 🧠 V30.0 补丁：军师菜单强制修复 ================= */
+(function() {
+    console.log("🚀 执行 V30.0：正在强制恢复军师的 4 种模式选项...");
+
+    // 1. 确保状态对象存在
+    if (!window.advisorState) {
+        window.advisorState = { mode: 'menu', multiChars: [] };
+    }
+
+    // 2. 🔥 核心：强制重写“显示菜单”函数 (防止 V25 丢失)
+    window.showAdvisorMenu = function() {
+        var box = document.getElementById('aiAdvisorBox');
+        if(box) box.style.display = 'flex';
+        
+        var chat = document.getElementById('advisorChat');
+        
+        // 菜单 HTML (四个选项)
+        var menuHtml = `
+            <div class="advisor-bubble" style="background:#f3f0ff;">
+                <b>🧠 军师已就位，请选择模式：</b>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-top:10px;">
+                    <button class="advisor-tool-btn" onclick="setAdvisorMode('normal')" style="background:#e8f5e9; color:#2e7d32;">🟢 1. 普通模式</button>
+                    <button class="advisor-tool-btn" onclick="setAdvisorMode('pro')" style="background:#ffebee; color:#c62828;">🔴 2. 专家模式</button>
+                    <button class="advisor-tool-btn" onclick="initMultiCharUI()" style="background:#e3f2fd; color:#1565c0;">👥 3. 多人模式</button>
+                    <button class="advisor-tool-btn" onclick="initWorldViewMode()" style="background:#fff3e0; color:#ef6c00;">🌏 4. 世界观模式</button>
+                </div>
+                <div style="margin-top:8px; font-size:10px; color:#999; text-align:center;">
+                    (点击上方按钮切换功能)
+                </div>
+            </div>
+        `;
+        chat.innerHTML = menuHtml;
+        window.advisorState.mode = 'menu';
+        
+        // 顺便更新输入框提示，让它看起来是“待命”状态
+        var input = document.getElementById('advisorInput');
+        if(input) {
+            input.placeholder = "请先点击上方按钮选择模式...";
+            input.value = "";
+        }
+    };
+
+    // 3. 🔥 覆盖：强制打开军师 (直接调用上面的菜单函数)
+    window.forceOpenAdvisor = function() {
+        var box = document.getElementById('aiAdvisorBox');
+        if (!box) {
+            alert("❌ 错误：找不到军师窗口 (id='aiAdvisorBox')");
+            return;
+        }
+        // 1. 显示窗口
+        box.style.display = 'flex';
+        // 2. 强制渲染菜单 (不再做任何检查，直接渲染)
+        window.showAdvisorMenu();
+    };
+
+    // 4. 补全：模式切换逻辑 (防止 V25 没加载导致按钮点不动)
+    window.setAdvisorMode = function(mode) {
+        window.advisorState.mode = mode;
+        window.advisorMode = mode; // 兼容全局变量
+        
+        var chat = document.getElementById('advisorChat');
+        var input = document.getElementById('advisorInput');
+        
+        if (mode === 'normal') {
+            chat.innerHTML += `<div class="advisor-bubble" style="background:#e8f5e9; color:#2e7d32;">🟢 <b>已切换：普通模式</b><br>我可以帮您构思人设、润色文案、提供建议。<br>请直接在下方输入您的想法。</div>`;
+            input.placeholder = "🟢 普通模式：聊聊你的人设想法...";
+            input.style.border = "2px solid #6c5ce7";
+        } else if (mode === 'pro') {
+            chat.innerHTML += `<div class="advisor-bubble" style="background:#ffebee; color:#c62828;">🔴 <b>已切换：专家模式</b><br>拥有最高权限，可以直接修改当前页面的任何代码或设定。<br>请输入修改指令。</div>`;
+            input.placeholder = "🔴 专家模式：输入指令修改代码...";
+            input.style.border = "2px solid #e17055";
+        }
+        chat.scrollTop = chat.scrollHeight;
+    };
+
+    // 5. 补全：世界观模式入口
+    window.initWorldViewMode = function() {
+        window.advisorState.mode = 'world_view';
+        var chat = document.getElementById('advisorChat');
+        chat.innerHTML = `
+            <div class="advisor-bubble" style="background:#fff3e0; color:#ef6c00;">
+                <b>🌏 世界观构建模式</b><br>
+                请在下方输入框告诉我，你想要什么样的世界观？<br>
+                (例如：赛博朋克+修仙，或者是克苏鲁风格的校园)<br>
+                我会为您生成 3 个详细方案。
+            </div>
+        `;
+        var input = document.getElementById('advisorInput');
+        input.placeholder = "🌏 输入世界观关键词...";
+        input.style.border = "2px solid #ef6c00";
+    };
+
+    // 6. 补全：多人模式入口
+    window.initMultiCharUI = function() {
+        // 弹窗询问
+        var count = prompt("👥 多人模式：请输入角色人数 (例如: 3):");
+        if (!count) return;
+        var namesStr = prompt("请输入所有人的名字 (用逗号分隔，如: 张三, 李四):");
+        if (!namesStr) return;
+        
+        var names = namesStr.split(/[,，]/).map(n => n.trim()).filter(n => n);
+        window.advisorState.mode = 'multi';
+        window.advisorState.multiChars = names;
+        
+        var chat = document.getElementById('advisorChat');
+        // 生成按钮列表
+        var btns = names.map(name => {
+            return `<button class="advisor-action-btn" onclick="generateCharSettings('${name}')">👤 生成【${name}】的设定</button>`;
+        }).join('');
+        
+        chat.innerHTML = `
+            <div class="advisor-bubble" style="background:#e3f2fd;">
+                <b>👥 多人模式已开启</b><br>
+                当前队列：${names.join(', ')}<br>
+                请点击下方按钮，逐个生成：
+                ${btns}
+            </div>
+        `;
+    };
+
+    // 7. 绑定：确保按钮 onclick 指向新的 forceOpenAdvisor
+    // 自动修复页面上所有写着“召唤军师”的按钮
+    setTimeout(function() {
+        var allBtns = document.querySelectorAll('button');
+        allBtns.forEach(btn => {
+            if (btn.innerText.includes('召唤军师')) {
+                btn.onclick = window.forceOpenAdvisor;
+            }
+        });
+        
+        // 如果是从分析函数进来的，也强制显示菜单
+        window.analyzeCardNeeds = window.forceOpenAdvisor;
+        
+    }, 1000);
+
+    console.log("✅ 军师菜单已修复：点击按钮将直接显示 4 选项");
+
+})();
+
+/* ================= 👥 V31.1 补丁：多人模式交互修复版 ================= */
+(function() {
+    console.log("🚀 执行 V31.1：多人模式改为【聊天框交互】...");
+
+    // 1. 定义一个全局变量，记录当前正在等待谁的要求
+    window.pendingMultiCharName = null;
+
+    // 2. 覆盖：点击生成按钮后的逻辑
+    window.generateCharSettings = function(name) {
+        // A. 记录当前要生成的角色名
+        window.pendingMultiCharName = name;
+
+        // B. 预填名字框 (为了预览方便)
+        var nameInput = document.getElementById('cardName');
+        if (nameInput) nameInput.value = name;
+
+        // C. 在聊天框提示用户
+        var chat = document.getElementById('advisorChat');
+        var input = document.getElementById('advisorInput');
+        
+        chat.innerHTML += `
+            <div class="advisor-bubble" style="background:#e3f2fd; border-left:4px solid #2196f3;">
+                <b>👤 正在构思角色：${name}</b><br>
+                请在下方输入框告诉我，您对【${name}】有什么具体要求？<br>
+                <small style="color:#666;">(例如：高冷剑客、病娇妹妹... 如果没要求请直接回复“无”)</small>
+            </div>
+        `;
+        chat.scrollTop = chat.scrollHeight;
+
+        // D. 聚焦输入框并修改提示词
+        if (input) {
+            input.placeholder = `👉 请输入对【${name}】的设定要求...`;
+            input.focus();
+            // 视觉高亮
+            input.style.border = "2px solid #2196f3";
+        }
+    };
+
+    // 3. 拦截发送消息逻辑 (核心)
+    // 我们需要拦截 sendAdvisorMsg，优先处理“正在输入要求”的情况
+    var _originalSend = window.sendAdvisorMsg;
+
+    window.sendAdvisorMsg = async function() {
+        // 检查是否有正在等待的角色
+        if (window.pendingMultiCharName) {
+            var input = document.getElementById('advisorInput');
+            var text = input.value.trim();
+            if (!text) return;
+
+            // --- 这里的逻辑是处理“多人模式生成请求” ---
+            
+            // 1. 用户消息上屏
+            var chat = document.getElementById('advisorChat');
+            chat.innerHTML += `<div style="text-align:right; margin:5px 0; color:#1565c0; font-size:12px; padding:5px; background:#e3f2fd; border-radius:8px; display:inline-block; margin-left:auto;">${text}</div><div style="clear:both;"></div>`;
+            input.value = '';
+            
+            // 恢复输入框样式
+            input.placeholder = "等待指令...";
+            input.style.border = "";
+
+            // 2. 锁定名字并清除标记 (防止后续消息误触)
+            var targetName = window.pendingMultiCharName;
+            window.pendingMultiCharName = null;
+
+            // 3. 开始生成
+            chat.insertAdjacentHTML('beforeend', `<div id="multi-loading" class="ai-loading">🧠 收到要求："${text}"<br>正在生成设定...</div>`);
+            chat.scrollTop = chat.scrollHeight;
+
+            var config = window.aiConfig || JSON.parse(localStorage.getItem('my_ai_config'));
+            if (!config || !config.apiKey) {
+                alert("请先配置 API Key");
+                document.getElementById('multi-loading').remove();
+                return;
+            }
+
+            var prompt = `
+            我是创造者。
+            请为多人剧本中的角色【${targetName}】写一段详细设定(500字)。
+            
+            【用户强制要求】：
+            ${text}
+            
+            请直接输出纯文本设定，包含外貌、性格、身世。不要代码块，不要解释。
+            `;
+
+            try {
+                var res = await fetchAI(prompt, config);
+                var cleanText = res.replace(/```/g, '').trim();
+                
+                document.getElementById('multi-loading').remove();
+
+                // 4. 填入设定框
+                document.getElementById('cardDesc').value = cleanText;
+                
+                // 5. 显示完成气泡 & 确定按钮
+                chat.innerHTML += `
+                    <div class="advisor-bubble">
+                        ✅ 【${targetName}】设定已填入左侧！<br>
+                        <button class="advisor-action-btn" onclick="confirmCharAndGenLore('${targetName}')">
+                            💾 确定 (并生成专属世界书)
+                        </button>
+                    </div>
+                `;
+                chat.scrollTop = chat.scrollHeight;
+
+                // 自动跳转预览页
+                if(typeof switchCardTab === 'function') switchCardTab('preview');
+
+            } catch (e) {
+                console.error(e);
+                if(document.getElementById('multi-loading')) document.getElementById('multi-loading').remove();
+                chat.innerHTML += `<div class="advisor-bubble">❌ 生成失败：${e.message}</div>`;
+            }
+
+            return; // 🔥 拦截结束，不执行原来的逻辑
+        }
+
+        // 如果没有等待输入的角色，执行原来的逻辑 (普通模式/专家模式/世界观模式)
+        if (_originalSend) _originalSend();
+    };
+
+    console.log("✅ 多人模式聊天交互已就绪");
+
+})();
+
+
 // ================= 👑 写卡器代码结束 =================
 
 // =================🎮联机代码开始=================
