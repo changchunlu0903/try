@@ -22690,6 +22690,216 @@ ${styleGuideContent.substring(0, 3000)}
 
 })();
 
+/* ================= 🎨 V59.0 补丁：UI/世界书分离与定向生成系统 ================= */
+(function() {
+    console.log("🚀 执行 V59.0：已切断美化自动关联，新增定向生成按钮...");
+
+    // 1. 覆盖：应用美化 (applyBeautify)
+    // 🔥 彻底移除任何“生成世界书”的副作用，只做纯粹的 UI 替换
+    window.applyBeautify = function(encCode, encRegex) {
+        var code = decodeURIComponent(encCode);
+        var regex = decodeURIComponent(encRegex);
+        
+        // A. 切换到前端页
+        if(typeof switchCardTab === 'function') switchCardTab('regex');
+        if(typeof switchRegexUI === 'function') switchRegexUI('frontend');
+        
+        // B. 填入代码
+        document.getElementById('frontReplace').value = code;
+        document.getElementById('frontPattern').value = regex;
+        
+        // C. 自动填测试词 (提取正则里的关键词)
+        var rawKey = regex.replace(/^\//, '').replace(/\/g[im]*$/, '').replace(/\\/g, '').replace(/\[|\]/g, '');
+        document.getElementById('regexTestInput').value = rawKey;
+        
+        // D. 运行测试
+        if(typeof runRegexTest === 'function') runRegexTest();
+        if(typeof syncStatToNote === 'function') syncStatToNote();
+
+        // E. 仅提示应用成功，不生成世界书
+        if(window.auth && window.auth.toast) window.auth.toast('✅ UI代码已应用 (如需配套指令，请点聊天框里的生成按钮)');
+    };
+
+    // 2. 新增：生成配套世界书 (generateUIWorldInfo)
+    window.generateUIWorldInfo = async function(encCode, encRegex, btn) {
+        if(btn) {
+            btn.innerHTML = "⏳ 解析逻辑中...";
+            btn.disabled = true;
+        }
+
+        var code = decodeURIComponent(encCode);
+        var regex = decodeURIComponent(encRegex);
+        var styleGuide = window.frontendStyleGuide || ""; // 用户上传的模板
+        var charName = document.getElementById('cardName').value || "Char";
+        var charDesc = document.getElementById('cardDesc').value || "";
+
+        var config = window.aiConfig || JSON.parse(localStorage.getItem('my_ai_config'));
+        if (!config || !config.apiKey) { alert("请先配置 API Key"); return; }
+
+        // 🔥 Prompt：核心逻辑
+        // 只有这里才会使用美化模板 + 代码 + 人设
+        var prompt = `
+        我是酒馆卡作者。
+        我刚刚为角色【${charName}】设计了一套前端 UI 特效。
+        现在需要你写一条 **World Info (世界书)** 条目，作为 System Note 告诉 AI 如何使用这套 UI。
+
+        【输入素材】：
+        1. **美化模板/规范** (Style Template): 
+           ${styleGuide ? styleGuide.substring(0, 2000) : "无 (请根据代码自行分析)"}
+        
+        2. **生成的代码** (Generated Code): 
+           ${code.substring(0, 1000)}...
+           
+        3. **触发正则** (Regex): ${regex}
+        
+        4. **角色设定** (Persona): ${charDesc.substring(0, 300)}...
+
+        【任务要求】：
+        请分析上面的代码和模板逻辑，生成一条**系统指令**。
+        这条指令需要教会 AI：在什么情境下，应该输出什么关键词来触发这个特效。
+        
+        必须返回纯 JSON 对象：
+        {
+            "title": "UI系统 - [功能名]",
+            "keys": ["system", "ui", "display"],
+            "content": "[System Note: When the character is angry, output [STATUS=ANGRY] to trigger the red border effect...]"
+        }
+        注意：Content 必须是具体的指令，指导 AI 何时输出正则关键词。
+        `;
+
+        try {
+            var res = await fetchAI(prompt, config);
+            var cleanJson = res.replace(/```json/g, '').replace(/```/g, '').trim();
+            // 容错处理：有时 AI 会返回数组，有时是对象
+            var data;
+            if (cleanJson.startsWith('[')) {
+                data = JSON.parse(cleanJson)[0];
+            } else {
+                data = JSON.parse(cleanJson);
+            }
+
+            // --- 直接注入世界书 ---
+            if(typeof switchCardTab === 'function') switchCardTab('world');
+
+            var newEntry = {
+                id: Date.now(),
+                comment: "🖥️ UI指令 - " + (data.title || "特效控制"),
+                keys: data.keys || ["ui", "system"],
+                content: data.content,
+                position: 1, // 高优先级
+                enabled: true,
+                constant: true, // 常驻，确保 UI 随时能触发
+                insertion_position: 1
+            };
+
+            if (!window.currentWorldInfo) window.currentWorldInfo = { entries: [] };
+            window.currentWorldInfo.entries.push(newEntry);
+
+            if (typeof renderWorldList === 'function') renderWorldList();
+            if (typeof selectEntry === 'function') selectEntry(window.currentWorldInfo.entries.length - 1);
+
+            if(window.auth && window.auth.toast) window.auth.toast('✅ 配套 UI 世界书已生成！');
+            
+            if(btn) {
+                btn.innerHTML = "✅ 已生成指令";
+                btn.style.background = "#d4edda";
+                btn.style.color = "#155724";
+            }
+
+        } catch (e) {
+            console.error(e);
+            alert("生成失败: " + e.message);
+            if(btn) {
+                btn.innerHTML = "❌ 失败";
+                btn.disabled = false;
+            }
+        }
+    };
+
+    // 3. 覆盖：美化生成逻辑 (runBeautifyGeneration)
+    // 目的：在气泡里增加那个“生成配套世界书”的按钮
+    window.runBeautifyGeneration = async function(text, loadingId) {
+        var chat = document.getElementById('advisorChat');
+        var config = window.aiConfig || JSON.parse(localStorage.getItem('my_ai_config'));
+        var desc = document.getElementById('cardDesc').value || "通用角色";
+
+        // Prompt (保持 V46 的强力版)
+        var styleGuideContent = window.frontendStyleGuide || "";
+        var stylePrompt = "";
+        if (styleGuideContent) {
+            stylePrompt = `【强制参考样式规范】:\n\`\`\`css\n${styleGuideContent.substring(0, 3000)}\n\`\`\``;
+        }
+
+        var prompt = `
+        你是一个前端UI设计师。
+        用户需求：${text}
+        角色设定：${desc.substring(0, 200)}...
+        ${stylePrompt}
+        请设计 3 个 HTML/CSS 方案... (返回 JSON 数组)
+        格式要求：JSON 数组，包含 code, regex, name, desc。
+        `;
+
+        try {
+            var res = await fetchAI(prompt, config);
+            // 使用 V46 的强力清洗引擎 (如果没有定义则用简单的)
+            var data = (window.safeExtractJSON) ? window.safeExtractJSON(res) : JSON.parse(res.replace(/```json/g, '').replace(/```/g, '').trim());
+            
+            if(document.getElementById(loadingId)) document.getElementById(loadingId).remove();
+
+            chat.innerHTML += `<div class="advisor-bubble">✨ 设计完成！先预览，满意后再生成配套指令：</div>`;
+
+            data.forEach((item, idx) => {
+                var safeCode = encodeURIComponent(item.code);
+                var safeRegex = encodeURIComponent(item.regex);
+                var previewId = `preview_box_${Date.now()}_${idx}`;
+
+                chat.innerHTML += `
+                    <div class="advisor-bubble" style="border-left:4px solid #9c27b0; padding:10px;">
+                        <b>🎨 方案 ${idx+1}: ${item.name}</b>
+                        <div style="font-size:11px; color:#666; margin-bottom:5px;">${item.desc}</div>
+                        
+                        <div style="background:#eee; padding:10px; border-radius:5px; margin:5px 0; min-height:60px; overflow:hidden; cursor: zoom-in; border: 1px solid #ccc;"
+                             onclick="window.enlargePreview('${safeCode}')">
+                            <div id="${previewId}" style="pointer-events: none; transform: scale(0.8); transform-origin: top left; width: 125%;"></div>
+                        </div>
+
+                        <div style="display:flex; flex-direction:column; gap:5px;">
+                            <div style="display:flex; gap:5px;">
+                                <button class="advisor-action-btn" style="flex:1; background:#e1bee7; color:#4a148c;" onclick="applyBeautify('${safeCode}', '${safeRegex}')">
+                                    ✅ 应用 UI 代码
+                                </button>
+                                <button class="advisor-action-btn" style="flex:1; background:#fff; border:1px solid #999; color:#555;" onclick="refineBeautify('${safeCode}', '${item.name}')">
+                                    🔧 提意见
+                                </button>
+                            </div>
+                            <button class="advisor-action-btn" style="background:#fff3e0; color:#e65100; border:1px solid #ffe0b2; font-size:11px;" 
+                                    onclick="generateUIWorldInfo('${safeCode}', '${safeRegex}', this)">
+                                🌍 生成配套世界书 (AI指令)
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                setTimeout(() => {
+                    var container = document.getElementById(previewId);
+                    if(container) {
+                        if (!container.shadowRoot) container.attachShadow({mode: 'open'});
+                        container.shadowRoot.innerHTML = item.code;
+                    }
+                }, 100);
+            });
+            chat.scrollTop = chat.scrollHeight;
+
+        } catch(e) {
+            console.error(e);
+            if(document.getElementById(loadingId)) document.getElementById(loadingId).remove();
+            chat.innerHTML += `<div class="advisor-bubble">❌ 生成失败: ${e.message}</div>`;
+        }
+    };
+
+    console.log("✅ V59.0：美化模式已升级为【手动配套生成】");
+
+})();
 
 
 /* ================= 📦 V50.0 补丁：防卡死双导出系统 (强制复位版) ================= */
