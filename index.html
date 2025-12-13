@@ -22764,7 +22764,7 @@ window.openAISettings = function() {
 
 })();
 
-        /* ================= 🧬 V73.0 补丁：详细设定 -> 世界书 (1:1 镜像克隆版) ================= */
+/* ================= 🧬 V73.0 补丁：详细设定 -> 世界书 (1:1 镜像克隆版) ================= */
 (function() {
     console.log("🚀 执行 V73.0：已启用【镜像克隆】模式，设定将原样存入世界书...");
 
@@ -22835,7 +22835,7 @@ window.openAISettings = function() {
 
 })();
 
-        /* ================= 🧬 V74.0 补丁：多人模式 -> 世界书 (1:1 直连克隆版) ================= */
+/* ================= 🧬 V74.0 补丁：多人模式 -> 世界书 (1:1 直连克隆版) ================= */
 (function() {
     console.log("🚀 执行 V74.0：多人模式确认按钮已升级为【直接克隆】...");
 
@@ -22903,7 +22903,197 @@ window.openAISettings = function() {
 
 })();
 
-      
+/* ================= 🧬 V75.0 补丁：文风 & 世界观 -> 世界书 (1:1 直连版) ================= */
+(function() {
+    console.log("🚀 执行 V75.0：已启用全模式【镜像克隆】，拒绝 AI 中间商...");
+
+    // 1. 工具：按钮变绿锁定
+    function lockButton(btn) {
+        if (btn) {
+            btn.innerHTML = "✅ 已归档 (1:1克隆)";
+            btn.style.background = "#d4edda";
+            btn.style.color = "#155724";
+            btn.style.borderColor = "#c3e6cb";
+            btn.disabled = true;
+        }
+    }
+
+    // ================= 🌏 2. 世界观模式：直连写入 =================
+    window.applyWorldView = function(encodedContent, btn) {
+        // 如果是从事件触发，尝试获取按钮
+        if (!btn && event) btn = event.target;
+
+        try {
+            var content = decodeURIComponent(encodedContent);
+            
+            // A. 跳转页面
+            if(typeof switchCardTab === 'function') switchCardTab('world');
+            
+            // B. 直接构建条目 (不调 AI)
+            var newEntry = {
+                id: Date.now(),
+                // 自动提取标题或使用默认
+                comment: "🌏 核心世界观 (镜像)",
+                // 触发词：world, setting, background
+                keys: ["world", "setting", "background", "世界观"], 
+                // 🔥 核心：直接使用原文！
+                content: content, 
+                // 属性：放在最前，常驻生效
+                position: 0, 
+                enabled: true,
+                constant: true, 
+                insertion_position: 0 
+            };
+
+            // C. 注入
+            if (!window.currentWorldInfo) window.currentWorldInfo = { entries: [] };
+            window.currentWorldInfo.entries.push(newEntry);
+
+            // D. 刷新
+            if (typeof renderWorldList === 'function') renderWorldList();
+            if (typeof selectEntry === 'function') selectEntry(window.currentWorldInfo.entries.length - 1);
+
+            // E. 反馈
+            lockButton(btn);
+            if(window.auth && window.auth.toast) window.auth.toast('🌏 世界观已 100% 原样存入！');
+
+        } catch (e) {
+            console.error(e);
+            alert("应用失败: " + e.message);
+        }
+    };
+
+    // ================= ✒️ 3. 文风模式：直连写入 =================
+    window.addStyleToWorld = function(encObj, btn) {
+        if (!btn && event) btn = event.target;
+
+        try {
+            var item = JSON.parse(decodeURIComponent(encObj));
+            
+            // A. 跳转
+            if(typeof switchCardTab === 'function') switchCardTab('world');
+            
+            // B. 直接构建条目 (Style Bible)
+            var newEntry = {
+                id: Date.now(),
+                comment: "✒️ 文风 - " + (item.title || "Style"),
+                // 触发词
+                keys: ["style", "文风", "system", "writing_style"], 
+                // 🔥 核心：直接使用原文！
+                content: item.content || item.prompt, 
+                // 属性：常驻
+                position: 1, 
+                enabled: true,
+                constant: true, 
+                insertion_position: 1
+            };
+            
+            // C. 注入
+            if (!window.currentWorldInfo) window.currentWorldInfo = { entries: [] };
+            window.currentWorldInfo.entries.push(newEntry);
+            
+            // D. 刷新
+            if (typeof renderWorldList === 'function') renderWorldList();
+            if (typeof selectEntry === 'function') selectEntry(window.currentWorldInfo.entries.length - 1);
+            
+            // E. 反馈
+            lockButton(btn);
+            if(window.auth && window.auth.toast) window.auth.toast('✒️ 文风设定已 100% 原样存入！');
+            
+        } catch(e) {
+            console.error(e);
+            alert("注入失败: " + e.message);
+        }
+    };
+
+    console.log("✅ V75.0：所有生成模式均已升级为【直接写入】");
+
+})();
+
+/* ================= 🛠️ V78.0 补丁：世界书“让它改”常驻 (焊死版) ================= */
+(function() {
+    console.log("🚀 执行 V78.0：正在把世界书的修改框焊死...");
+
+    // 1. 定义注入函数
+    function injectWorldRefineBox() {
+        // 找到世界书的内容输入框
+        var contentBox = document.getElementById('wiContent');
+        if (!contentBox) return; // 如果界面还没加载出来，先不管
+
+        // 检查修改框是否已经存在
+        var refineBox = document.getElementById('refineArea_world');
+
+        // 如果不存在，现场造一个
+        if (!refineBox) {
+            console.log("🔨 为世界书打造常驻修改框...");
+            refineBox = document.createElement('div');
+            refineBox.id = 'refineArea_world';
+            
+            // 样式：浅灰色背景，虚线边框，紧贴上方
+            refineBox.style.cssText = "display:block; margin-top:5px; margin-bottom:10px; background:#f5f5f5; padding:8px; border-radius:5px; border:1px dashed #bbb;";
+            
+            // 内部 HTML
+            refineBox.innerHTML = `
+                <div style="display:flex; gap:5px; align-items:center;">
+                    <span style="font-size:12px; color:#e67e22; font-weight:bold;">🔧 润色/扩写:</span>
+                    
+                    <input type="text" id="refineInput_world" class="visual-input" 
+                           placeholder="输入意见 (如: 扩写细节、改为古风...)" 
+                           style="flex:1; padding:5px; font-size:12px;">
+                    
+                    <button class="small-btn" onclick="window.triggerWorldRefine()" 
+                            style="background:#f39c12; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">
+                        🔄 让它改
+                    </button>
+                </div>
+            `;
+
+            // 插入到 contentBox 的后面
+            contentBox.parentNode.insertBefore(refineBox, contentBox.nextSibling);
+        }
+
+        // 🔥 强制显示 (防止被其他逻辑隐藏)
+        refineBox.style.display = 'block';
+    }
+
+    // 2. 定义专属触发函数 (自动读取当前内容)
+    window.triggerWorldRefine = function() {
+        var currentContent = document.getElementById('wiContent').value;
+        if (!currentContent) {
+            alert("⚠️ 还没内容呢，先写点东西或者生成一条吧！");
+            return;
+        }
+
+        // 🔥 关键步骤：欺骗系统，假装这是刚生成的
+        // 这样 refineResult 就能读到它，并让 AI 基于它进行修改
+        if (!window.lastGeneratedData) window.lastGeneratedData = {};
+        
+        // 构造符合结构的数据
+        window.lastGeneratedData.world = {
+            content: currentContent,
+            comment: document.getElementById('wiComment').value,
+            keys: document.getElementById('wiKeys').value.split(',')
+        };
+
+        // 调用通用的修改逻辑
+        if (typeof window.refineResult === 'function') {
+            window.refineResult('world');
+        } else {
+            alert("❌ 核心函数 refineResult 丢失，请检查之前的补丁！");
+        }
+    };
+
+    // 3. 启动巡逻队 (每秒检查一次，确保它一直在)
+    setInterval(injectWorldRefineBox, 1000);
+    
+    // 立即执行一次
+    setTimeout(injectWorldRefineBox, 500);
+
+    console.log("✅ V78.0：世界书修改框已常驻");
+
+})();
+
+
 /* ================= 💾 V49.0 补丁：切换至 IndexedDB 海量存储引擎 ================= */
 (function() {
     console.log("🚀 执行 V49.0：正在迁移至海量数据库 (IndexedDB)...");
