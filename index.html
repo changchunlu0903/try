@@ -23093,6 +23093,166 @@ window.openAISettings = function() {
 
 })();
 
+/* ================= 🎨 V79.0 补丁：批量渲染引擎 (修复预览重复) ================= */
+(function() {
+    console.log("🚀 执行 V79.0：正在启动批量渲染引擎，杜绝影分身...");
+
+    // 1. 建立数据保险箱 (防止数据丢失)
+    window.beautifyCache = {}; 
+
+    // 2. 覆盖生成逻辑 (核心修复)
+    window.runBeautifyGeneration = async function(text, loadingId) {
+        var chat = document.getElementById('advisorChat');
+        var config = window.aiConfig || JSON.parse(localStorage.getItem('my_ai_config'));
+        var desc = document.getElementById('cardDesc').value || "通用角色";
+
+        var prompt = `
+        你是一个前端UI设计师。
+        用户需求：${text}
+        角色设定：${desc.substring(0, 200)}...
+        请设计 3 个 HTML/CSS 方案。
+        必须返回纯 JSON 数组，包含 code, regex, name, desc。
+        JSON 内部双引号必须转义。
+        `;
+
+        try {
+            var res = await fetch(`${config.apiUrl}/chat/completions`, {
+                method: 'POST', headers: {'Content-Type':'application/json','Authorization':`Bearer ${config.apiKey}`},
+                body: JSON.stringify({model: config.model, messages:[{role:"user", content:prompt}]})
+            });
+            var json = await res.json();
+            var content = json.choices[0].message.content;
+            var data = JSON.parse(content.replace(/```json/g,'').replace(/```/g,'').trim());
+            
+            // 移除 Loading
+            var loadEl = document.getElementById(loadingId);
+            if(loadEl) loadEl.remove();
+
+            chat.innerHTML += `<div class="advisor-bubble">✨ 设计完成！(V79 批量渲染版)：</div>`;
+
+            // --- 🔥 核心修复开始：一次性构建 HTML ---
+            var batchHTML = ""; // 这是一个大桶，先把水接满
+            
+            data.forEach((item, idx) => {
+                var uniqueId = "ui_" + Date.now() + "_" + idx;
+                window.beautifyCache[uniqueId] = item; // 存入保险箱
+                var previewId = `preview_${uniqueId}`;
+
+                batchHTML += `
+                    <div class="advisor-bubble" style="border-left:4px solid #9c27b0; padding:10px;">
+                        <b>🎨 方案 ${idx+1}: ${item.name}</b>
+                        <div style="font-size:11px; color:#666; margin-bottom:5px;">${item.desc}</div>
+                        
+                        <div style="background:#eee; padding:10px; border-radius:5px; margin:5px 0; min-height:60px; overflow:hidden;"
+                             onclick="window.enlargePreviewCache('${uniqueId}')" title="点击放大">
+                            <div id="${previewId}" style="pointer-events: none; transform: scale(0.8); transform-origin: top left; width: 125%;"></div>
+                        </div>
+
+                        <div style="display:flex; flex-direction:column; gap:5px;">
+                            <div style="display:flex; gap:5px;">
+                                <button class="safe-btn-apply advisor-action-btn" data-id="${uniqueId}" style="flex:1; background:#e1bee7; color:#4a148c;">
+                                    ✅ 应用 UI
+                                </button>
+                                <button class="safe-btn-refine advisor-action-btn" data-id="${uniqueId}" style="flex:1; background:#fff; border:1px solid #999; color:#555;">
+                                    🔧 提意见
+                                </button>
+                            </div>
+                            <button class="safe-btn-lore advisor-action-btn" data-id="${uniqueId}" style="background:#fff3e0; color:#e65100; border:1px solid #ffe0b2; font-size:11px;">
+                                🌍 生成配套世界书
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            // 🔥 关键一步：使用 insertAdjacentHTML 而不是 innerHTML +=
+            // 这样绝对不会破坏之前已经存在的元素，也不会导致重绘
+            chat.insertAdjacentHTML('beforeend', batchHTML);
+            chat.scrollTop = chat.scrollHeight;
+
+            // --- 🔥 延迟注入预览 (等 HTML 稳定了再注入) ---
+            setTimeout(() => {
+                data.forEach((item, idx) => {
+                    // 重新计算 ID 找到刚才生成的那个框
+                    // 注意：这里的算法必须和上面生成 ID 的算法完全一致
+                    // 我们遍历 cache 里的最新 3 个数据可能更稳，但这里简单处理：
+                    // 因为是同步执行的，Date.now() 是一样的，我们需要闭包里的 uniqueId
+                    
+                    // 这里我们无法直接获取上面的 uniqueId，所以我们需要重新遍历一次 DOM 或者使用 data-id
+                    // 最稳妥的方法：在上面循环里存一个 task 列表
+                });
+            }, 50);
+            
+            // 修正后的注入逻辑：
+            // 我们直接在页面上找刚才生成的空预览框
+            var allPreviews = chat.querySelectorAll('div[id^="preview_ui_"]');
+            // 只处理最后 3 个 (也就是刚刚生成的)
+            var startIdx = Math.max(0, allPreviews.length - data.length);
+            
+            for(let i = startIdx; i < allPreviews.length; i++) {
+                let container = allPreviews[i];
+                let id = container.id.replace('preview_', ''); // 拿到 uniqueId
+                let item = window.beautifyCache[id]; // 从保险箱取数据
+                
+                if(container && item) {
+                    // 注入 Shadow DOM (隔离样式，互不干扰)
+                    if (!container.shadowRoot) container.attachShadow({mode: 'open'});
+                    container.shadowRoot.innerHTML = item.code;
+                }
+            }
+            // --- 核心修复结束 ---
+
+        } catch(e) {
+            console.error(e);
+            if(document.getElementById(loadingId)) document.getElementById(loadingId).remove();
+            chat.innerHTML += `<div class="advisor-bubble">❌ 生成失败: ${e.message}</div>`;
+        }
+    };
+
+    // 3. 🛡️ 全局点击监听 (保留 V72 的安全点击逻辑)
+    if (!window._hasBoundSafeClick) {
+        document.body.addEventListener('click', function(e) {
+            var target = e.target;
+            if (target.tagName !== 'BUTTON') target = target.closest('button');
+            if (!target) return;
+
+            var id = target.getAttribute('data-id');
+            if (!id) return;
+            var data = window.beautifyCache[id];
+            if (!data) return;
+
+            // 应用逻辑
+            if (target.classList.contains('safe-btn-apply')) {
+                e.preventDefault(); e.stopPropagation();
+                try {
+                    if(typeof switchCardTab === 'function') switchCardTab('regex');
+                    var ui = document.getElementById('uiFrontendMode');
+                    if(ui) ui.style.display = 'block';
+
+                    document.getElementById('frontReplace').value = data.code;
+                    document.getElementById('frontPattern').value = data.regex;
+                    
+                    var rawKey = data.regex.replace(/^\//, '').replace(/\/g[im]*$/, '').replace(/\\/g, '').replace(/\[|\]/g, '');
+                    document.getElementById('regexTestInput').value = rawKey;
+
+                    if(typeof runRegexTest === 'function') runRegexTest();
+
+                    target.innerHTML = "✅ 已应用";
+                    target.style.background = "#d4edda";
+                    target.disabled = true;
+                    if(window.auth && window.auth.toast) window.auth.toast('✅ UI已应用');
+                } catch(err) { alert(err.message); }
+            }
+            // ... (提意见和配套生成的逻辑保留 V72，此处省略以节省空间，因为 V72 代码还在生效) ...
+            
+        }, true);
+        window._hasBoundSafeClick = true;
+    }
+
+    console.log("✅ V79.0：批量渲染补丁已应用，预览框不再打架。");
+
+})();
+
 
 /* ================= 💾 V49.0 补丁：切换至 IndexedDB 海量存储引擎 ================= */
 (function() {
