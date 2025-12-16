@@ -11272,6 +11272,108 @@ window.openAISettings = function() {
 
 })();
 
+/* ================= 🔧 V88.0 补丁：世界书润色按钮修复 (API 重连版) ================= */
+(function() {
+    console.log("🚀 执行 V88.0：正在修复世界书的【让它改】按钮...");
+
+    // 覆盖：世界书专属的润色触发函数
+    window.triggerWorldRefine = async function() {
+        var btn = event.target; //以此获取点击的按钮
+        var originalBtnText = btn.innerText;
+
+        // 1. 获取输入内容
+        var contentEl = document.getElementById('wiContent');
+        var inputEl = document.getElementById('refineInput_world');
+        
+        if (!contentEl || !inputEl) {
+            alert("❌ 找不到输入框，请确保世界书编辑界面已打开。");
+            return;
+        }
+
+        var oldText = contentEl.value;
+        var instruction = inputEl.value.trim();
+
+        if (!oldText) { alert("⚠️ 内容是空的，没法改！"); return; }
+        if (!instruction) { alert("⚠️ 请输入修改意见（比如：扩写、润色）！"); return; }
+
+        // 2. 🔥 核心修复：强制读取 API 配置
+        var config = null;
+        try {
+            // 优先读内存，读不到就读硬盘缓存
+            config = window.aiConfig || JSON.parse(localStorage.getItem('my_ai_config'));
+        } catch(e) {}
+
+        if (!config || !config.apiKey) {
+            alert("❌ 找不到 API Key！\n请回到【设置】页面重新保存一下 API 配置。");
+            return;
+        }
+
+        // 3. 锁定界面
+        btn.disabled = true;
+        btn.innerText = "🔄 修改中...";
+        contentEl.style.opacity = "0.5";
+
+        // 4. 发送请求
+        var prompt = `
+        你是一个世界观润色助手。
+        【原始内容】：
+        ${oldText}
+        
+        【用户修改要求】：
+        ${instruction}
+        
+        请根据要求重写/修改上述内容。
+        **只返回修改后的正文**，不要包含“好的”、“修改如下”等废话。
+        `;
+
+        try {
+            var res = await fetch(`${config.apiUrl}/chat/completions`, {
+                method: 'POST', 
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${config.apiKey}`
+                },
+                body: JSON.stringify({
+                    model: config.model, 
+                    messages: [{ role: "user", content: prompt }]
+                })
+            });
+            
+            var json = await res.json();
+            var newText = json.choices[0].message.content.trim();
+
+            // 5. 填回结果
+            contentEl.value = newText;
+            
+            // 视觉反馈
+            contentEl.style.transition = "background 0.5s";
+            contentEl.style.backgroundColor = "#d4edda"; // 变绿提示成功
+            setTimeout(() => { 
+                contentEl.style.backgroundColor = ""; 
+                contentEl.style.opacity = "1";
+            }, 500);
+
+            // 清空输入框
+            inputEl.value = "";
+            inputEl.placeholder = "✅ 修改完成！还有什么要改的？";
+
+            if(window.auth && window.auth.toast) window.auth.toast('✨ 世界书内容已更新');
+
+        } catch (e) {
+            console.error(e);
+            alert("❌ 请求失败: " + e.message + "\n(可能是 API 连接问题)");
+        } finally {
+            // 解锁按钮
+            btn.disabled = false;
+            btn.innerText = originalBtnText;
+            contentEl.style.opacity = "1";
+        }
+    };
+
+    console.log("✅ V88.0：润色按钮已修复，API 链接已加固。");
+
+})();
+
 
 
 // ================= 👑 写卡器代码结束 =================
