@@ -9336,6 +9336,313 @@ async function openHoroscope() {
 
 
 
+
+/* ==========================================================================
+   🚀 梨梨百宝箱终极修正版：DOM文本识别 + 持续监控摄像头
+   ========================================================================== */
+
+// 1. 全局变量
+window.appMode = 'character';     // character | preset
+window.isSelectingPresets = false;
+window.selectedPresetNames = [];  // 改存名字，更稳
+window.gridObserver = null;       // 监控摄像头
+
+// 2. 初始化入口
+function initModeSwitcher() {
+    var menuPage1 = document.getElementById('menuPage1');
+    if (!menuPage1 || document.getElementById('modeSwitchBar')) return;
+
+    // --- 插入 UI ---
+    var modeBar = document.createElement('div');
+    modeBar.id = 'modeSwitchBar';
+    modeBar.style.cssText = 'margin: 0 0 10px 0; background: #fff; border-radius: 12px; border: 1px solid #eee; padding: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.02);';
+
+    var html = '';
+    html += '<div style="display:flex; background:#f5f5f5; border-radius:8px; padding:3px;">';
+    html += '  <div id="btnCharMode" onclick="setAppMode(\'character\')" style="flex:1; text-align:center; padding:6px; font-size:12px; font-weight:bold; cursor:pointer; border-radius:6px; color:#555; transition:0.2s;">🧑 角色模式</div>';
+    html += '  <div id="btnPresetMode" onclick="setAppMode(\'preset\')" style="flex:1; text-align:center; padding:6px; font-size:12px; font-weight:bold; cursor:pointer; border-radius:6px; color:#999; transition:0.2s;">🛠️ 预设模式</div>';
+    html += '</div>';
+
+    html += '<div id="presetTools" style="display:none; margin-top:8px; padding-top:5px; border-top:1px dashed #eee;">';
+    html += '  <div style="display:flex; gap:5px;">';
+    html += '    <button id="btnToggleSelect" onclick="togglePresetSelection()" style="flex:1; background:#fff; border:1px solid #6c5ce7; color:#6c5ce7; padding:5px; border-radius:6px; font-size:11px; font-weight:bold;">✅ 选择卡片</button>';
+    html += '    <button onclick="packSelectedPresets()" style="flex:1; background:linear-gradient(135deg, #6c5ce7, #a29bfe); border:none; color:white; padding:5px; border-radius:6px; font-size:11px; font-weight:bold;">📦 打包选中</button>';
+    html += '  </div>';
+    html += '  <div id="selectHint" style="font-size:10px; color:#aaa; text-align:center; margin-top:4px; display:none;">点击卡片即可选中/取消</div>';
+    html += '</div>';
+
+    modeBar.innerHTML = html;
+    menuPage1.insertBefore(modeBar, menuPage1.firstChild);
+    
+    // --- 启动监控摄像头 ---
+    startGridObserver();
+    
+    updateModeStyles();
+}
+
+// 3. 启动监控摄像头 (MutationObserver)
+// 只要网格内容发生变化（搜索、加载、切换视图），立刻执行过滤
+function startGridObserver() {
+    var grid = document.getElementById('gridContainer');
+    if (!grid) return;
+
+    if (window.gridObserver) window.gridObserver.disconnect();
+
+    window.gridObserver = new MutationObserver(function(mutations) {
+        // 只有在子元素列表变化时才触发，避免死循环
+        var shouldFilter = false;
+        for (var i = 0; i < mutations.length; i++) {
+            if (mutations[i].type === 'childList') {
+                shouldFilter = true;
+                break;
+            }
+        }
+        if (shouldFilter) {
+            applyVisualFilter(); // 只要动了，就重新过滤
+        }
+    });
+
+    window.gridObserver.observe(grid, { childList: true, subtree: true });
+}
+
+// 4. 切换模式
+function setAppMode(mode) {
+    window.appMode = mode;
+    window.isSelectingPresets = false;
+    window.selectedPresetNames = [];
+    
+    updateModeStyles();
+    
+    // 立即执行一次过滤
+    applyVisualFilter();
+
+    // 提示
+    var toast = document.getElementById('toast');
+    if(toast) {
+        toast.innerText = mode === 'character' ? "只看角色 (无预设标签)" : "只看预设 (有预设标签)";
+        toast.style.opacity = 1;
+        setTimeout(function(){ toast.style.opacity = 0; }, 1500);
+    }
+}
+
+// 5. 【核心】视觉过滤器 (DOM 文本识别)
+function applyVisualFilter() {
+    var cards = document.querySelectorAll('#gridContainer .card');
+    if (cards.length === 0) return;
+
+    // 尝试寻找真实数据源作为备选 (兼容 savedItems 或 database)
+    var realData = window.savedItems || window.database || [];
+
+    for (var i = 0; i < cards.length; i++) {
+        var card = cards[i];
+        var cardName = card.querySelector('.card-title') ? card.querySelector('.card-title').innerText.trim() : '';
+        
+        // --- 判定是否为预设卡 ---
+        var isPreset = false;
+
+        // 方法A：直接看卡片上有没有显示 "预设" 的标签 (最快)
+        var tagsContainer = card.querySelector('.tags-container');
+        if (tagsContainer && tagsContainer.innerText.indexOf('预设') !== -1) {
+            isPreset = true;
+        } 
+        
+        // 方法B：如果卡片上没显示，去真实数据里查 (兜底)
+        if (!isPreset && realData.length > 0 && cardName) {
+            for (var j = 0; j < realData.length; j++) {
+                if (realData[j].name === cardName) {
+                    var tags = realData[j].tags || [];
+                    // 只要标签数组里有包含 "预设" 字样的
+                    if (tags.join(',').indexOf('预设') !== -1) {
+                        isPreset = true;
+                    }
+                    break;
+                }
+            }
+        }
+
+        // --- 执行显示/隐藏 ---
+        if (window.appMode === 'character') {
+            // 角色模式：如果是预设卡，隐藏！
+            card.style.display = isPreset ? 'none' : 'flex';
+        } else {
+            // 预设模式：如果不是预设卡，隐藏！
+            card.style.display = isPreset ? 'flex' : 'none';
+        }
+    }
+}
+
+// 6. 更新 UI 样式
+function updateModeStyles() {
+    var btnChar = document.getElementById('btnCharMode');
+    var btnPreset = document.getElementById('btnPresetMode');
+    var tools = document.getElementById('presetTools');
+    var selBtn = document.getElementById('btnToggleSelect');
+    var hint = document.getElementById('selectHint');
+
+    if (!btnChar) return;
+
+    if (window.appMode === 'character') {
+        btnChar.style.background = '#fff'; btnChar.style.color = '#333'; btnChar.style.boxShadow = '0 2px 5px rgba(0,0,0,0.1)';
+        btnPreset.style.background = 'transparent'; btnPreset.style.color = '#999'; btnPreset.style.boxShadow = 'none';
+        tools.style.display = 'none';
+    } else {
+        btnPreset.style.background = '#fff'; btnPreset.style.color = '#6c5ce7'; btnPreset.style.boxShadow = '0 2px 5px rgba(0,0,0,0.1)';
+        btnChar.style.background = 'transparent'; btnChar.style.color = '#999'; btnChar.style.boxShadow = 'none';
+        tools.style.display = 'block';
+    }
+
+    if (window.isSelectingPresets) {
+        selBtn.style.background = '#6c5ce7'; selBtn.style.color = '#fff'; selBtn.innerText = '完成选择';
+        hint.style.display = 'block';
+    } else {
+        selBtn.style.background = '#fff'; selBtn.style.color = '#6c5ce7'; selBtn.innerText = '✅ 选择卡片';
+        hint.style.display = 'none';
+    }
+}
+
+// 7. 选择功能
+function togglePresetSelection() {
+    window.isSelectingPresets = !window.isSelectingPresets;
+    updateModeStyles();
+    
+    var grid = document.getElementById('gridContainer');
+    if (window.isSelectingPresets) {
+        grid.addEventListener('click', handleCardClick, true);
+    } else {
+        grid.removeEventListener('click', handleCardClick, true);
+        // 清除所有选中样式
+        var masks = document.querySelectorAll('.select-mask');
+        for(var i=0; i<masks.length; i++) masks[i].remove();
+        var cards = document.querySelectorAll('.card');
+        for(var i=0; i<cards.length; i++) {
+            cards[i].style.border = '3px solid #fff';
+            cards[i].style.transform = 'none';
+        }
+    }
+}
+
+function handleCardClick(e) {
+    if (!window.isSelectingPresets) return;
+    
+    // 停止冒泡，防止进入详情页
+    e.stopPropagation();
+    e.preventDefault();
+
+    var card = e.target.closest('.card');
+    if (!card) return;
+
+    var nameEl = card.querySelector('.card-title');
+    var name = nameEl ? nameEl.innerText.trim() : null;
+    if (!name) return;
+
+    var idx = window.selectedPresetNames.indexOf(name);
+    
+    if (idx === -1) {
+        // 选中
+        window.selectedPresetNames.push(name);
+        card.style.border = '3px solid #6c5ce7';
+        card.style.transform = 'scale(0.95)';
+        var mask = document.createElement('div');
+        mask.className = 'select-mask';
+        mask.innerHTML = '✅';
+        mask.style.cssText = 'position:absolute; top:5px; right:5px; font-size:24px; z-index:100; filter:drop-shadow(0 2px 2px rgba(0,0,0,0.3));';
+        card.appendChild(mask);
+    } else {
+        // 取消
+        window.selectedPresetNames.splice(idx, 1);
+        card.style.border = '3px solid #fff';
+        card.style.transform = 'none';
+        var mask = card.querySelector('.select-mask');
+        if(mask) mask.remove();
+    }
+}
+
+// 8. 打包导出
+function packSelectedPresets() {
+    if (window.selectedPresetNames.length === 0) {
+        alert("请先点击【✅ 选择卡片】，然后至少点选一张！");
+        return;
+    }
+
+    // 寻找真实数据源
+    var realData = window.savedItems || window.database || [];
+    if (realData.length === 0) {
+        alert("打包失败：找不到底层数据源(savedItems)。无法提取内部脚本。");
+        return;
+    }
+
+    // 过滤出选中的卡片数据
+    var targetItems = realData.filter(function(item) {
+        return window.selectedPresetNames.indexOf(item.name) !== -1;
+    });
+
+    if (targetItems.length === 0) {
+        alert("出错：选中的卡片在数据库里找不到对应数据。");
+        return;
+    }
+
+    if (!confirm("确定要打包这 " + targetItems.length + " 个项目吗？")) return;
+
+    var packData = { regex: [], worldinfo: [] };
+
+    targetItems.forEach(function(item) {
+        // 提取正则
+        if (item.regexScripts && item.regexScripts.length) {
+            for(var i=0; i<item.regexScripts.length; i++) {
+                packData.regex.push(item.regexScripts[i]);
+            }
+        }
+        // 提取世界书
+        if (item.worldInfoEntries && item.worldInfoEntries.length) {
+            item.worldInfoEntries.forEach(function(entry) {
+                packData.worldinfo.push({
+                    key: entry.keys,
+                    comment: entry.comment || entry.name,
+                    content: entry.content,
+                    depth: entry.depth || 4,
+                    order: 100,
+                    selective: true
+                });
+            });
+        }
+    });
+
+    // 下载逻辑
+    if (packData.regex.length > 0) {
+        downloadJSON(packData.regex, "精选正则包_" + new Date().getTime() + ".json");
+    }
+    if (packData.worldinfo.length > 0) {
+        var wiExport = {
+            entries: packData.worldinfo.reduce(function(acc, cur, idx) {
+                acc[idx] = cur;
+                return acc;
+            }, {})
+        };
+        downloadJSON(wiExport, "精选世界书包_" + new Date().getTime() + ".json");
+    }
+
+    // 完成后自动退出选择模式
+    togglePresetSelection();
+    alert("打包完成！已生成文件，请去酒馆导入 📂");
+}
+
+function downloadJSON(data, filename) {
+    var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+// 延迟启动，等待主程序完全就绪
+setTimeout(initModeSwitcher, 1000);
+
+
+
+
 // 年龄阶段
 const HEIR_STAGES = [
     { ageCap: 3, name: '婴儿期', icon: '👶', bg: 'stage-baby' },
