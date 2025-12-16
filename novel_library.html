@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>📚 梨梨藏书阁</title>
+    <title>📚 梨梨藏书阁 (Pro版)</title>
     <style>
-        /* --- 1. 核心字体 --- */
+        /* --- 1. 基础设置 --- */
         @font-face {
             font-family: 'MyCustomFont';
             src: url('https://files.catbox.moe/cweam3.ttf') format('truetype');
@@ -13,470 +13,495 @@
         }
 
         :root {
-            /* 默认：少女粉主题 (独立于主系统) */
-            --lib-primary: #ffb7c5;
-            --lib-bg: #ffe6eb;
-            --lib-card-bg: #fff;
-            --lib-text: #6d5c5c;
-            --lib-accent: #ff8fa3;
+            --primary: #ffb7c5;
+            --bg: #ffe6eb;
+            --card-bg: #fff;
+            --text: #5d4037;
+            --accent: #ff8fa3;
         }
 
         body {
-            font-family: 'MyCustomFont', 'Microsoft YaHei', sans-serif;
-            background-color: var(--lib-bg);
-            color: var(--lib-text);
+            font-family: 'MyCustomFont', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
             margin: 0; padding: 0;
             height: 100vh; display: flex; flex-direction: column;
             overflow: hidden;
-            transition: background 0.3s, color 0.3s;
+            transition: background 0.3s;
         }
 
-        /* --- 2. 顶部导航栏 --- */
-        .nav-header {
-            background: rgba(255, 255, 255, 0.9);
-            padding: 10px 20px;
-            display: flex; justify-content: space-between; align-items: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            z-index: 100;
+        /* --- 2. 顶部栏 (含搜索) --- */
+        .header {
+            background: rgba(255,255,255,0.9); padding: 10px 15px;
+            display: flex; flex-direction: column; gap: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05); z-index: 100;
         }
-        .app-title {
-            font-size: 18px; font-weight: bold; color: var(--lib-accent);
-            display: flex; align-items: center; gap: 8px;
-        }
+        .header-top { display: flex; justify-content: space-between; align-items: center; }
+        .title { font-size: 18px; font-weight: bold; color: var(--accent); }
         
-        /* 按钮通用 */
-        button { cursor: pointer; font-family: inherit; transition: 0.2s; border: none; outline: none; }
-        button:active { transform: scale(0.95); }
-        
-        .btn-primary {
-            background: var(--lib-primary); color: white;
-            padding: 6px 15px; border-radius: 20px; font-weight: bold; font-size: 13px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        /* 搜索框 */
+        .search-box {
+            background: #f0f0f0; border-radius: 20px; padding: 5px 15px;
+            display: flex; align-items: center; gap: 5px;
         }
-        .btn-icon {
-            background: transparent; font-size: 20px; padding: 5px;
-            color: var(--lib-text);
+        .search-input {
+            border: none; background: transparent; outline: none;
+            width: 100%; font-size: 14px; color: #555;
         }
 
-        /* --- 3. 筛选工具栏 --- */
-        .filter-bar {
-            padding: 10px 20px; background: rgba(255,255,255,0.4);
-            display: flex; gap: 10px; overflow-x: auto;
-            border-bottom: 1px solid rgba(255,255,255,0.3);
+        .btn {
+            border: none; padding: 6px 12px; border-radius: 15px;
+            font-size: 13px; cursor: pointer; transition: 0.2s;
         }
-        .filter-btn {
-            background: rgba(255,255,255,0.8); border: 1px solid transparent; color: #666;
-            padding: 5px 12px; border-radius: 15px; font-size: 12px; white-space: nowrap;
-        }
-        .filter-btn.active {
-            background: var(--lib-primary); color: white; border-color: var(--lib-primary);
-        }
+        .btn-primary { background: var(--primary); color: white; box-shadow: 0 3px 8px rgba(0,0,0,0.1); }
+        .btn-icon { background: transparent; font-size: 20px; padding: 5px; }
 
-        /* --- 4. 书架网格 --- */
-        .library-grid {
-            flex: 1; overflow-y: auto; padding: 20px;
-            display: grid; 
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); 
+        /* --- 3. 书架列表 --- */
+        .grid {
+            flex: 1; overflow-y: auto; padding: 15px;
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
             gap: 15px; align-content: start;
         }
         
-        /* 书籍卡片 */
-        .book-card {
-            background: var(--lib-card-bg); border-radius: 12px; padding: 15px;
-            position: relative; display: flex; flex-direction: column;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.02);
-            border: 2px solid transparent;
-            transition: all 0.2s; height: 160px;
+        .book {
+            display: flex; flex-direction: column; gap: 5px; cursor: pointer;
+            animation: fadeIn 0.3s;
         }
-        .book-card:hover { transform: translateY(-3px); border-color: var(--lib-accent); }
-        
-        .book-icon { font-size: 36px; text-align: center; margin-bottom: 8px; }
-        .book-title { 
-            font-weight: bold; font-size: 14px; margin-bottom: 5px;
-            color: var(--lib-text);
-            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-            flex: 1; text-align: center;
+        .cover {
+            aspect-ratio: 2/3; background: var(--card-bg); border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 30px; box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+            border: 2px solid transparent; transition: 0.2s; position: relative;
         }
-        .book-tags { display: flex; justify-content: center; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
-        .tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: #eee; color: #666; }
-        
-        .book-actions { display: flex; justify-content: center; gap: 10px; border-top: 1px dashed #eee; padding-top: 8px; }
+        .book:hover .cover { transform: translateY(-3px); border-color: var(--accent); }
+        .book-title { font-size: 13px; font-weight: bold; line-height: 1.3; max-height: 2.6em; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+        .book-info { font-size: 10px; color: #888; }
 
-        /* --- 5. 皮肤切换菜单 --- */
-        .skin-menu {
-            position: absolute; top: 60px; right: 20px;
-            background: white; padding: 10px; border-radius: 10px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-            display: none; flex-direction: column; gap: 8px; z-index: 500;
+        /* 状态标记 */
+        .status-dot {
+            position: absolute; top: 5px; right: 5px; width: 8px; height: 8px; border-radius: 50%;
         }
-        .skin-menu.show { display: flex; animation: fadeIn 0.2s; }
-        .skin-option {
-            display: flex; align-items: center; gap: 10px; padding: 5px 10px;
-            cursor: pointer; font-size: 13px; border-radius: 6px;
-        }
-        .skin-option:hover { background: #f5f5f5; }
-        .color-dot { width: 20px; height: 20px; border-radius: 50%; border: 1px solid #ddd; }
+        .dot-green { background: #4caf50; } /* 完结 */
+        .dot-orange { background: #ff9800; } /* 连载 */
 
-        /* --- 6. 阅读器 (全屏覆盖) --- */
-        .reader-overlay {
+        /* --- 4. 详情页弹窗 --- */
+        .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #fcf6e5; /* 默认米黄护眼 */
-            color: #333;
-            z-index: 2000; display: none; flex-direction: column;
-            transition: background 0.3s, color 0.3s;
+            background: rgba(0,0,0,0.5); z-index: 1000;
+            display: none; align-items: center; justify-content: center;
         }
-        .reader-overlay.active { display: flex; }
+        .modal-overlay.active { display: flex; animation: popIn 0.2s; }
 
-        .reader-top {
-            padding: 10px 15px; display: flex; justify-content: space-between; align-items: center;
-            background: rgba(255,255,255,0.8); font-size: 14px; color: inherit;
-            border-bottom: 1px solid rgba(0,0,0,0.05);
+        .detail-card {
+            background: white; width: 85%; max-width: 400px;
+            border-radius: 15px; overflow: hidden; display: flex; flex-direction: column;
         }
+        .detail-header {
+            background: var(--bg); padding: 20px; text-align: center;
+        }
+        .detail-body { padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+
+        .form-group { display: flex; flex-direction: column; gap: 5px; }
+        .form-label { font-size: 12px; color: #888; font-weight: bold; }
+        .form-input {
+            border: 1px solid #ddd; padding: 8px; border-radius: 8px;
+            font-size: 14px; outline: none;
+        }
+        .form-input:focus { border-color: var(--primary); }
         
-        .reader-content {
-            flex: 1; overflow-y: auto; padding: 20px;
-            font-size: 18px; line-height: 1.8; text-align: justify;
-            white-space: pre-wrap; /* 保留排版 */
-            scroll-behavior: smooth;
-            max-width: 800px; margin: 0 auto; /* 大屏阅读限制宽度 */
+        .tag-container { display: flex; gap: 5px; flex-wrap: wrap; }
+        .tag-chip { background: #f0f0f0; padding: 2px 8px; border-radius: 10px; font-size: 12px; color: #666; }
+
+        /* --- 5. 阅读器 --- */
+        .reader {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #fdf6e3; z-index: 2000; display: none; flex-direction: column;
+        }
+        .reader.active { display: flex; }
+        .reader-nav {
+            padding: 10px; display: flex; justify-content: space-between; align-items: center;
+            background: rgba(255,255,255,0.8); border-bottom: 1px solid #eee;
+        }
+        .reader-text {
+            flex: 1; overflow-y: auto; padding: 20px; font-size: 18px; line-height: 1.8;
+            white-space: pre-wrap; text-align: justify; max-width: 800px; margin: 0 auto;
         }
 
-        /* 阅读器设置面板 */
-        .reader-settings {
-            background: #fff; padding: 20px; border-radius: 20px 20px 0 0;
-            box-shadow: 0 -5px 20px rgba(0,0,0,0.1);
-            position: absolute; bottom: 0; width: 100%; box-sizing: border-box;
-            transform: translateY(100%); transition: transform 0.3s; color: #333;
+        /* 底部设置面板 */
+        .settings-panel {
+            position: absolute; bottom: 0; left: 0; width: 100%;
+            background: white; padding: 20px; border-radius: 20px 20px 0 0;
+            transform: translateY(100%); transition: 0.3s;
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.1); box-sizing: border-box;
         }
-        .reader-settings.open { transform: translateY(0); }
-        
-        .setting-row { display: flex; align-items: center; margin-bottom: 15px; gap: 10px; font-size: 13px; }
-        .setting-label { width: 40px; color: #888; font-weight: bold; }
-        input[type=range] { flex: 1; accent-color: #ffb7c5; }
+        .settings-panel.show { transform: translateY(0); }
 
-        /* 返回主页悬浮球 */
-        .back-home-btn {
-            position: fixed; bottom: 30px; right: 20px;
-            width: 50px; height: 50px; border-radius: 50%;
-            background: white; border: 3px solid var(--lib-primary);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            display: flex; justify-content: center; align-items: center;
-            font-size: 24px; cursor: pointer; z-index: 50; transition: transform 0.2s;
+        .back-home {
+            position: fixed; bottom: 20px; right: 20px; width: 45px; height: 45px;
+            background: white; border-radius: 50%; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            display: flex; justify-content: center; align-items: center; font-size: 20px;
+            border: 2px solid var(--primary); z-index: 90;
         }
-        .back-home-btn:hover { transform: scale(1.1); }
-        
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     </style>
 </head>
 <body>
 
-    <div class="nav-header">
-        <div class="app-title">📚 梨梨藏书阁</div>
-        <div style="display:flex; gap:10px;">
-            <button class="btn-icon" onclick="toggleSkinMenu()" title="换肤">🎨</button>
-            <button class="btn-primary" onclick="document.getElementById('importInput').click()">📥 导入</button>
-            <input type="file" id="importInput" accept=".txt" multiple style="display:none" onchange="importNovels(this)">
+    <div class="header">
+        <div class="header-top">
+            <div class="title">📚 藏书阁 Pro</div>
+            <div style="display: flex; gap: 8px;">
+                <button class="btn btn-icon" onclick="toggleTheme()" title="换肤">🎨</button>
+                <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">📥 导入</button>
+                <input type="file" id="fileInput" accept=".txt" multiple style="display:none" onchange="handleImport(this)">
+            </div>
+        </div>
+        <div class="search-box">
+            <span>🔍</span>
+            <input type="text" class="search-input" id="searchInput" placeholder="搜索书名、标签、平台..." onkeyup="handleSearch()">
         </div>
     </div>
 
-    <div class="skin-menu" id="skinMenu">
-        <div class="skin-option" onclick="changeLibraryTheme('pink')">
-            <div class="color-dot" style="background:#ffb7c5;"></div> 少女粉 (默认)
-        </div>
-        <div class="skin-option" onclick="changeLibraryTheme('green')">
-            <div class="color-dot" style="background:#a5d6a7;"></div> 护眼绿
-        </div>
-        <div class="skin-option" onclick="changeLibraryTheme('blue')">
-            <div class="color-dot" style="background:#90caf9;"></div> 清爽蓝
-        </div>
-        <div class="skin-option" onclick="changeLibraryTheme('dark')">
-            <div class="color-dot" style="background:#333;"></div> 夜间模式
-        </div>
-    </div>
-
-    <div class="filter-bar">
-        <button class="filter-btn active" onclick="filterList('all', this)">全部</button>
-        <button class="filter-btn" onclick="filterList('reading', this)">⏳ 连载中</button>
-        <button class="filter-btn" onclick="filterList('finished', this)">✅ 已完结</button>
-        <div style="width:1px; background:#ccc; opacity:0.5;"></div>
-        <button class="filter-btn" onclick="filterList('unread', this)">🔴 未读</button>
-        <button class="filter-btn" onclick="filterList('read', this)">🟢 已读</button>
-    </div>
-
-    <div class="library-grid" id="bookList">
+    <div class="grid" id="bookGrid">
         </div>
 
-    <div class="back-home-btn" onclick="goBackMain()" title="返回主系统">🏠</div>
-
-    <div class="reader-overlay" id="readerModal">
-        <div class="reader-top">
-            <button onclick="closeReader()" style="background:none; border:none; font-size:16px; cursor:pointer;">⬅️ 返回</button>
-            <span id="readTitle" style="font-weight:bold; max-width: 60%; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">标题</span>
-            <button onclick="toggleSettings()" style="background:none; border:none; font-size:20px; cursor:pointer;">⚙️</button>
-        </div>
-        
-        <div class="reader-content" id="readContent" onclick="toggleSettings(false)">
-            内容加载中...
-        </div>
-
-        <div class="reader-settings" id="settingPanel">
-            <div class="setting-row">
-                <span class="setting-label">背景</span>
-                <div style="display:flex; gap:10px; flex:1; overflow-x:auto;">
-                    <div onclick="setReaderTheme('#fcf6e5', '#333')" style="min-width:30px;height:30px;background:#fcf6e5;border-radius:50%;border:1px solid #ccc;"></div>
-                    <div onclick="setReaderTheme('#ffffff', '#000')" style="min-width:30px;height:30px;background:#fff;border-radius:50%;border:1px solid #ccc;"></div>
-                    <div onclick="setReaderTheme('#cce8cf', '#004d40')" style="min-width:30px;height:30px;background:#cce8cf;border-radius:50%;border:1px solid #b2dfdb;"></div>
-                    <div onclick="setReaderTheme('#1a1a1a', '#b0b0b0')" style="min-width:30px;height:30px;background:#1a1a1a;border-radius:50%;border:1px solid #555;"></div>
-                    <div onclick="setReaderTheme('#fff0f5', '#5d4037')" style="min-width:30px;height:30px;background:#fff0f5;border-radius:50%;border:1px solid #ffb7c5;"></div>
+    <div class="modal-overlay" id="detailModal">
+        <div class="detail-card">
+            <div class="detail-header">
+                <div style="font-size:40px; margin-bottom:10px;">📖</div>
+                <div id="detailTitle" style="font-weight:bold; font-size:16px;"></div>
+                <div id="detailSize" style="font-size:12px; color:#888; margin-top:5px;"></div>
+            </div>
+            <div class="detail-body">
+                <div class="form-group">
+                    <label class="form-label">当前状态</label>
+                    <select id="detailStatus" class="form-input">
+                        <option value="reading">⏳ 连载中</option>
+                        <option value="finished">✅ 已完结</option>
+                    </select>
                 </div>
-            </div>
-            <div class="setting-row">
-                <span class="setting-label">字体</span>
-                <select onchange="setStyle('fontFamily', this.value)" style="flex:1; padding:5px; border-radius:5px; border:1px solid #ddd;">
-                    <option value="'MyCustomFont', sans-serif">默认可爱体</option>
-                    <option value="'Microsoft YaHei', sans-serif">微软雅黑</option>
-                    <option value="'Songti SC', serif">宋体 (小说感)</option>
-                    <option value="'KaiTi', serif">楷体</option>
-                </select>
-            </div>
-            <div class="setting-row">
-                <span class="setting-label">字号</span>
-                <span style="font-size:12px">小</span>
-                <input type="range" min="14" max="32" value="18" oninput="setStyle('fontSize', this.value + 'px')">
-                <span style="font-size:16px">大</span>
-            </div>
-            <div class="setting-row">
-                <span class="setting-label">行距</span>
-                <input type="range" min="1.2" max="2.5" step="0.1" value="1.8" oninput="setStyle('lineHeight', this.value)">
-            </div>
-            <div class="setting-row">
-                <span class="setting-label">边距</span>
-                <input type="range" min="0" max="60" value="20" oninput="setStyle('padding', '20px ' + this.value + 'px')">
+                <div class="form-group">
+                    <label class="form-label">来源平台</label>
+                    <input type="text" id="detailPlatform" class="form-input" placeholder="例如：晋江、起点...">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">标签 (用空格或逗号分隔)</label>
+                    <input type="text" id="detailTags" class="form-input" placeholder="例如：甜宠 古代 破镜重圆">
+                </div>
+                
+                <div style="display:flex; gap:10px; margin-top:10px;">
+                    <button class="btn btn-primary" style="flex:1; padding:10px;" onclick="startReading()">📖 开始阅读</button>
+                    <button class="btn" style="background:#ffebee; color:#d32f2f;" onclick="saveAndCloseDetail()">💾 保存修改</button>
+                    <button class="btn" onclick="deleteCurrentBook()">🗑️</button>
+                </div>
+                <button class="btn" style="width:100%; border:1px solid #ddd; background:white;" onclick="closeDetail()">关闭</button>
             </div>
         </div>
     </div>
+
+    <div class="reader" id="readerPage">
+        <div class="reader-nav">
+            <button class="btn btn-icon" onclick="closeReader()">⬅️</button>
+            <span id="readerTitle" style="font-weight:bold; font-size:14px; overflow:hidden; white-space:nowrap; max-width:60%;">标题</span>
+            <button class="btn btn-icon" onclick="toggleSettings()">⚙️</button>
+        </div>
+        <div class="reader-text" id="readerContent" onclick="toggleSettings(false)"></div>
+        
+        <div class="settings-panel" id="settingsPanel">
+            <div style="margin-bottom:15px; display:flex; gap:10px;">
+                <span style="font-size:12px;">背景</span>
+                <div onclick="setTheme('#fdf6e3','#333')" style="width:25px;height:25px;background:#fdf6e3;border:1px solid #ccc;border-radius:50%;"></div>
+                <div onclick="setTheme('#fff','#000')" style="width:25px;height:25px;background:#fff;border:1px solid #ccc;border-radius:50%;"></div>
+                <div onclick="setTheme('#1a1a1a','#ccc')" style="width:25px;height:25px;background:#1a1a1a;border-radius:50%;"></div>
+                <div onclick="setTheme('#c8e6c9','#1b5e20')" style="width:25px;height:25px;background:#c8e6c9;border-radius:50%;"></div>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:15px;">
+                <span style="font-size:12px;">字号</span>
+                <input type="range" min="14" max="32" value="18" style="flex:1" oninput="setStyle('fontSize', this.value+'px')">
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:12px;">行距</span>
+                <input type="range" min="1.4" max="2.5" step="0.1" value="1.8" style="flex:1" oninput="setStyle('lineHeight', this.value)">
+            </div>
+        </div>
+    </div>
+
+    <div class="back-home" onclick="goBackMain()">🏠</div>
 
     <script>
-        // --- 1. 数据与初始化 ---
-        let novels = JSON.parse(localStorage.getItem('lili_novels') || '[]');
-        
-        // 读取独立的藏书阁主题
-        const savedLibTheme = localStorage.getItem('lili_lib_theme') || 'pink';
-        applyLibraryTheme(savedLibTheme);
+        /* ================= IndexedDB 数据库封装 (这是大存储的核心) ================= */
+        const DB_NAME = 'LiliNovelDB';
+        const DB_VERSION = 1;
+        let db;
 
-        // --- 2. 核心逻辑 ---
-        
-        // 导入小说
-        function importNovels(input) {
-            const files = Array.from(input.files);
-            if(files.length === 0) return;
-            
-            let loadedCount = 0;
-            files.forEach(file => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    novels.push({
-                        id: Date.now() + Math.random().toString(),
-                        title: file.name.replace('.txt', ''),
-                        content: e.target.result,
-                        status: 'reading', // reading / finished
-                        isRead: false,     
-                        addTime: new Date().toLocaleDateString()
-                    });
-                    loadedCount++;
-                    if(loadedCount === files.length) {
-                        saveAndRender();
-                        alert(`成功导入 ${loadedCount} 本书！`);
+        // 打开/创建数据库
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                
+                request.onupgradeneeded = (e) => {
+                    db = e.target.result;
+                    if (!db.objectStoreNames.contains('novels')) {
+                        // 创建书架表：id为主键
+                        const store = db.createObjectStore('novels', { keyPath: 'id' });
+                        store.createIndex('title', 'title', { unique: false });
                     }
                 };
-                reader.readAsText(file);
+
+                request.onsuccess = (e) => {
+                    db = e.target.result;
+                    renderBooks(); // 初始化完成后渲染列表
+                    resolve(db);
+                };
+                
+                request.onerror = (e) => reject(e);
             });
-            input.value = ''; // 清空，允许重复选同一个文件
         }
 
-        // 保存并刷新列表
-        function saveAndRender(filter = 'all') {
-            localStorage.setItem('lili_novels', JSON.stringify(novels));
-            const grid = document.getElementById('bookList');
+        // 添加书籍
+        function addBookToDB(book) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(['novels'], 'readwrite');
+                const store = tx.objectStore('novels');
+                store.add(book);
+                tx.oncomplete = () => resolve();
+                tx.onerror = (e) => reject(e);
+            });
+        }
+
+        // 获取所有书籍 (为了列表)
+        function getAllBooks() {
+            return new Promise((resolve) => {
+                const tx = db.transaction(['novels'], 'readonly');
+                const store = tx.objectStore('novels');
+                const request = store.getAll();
+                request.onsuccess = () => resolve(request.result);
+            });
+        }
+
+        // 更新书籍信息
+        function updateBookInDB(book) {
+            const tx = db.transaction(['novels'], 'readwrite');
+            const store = tx.objectStore('novels');
+            store.put(book);
+            return new Promise(resolve => tx.oncomplete = resolve);
+        }
+
+        // 删除书籍
+        function deleteBookFromDB(id) {
+            const tx = db.transaction(['novels'], 'readwrite');
+            const store = tx.objectStore('novels');
+            store.delete(id);
+            return new Promise(resolve => tx.oncomplete = resolve);
+        }
+
+        /* ================= 业务逻辑 ================= */
+        
+        let currentBook = null; // 当前正在查看/阅读的书
+        let allBooksCache = []; // 用于搜索的缓存
+
+        // 1. 导入处理
+        async function handleImport(input) {
+            const files = Array.from(input.files);
+            if (!files.length) return;
+
+            let count = 0;
+            for (const file of files) {
+                const text = await readFile(file);
+                const book = {
+                    id: Date.now() + Math.random().toString(), // 唯一ID
+                    title: file.name.replace('.txt', ''),
+                    content: text,
+                    size: (file.size / 1024).toFixed(1) + ' KB',
+                    status: 'reading', // reading(连载) / finished(完结)
+                    platform: '',
+                    tags: '',
+                    addDate: new Date().toLocaleDateString()
+                };
+                await addBookToDB(book);
+                count++;
+            }
+            alert(`✅ 成功存入 ${count} 本书！(使用专业数据库，稳！)`);
+            input.value = '';
+            renderBooks();
+        }
+
+        function readFile(file) {
+            return new Promise(resolve => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result);
+                reader.readAsText(file);
+            });
+        }
+
+        // 2. 渲染书架列表
+        async function renderBooks(filterText = '') {
+            const grid = document.getElementById('bookGrid');
             grid.innerHTML = '';
             
-            let list = novels;
-            if(filter === 'reading') list = list.filter(n => n.status === 'reading');
-            if(filter === 'finished') list = list.filter(n => n.status === 'finished');
-            if(filter === 'unread') list = list.filter(n => !n.isRead);
-            if(filter === 'read') list = list.filter(n => n.isRead);
+            // 获取最新数据
+            allBooksCache = await getAllBooks();
+            // 倒序排列，新导入的在前面
+            allBooksCache.reverse();
 
-            if(list.length === 0) {
-                grid.innerHTML = '<div style="text-align:center;width:100%;color:#aaa;margin-top:50px;grid-column:1/-1;">书架空空如也...</div>';
+            // 搜索过滤
+            let list = allBooksCache;
+            if (filterText) {
+                const lowerText = filterText.toLowerCase();
+                list = list.filter(b => 
+                    b.title.toLowerCase().includes(lowerText) || 
+                    (b.tags && b.tags.includes(lowerText)) || 
+                    (b.platform && b.platform.includes(lowerText))
+                );
+            }
+
+            if (list.length === 0) {
+                grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#999; margin-top:50px;">书架空空的...</div>';
                 return;
             }
 
             list.forEach(book => {
-                const div = document.createElement('div');
-                div.className = 'book-card';
-                div.innerHTML = `
-                    <div onclick="openReader('${book.id}')" style="cursor:pointer; flex:1; display:flex; flex-direction:column;">
-                        <div class="book-icon">📖</div>
-                        <div class="book-title">${book.title}</div>
-                        <div class="book-tags">
-                            <span class="tag ${book.status === 'finished' ? 'tag-green' : 'tag-orange'}" style="background:${book.status === 'finished'?'#e8f5e9':'#fff3e0'};color:${book.status === 'finished'?'#2e7d32':'#ef6c00'}">
-                                ${book.status === 'finished' ? '已完结' : '连载中'}
-                            </span>
-                        </div>
+                const el = document.createElement('div');
+                el.className = 'book';
+                // 状态圆点
+                const dotClass = book.status === 'finished' ? 'dot-green' : 'dot-orange';
+                
+                el.innerHTML = `
+                    <div class="cover">
+                        📖
+                        <div class="status-dot ${dotClass}" title="${book.status==='finished'?'已完结':'连载中'}"></div>
                     </div>
-                    <div class="book-actions">
-                        <button class="btn-icon" style="font-size:14px;color:#888" onclick="toggleStatus('${book.id}', 'status')" title="切换连载/完结">🏷️</button>
-                        <button class="btn-icon" style="font-size:14px;color:${book.isRead?'#2ecc71':'#ccc'}" onclick="toggleStatus('${book.id}', 'isRead')" title="标记已读">✔</button>
-                        <button class="btn-icon" style="font-size:14px;color:#ff6b6b;" onclick="deleteBook('${book.id}')">🗑️</button>
+                    <div>
+                        <div class="book-title">${book.title}</div>
+                        <div class="book-info">${book.platform || '本地'} · ${book.status==='finished'?'完':'连'}</div>
                     </div>
                 `;
-                grid.appendChild(div);
+                el.onclick = () => openDetail(book);
+                grid.appendChild(el);
             });
         }
 
-        function toggleStatus(id, field) {
-            const book = novels.find(n => n.id === id);
-            if(!book) return;
-            if(field === 'status') book.status = book.status === 'reading' ? 'finished' : 'reading';
-            else if(field === 'isRead') book.isRead = !book.isRead;
-            saveAndRender();
-        }
-
-        function deleteBook(id) {
-            if(confirm('确定要删除这本书吗？')) {
-                novels = novels.filter(n => n.id !== id);
-                saveAndRender();
-            }
-        }
-
-        function filterList(type, btn) {
-            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            saveAndRender(type);
-        }
-
-        // --- 3. 换肤系统 (藏书阁专属) ---
-        function toggleSkinMenu() {
-            const menu = document.getElementById('skinMenu');
-            menu.classList.toggle('show');
-        }
-
-        // 点击其他地方关闭菜单
-        document.addEventListener('click', function(e) {
-            const menu = document.getElementById('skinMenu');
-            const btn = document.querySelector('.btn-icon[title="换肤"]');
-            if (!menu.contains(e.target) && e.target !== btn) {
-                menu.classList.remove('show');
-            }
-        });
-
-        function changeLibraryTheme(theme) {
-            applyLibraryTheme(theme);
-            localStorage.setItem('lili_lib_theme', theme);
-            document.getElementById('skinMenu').classList.remove('show');
-        }
-
-        function applyLibraryTheme(theme) {
-            const root = document.documentElement;
-            if (theme === 'pink') {
-                root.style.setProperty('--lib-primary', '#ffb7c5');
-                root.style.setProperty('--lib-bg', '#ffe6eb');
-                root.style.setProperty('--lib-card-bg', '#fff');
-                root.style.setProperty('--lib-text', '#6d5c5c');
-                root.style.setProperty('--lib-accent', '#ff8fa3');
-            } else if (theme === 'green') {
-                root.style.setProperty('--lib-primary', '#66bb6a');
-                root.style.setProperty('--lib-bg', '#e8f5e9');
-                root.style.setProperty('--lib-card-bg', '#fff');
-                root.style.setProperty('--lib-text', '#1b5e20');
-                root.style.setProperty('--lib-accent', '#43a047');
-            } else if (theme === 'blue') {
-                root.style.setProperty('--lib-primary', '#42a5f5');
-                root.style.setProperty('--lib-bg', '#e3f2fd');
-                root.style.setProperty('--lib-card-bg', '#fff');
-                root.style.setProperty('--lib-text', '#0d47a1');
-                root.style.setProperty('--lib-accent', '#1e88e5');
-            } else if (theme === 'dark') {
-                root.style.setProperty('--lib-primary', '#555');
-                root.style.setProperty('--lib-bg', '#121212');
-                root.style.setProperty('--lib-card-bg', '#1e1e1e');
-                root.style.setProperty('--lib-text', '#e0e0e0');
-                root.style.setProperty('--lib-accent', '#757575');
-            }
-        }
-
-
-        // --- 4. 阅读器功能 ---
-        function openReader(id) {
-            const book = novels.find(n => n.id === id);
-            if(!book) return;
+        // 3. 详情页逻辑
+        function openDetail(book) {
+            currentBook = book;
+            document.getElementById('detailTitle').innerText = book.title;
+            document.getElementById('detailSize').innerText = '大小: ' + book.size;
+            document.getElementById('detailStatus').value = book.status;
+            document.getElementById('detailPlatform').value = book.platform || '';
+            document.getElementById('detailTags').value = book.tags || '';
             
-            document.getElementById('readTitle').innerText = book.title;
-            document.getElementById('readContent').innerText = book.content;
-            document.getElementById('readerModal').classList.add('active');
+            document.getElementById('detailModal').classList.add('active');
+        }
+
+        function closeDetail() {
+            document.getElementById('detailModal').classList.remove('active');
+        }
+
+        async function saveAndCloseDetail() {
+            if (!currentBook) return;
+            // 更新数据
+            currentBook.status = document.getElementById('detailStatus').value;
+            currentBook.platform = document.getElementById('detailPlatform').value;
+            currentBook.tags = document.getElementById('detailTags').value;
+
+            await updateBookInDB(currentBook);
+            closeDetail();
+            renderBooks(document.getElementById('searchInput').value); // 刷新列表
+        }
+
+        async function deleteCurrentBook() {
+            if (confirm(`确定要删除《${currentBook.title}》吗？`)) {
+                await deleteBookFromDB(currentBook.id);
+                closeDetail();
+                renderBooks();
+            }
+        }
+
+        // 4. 阅读器逻辑
+        function startReading() {
+            if (!currentBook) return;
+            document.getElementById('readerTitle').innerText = currentBook.title;
+            // 只有点击阅读时才加载内容，界面更流畅
+            document.getElementById('readerContent').innerText = currentBook.content;
             
-            // 读取之前的阅读设置
-            const style = JSON.parse(localStorage.getItem('lili_reader_pref') || '{}');
-            if(style.fontSize) setStyle('fontSize', style.fontSize);
-            if(style.lineHeight) setStyle('lineHeight', style.lineHeight);
-            if(style.fontFamily) setStyle('fontFamily', style.fontFamily);
-            if(style.padding) setStyle('padding', style.padding);
-            if(style.bg) setReaderTheme(style.bg, style.color);
+            document.getElementById('readerPage').classList.add('active');
+            closeDetail(); // 关闭详情页
+            
+            // 恢复样式
+            const pref = JSON.parse(localStorage.getItem('lili_reader_pref_v2') || '{}');
+            if(pref.fontSize) setStyle('fontSize', pref.fontSize);
+            if(pref.lineHeight) setStyle('lineHeight', pref.lineHeight);
+            if(pref.bg) setTheme(pref.bg, pref.color);
         }
 
         function closeReader() {
-            document.getElementById('readerModal').classList.remove('active');
-            document.getElementById('settingPanel').classList.remove('open');
+            document.getElementById('readerPage').classList.remove('active');
+            // 清空内容防止占用内存
+            setTimeout(() => { document.getElementById('readerContent').innerText = ''; }, 300);
+        }
+
+        // 5. 搜索功能
+        function handleSearch() {
+            const text = document.getElementById('searchInput').value;
+            renderBooks(text);
+        }
+
+        // 6. 换肤与样式
+        function toggleTheme() {
+            const root = document.documentElement;
+            // 简单切换两个主题演示
+            const current = root.style.getPropertyValue('--bg');
+            if (current.includes('#ffe6eb')) { // 粉 -> 绿
+                root.style.setProperty('--primary', '#66bb6a');
+                root.style.setProperty('--bg', '#e8f5e9');
+                root.style.setProperty('--accent', '#43a047');
+            } else if (current.includes('#e8f5e9')) { // 绿 -> 蓝
+                 root.style.setProperty('--primary', '#42a5f5');
+                 root.style.setProperty('--bg', '#e3f2fd');
+                 root.style.setProperty('--accent', '#1e88e5');
+            } else { // 蓝 -> 粉
+                root.style.setProperty('--primary', '#ffb7c5');
+                root.style.setProperty('--bg', '#ffe6eb');
+                root.style.setProperty('--accent', '#ff8fa3');
+            }
         }
 
         function toggleSettings(force) {
-            const panel = document.getElementById('settingPanel');
-            if(force === false) panel.classList.remove('open');
-            else panel.classList.toggle('open');
+            const p = document.getElementById('settingsPanel');
+            if (force === false) p.classList.remove('show');
+            else p.classList.toggle('show');
         }
 
-        // 样式实时修改
         function setStyle(prop, val) {
-            document.getElementById('readContent').style[prop] = val;
+            document.getElementById('readerContent').style[prop] = val;
             savePref(prop, val);
         }
 
-        function setReaderTheme(bg, color) {
-            const modal = document.getElementById('readerModal');
-            modal.style.background = bg;
-            modal.style.color = color;
-            
-            // 确保导航栏颜色适配
-            const topBar = document.querySelector('.reader-top');
-            if(bg === '#1a1a1a') {
-                 topBar.style.background = 'rgba(0,0,0,0.5)';
-                 topBar.style.color = '#ccc';
-            } else {
-                 topBar.style.background = 'rgba(255,255,255,0.8)';
-                 topBar.style.color = '#333';
-            }
-
+        function setTheme(bg, color) {
+            const page = document.getElementById('readerPage');
+            page.style.background = bg;
+            page.style.color = color;
+            document.querySelector('.reader-nav').style.background = bg === '#1a1a1a' ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.9)';
+            document.querySelector('.reader-nav').style.color = bg === '#1a1a1a' ? '#ccc' : '#333';
             savePref('bg', bg);
             savePref('color', color);
         }
 
-        function savePref(key, val) {
-            const style = JSON.parse(localStorage.getItem('lili_reader_pref') || '{}');
-            style[key] = val;
-            localStorage.setItem('lili_reader_pref', JSON.stringify(style));
+        function savePref(k, v) {
+            const p = JSON.parse(localStorage.getItem('lili_reader_pref_v2') || '{}');
+            p[k] = v;
+            localStorage.setItem('lili_reader_pref_v2', JSON.stringify(p));
         }
 
         function goBackMain() {
-             // 尝试检测主文件名称，如果不知道就默认 index.html 或 主系统.txt
-             if(document.referrer && document.referrer.indexOf('novel_library') === -1) {
-                 history.back();
-             } else {
-                 window.location.href = '主系统.txt'; // 如果你主系统是这个名字
-             }
+            if (document.referrer) history.back();
+            else window.location.href = '主系统.txt';
         }
 
         // 初始化
-        saveAndRender();
+        initDB();
 
     </script>
 </body>
