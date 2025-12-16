@@ -9495,7 +9495,7 @@ window.openAISettings = function() {
             chat.scrollTop = chat.scrollHeight;
 
             var config = window.aiConfig || JSON.parse(localStorage.getItem('my_ai_config'));
-            if (!config || !config.apiKey) { alert("请先配置 API Key"); return; }
+            if (!config || !config.apiKey8) { alert("请先配置 API Key"); return; }
 
             // 🔥 核心修改：多人模式也用模板 Prompt
             var prompt = `
@@ -11371,6 +11371,120 @@ window.openAISettings = function() {
     };
 
     console.log("✅ V88.0：润色按钮已修复，API 链接已加固。");
+
+})();
+
+/* ================= 🌏 V90.0 补丁：世界观生成模板 (地理与法则版) ================= */
+(function() {
+    console.log("🚀 执行 V90.0：世界观模板已修正为【场景/地标/法则】模式...");
+
+    // 覆盖：军师的生成逻辑 (runAdvisorGenerate)
+    window.runAdvisorGenerate = async function() {
+        var query = document.getElementById('advisorInput').value.trim();
+        if (!query) { alert("请先输入题材（例如：赛博朋克、修仙界）！"); return; }
+
+        var chat = document.getElementById('advisorChat');
+        // 上屏用户输入
+        chat.innerHTML += `<div class="advisor-bubble" style="text-align:right; background:#f5f5f5; border:none; opacity:0.8;">${query}</div>`;
+        
+        var loadingId = 'gen-world-' + Date.now();
+        chat.innerHTML += `<div id="${loadingId}" class="advisor-bubble" style="color:#999;">🏗️ 正在构建地理环境与法则...</div>`;
+        chat.scrollTop = chat.scrollHeight;
+
+        var config = window.aiConfig || JSON.parse(localStorage.getItem('my_ai_config'));
+        
+        // 🔥 V90.0 核心 Prompt：强制设定集风格，禁止写故事
+        var prompt = `
+        你是一位【游戏场景概念设计师】和【世界观架构师】。
+        用户题材：【${query}】。
+
+        请编写一份详细的**“世界设定集”**。
+        ⚠️ **绝对禁止**编写故事梗概、剧情发展或主角的冒险经历！
+        ⚠️ **只描述**客观存在的环境、地点和规则。
+
+        请严格按照以下 HTML 格式输出 (不要使用 Markdown 代码块)：
+
+        <div style="margin-bottom:10px;">
+            <b style="color:#e91e63; font-size:14px;">🗺️ 【世界全貌】(World Atmosphere)</b><br>
+            <span style="font-size:12px; color:#555;">
+            (请详细描写这个世界的整体视觉风格。天空的颜色？空气的味道？建筑的材质？是压抑的废土，还是辉煌的浮空城？请侧重于画面感。)
+            </span>
+        </div>
+
+        <div style="margin-bottom:10px;">
+            <b style="color:#e91e63; font-size:14px;">📍 【核心地标】(Key Locations)</b><br>
+            <span style="font-size:12px; color:#555;">(请设计 3 个具体的、有特色的地点，玩家/角色可以实际去的地方)</span><br>
+            <b>1. [地点名称]</b>：[外观描述] + [功能/主要活动]<br>
+            <b>2. [地点名称]</b>：[外观描述] + [功能/主要活动]<br>
+            <b>3. [地点名称]</b>：[外观描述] + [功能/主要活动]
+        </div>
+
+        <div>
+            <b style="color:#e91e63; font-size:14px;">⚖️ 【底层法则】(System Rules)</b><br>
+            <span style="font-size:12px; color:#555;">(在这个世界生存必须遵守的客观规则/常识)</span><br>
+            - [法则1：关于力量体系或科技限制]<br>
+            - [法则2：关于社会阶级或通行禁忌]<br>
+            - [法则3：绝对不能触碰的底线]
+        </div>
+        `;
+
+        try {
+            var res = await fetch(`${config.apiUrl}/chat/completions`, {
+                method: 'POST', headers: {'Content-Type':'application/json','Authorization':`Bearer ${config.apiKey}`},
+                body: JSON.stringify({model: config.model, messages:[{role:"user", content:prompt}]})
+            });
+            var json = await res.json();
+            var content = json.choices[0].message.content;
+            
+            // 清理可能存在的 markdown 标记
+            content = content.replace(/```html/g, '').replace(/```/g, '').trim();
+
+            document.getElementById(loadingId).remove();
+
+            // 渲染结果
+            chat.innerHTML += `
+                <div class="advisor-bubble">
+                    ${content}
+                    <div style="margin-top:10px; border-top:1px dashed #ccc; padding-top:5px; display:flex; gap:5px;">
+                        <button class="advisor-action-btn" onclick="navigator.clipboard.writeText(\`${content.replace(/`/g, '\\`').replace(/"/g, '&quot;')}\`); alert('已复制设定！')">
+                            📋 复制设定
+                        </button>
+                        <button class="advisor-action-btn" onclick="window.applyWorldToBook(\`${encodeURIComponent(content)}\`)">
+                            📖 存入世界书
+                        </button>
+                    </div>
+                </div>
+            `;
+            chat.scrollTop = chat.scrollHeight;
+
+        } catch(e) {
+            document.getElementById(loadingId).innerText = "❌ 生成失败: " + e.message;
+        }
+    };
+
+    // 辅助：直接存入世界书的函数
+    window.applyWorldToBook = function(encodedContent) {
+        var content = decodeURIComponent(encodedContent);
+        // 简单的去HTML标签处理，或者保留HTML视你的世界书支持情况而定
+        // 这里我们保留 HTML，因为 V89 允许 HTML
+        
+        if (!window.currentWorldInfo) window.currentWorldInfo = { entries: [] };
+        
+        window.currentWorldInfo.entries.push({
+            id: Date.now(),
+            keys: ["世界观", "world", "setting"],
+            content: content,
+            comment: "核心世界观",
+            position: 0, // 置顶
+            enabled: true
+        });
+        
+        if(window.auth && window.auth.toast) window.auth.toast('✅ 已保存到世界书！');
+        // 如果想让用户看到，可以跳转
+        // if(typeof switchCardTab === 'function') switchCardTab('world');
+    };
+
+    console.log("✅ V90.0：世界观生成引擎已重塑 (客观视角/设定集风格)");
 
 })();
 
