@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-    <title>📚 梨梨藏书阁 (V19.0 完美排版)</title>
+    <title>📚 梨梨藏书阁 (V20.0 全功能终极版)</title>
     <style>
-        /* --- 核心字体与变量 --- */
+        /* ================= 核心样式区域 ================= */
+        
+        /* 默认字体 */
         @font-face {
             font-family: 'DefaultFont';
             src: url('https://files.catbox.moe/cweam3.ttf') format('truetype');
@@ -13,19 +15,18 @@
         }
 
         :root {
-            /* 主题色 */
             --primary: #ffb7c5;
             --bg: #ffe6eb;
             --accent: #ff8fa3;
             --text: #5d4037;
             
-            /* 阅读器排版变量 (默认值) */
+            /* 阅读器变量 */
             --reader-font: 'DefaultFont', sans-serif;
             --reader-size: 18px;
             --reader-line-height: 1.8;
             --reader-letter-spacing: 1px;
-            --reader-para-spacing: 15px; /* 段距 */
-            --reader-padding: 20px;      /* 左右边距 */
+            --reader-para-spacing: 15px; 
+            --reader-padding: 20px;
             --reader-bg: #fdf6e3;
             --reader-color: #333;
         }
@@ -41,7 +42,7 @@
             overflow: hidden;
         }
 
-        /* --- 1. 顶部栏 --- */
+        /* 顶部栏 */
         .header {
             background: rgba(255,255,255,0.95); padding: 10px 15px;
             display: flex; flex-direction: column; gap: 10px;
@@ -51,15 +52,22 @@
         .title { font-size: 18px; font-weight: bold; color: var(--accent); }
         
         .import-controls { display: flex; gap: 5px; align-items: center; }
-        .encoding-select {
-            font-size: 12px; padding: 5px; border-radius: 10px; border: 1px solid #ddd; background: #fff;
-        }
+        .encoding-select { font-size: 12px; padding: 5px; border-radius: 10px; border: 1px solid #ddd; background: #fff; }
 
         .search-box {
             background: #f0f0f0; border-radius: 20px; padding: 6px 15px;
             display: flex; align-items: center; gap: 5px;
         }
         .search-input { border: none; background: transparent; outline: none; width: 100%; font-size: 14px; }
+
+        /* 筛选栏样式 */
+        .filter-bar {
+            display:flex; gap:10px; overflow-x:auto; padding-bottom: 5px;
+        }
+        .filter-btn {
+            padding: 4px 12px; border-radius:15px; border:1px solid #ddd; background:white; color:#666; font-size:12px; white-space:nowrap;
+        }
+        .filter-btn.active { background:var(--primary); color:white; border-color:var(--primary); }
 
         .btn {
             border: none; padding: 6px 12px; border-radius: 15px;
@@ -68,25 +76,32 @@
         .btn-primary { background: var(--primary); color: white; }
         .btn-icon { background: transparent; font-size: 20px; padding: 5px; }
 
-        /* --- 2. 书架 --- */
+        /* 书架 */
         .grid {
             flex: 1; overflow-y: auto; padding: 15px;
             display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
             gap: 15px; align-content: start;
         }
         .book { display: flex; flex-direction: column; gap: 5px; cursor: pointer; }
+        
+        /* 封面样式 (支持图片) */
         .cover {
-            aspect-ratio: 2/3; background: #fff; border-radius: 8px;
+            aspect-ratio: 2/3; 
+            background-color: #fff; 
+            background-size: cover; 
+            background-position: center;
+            border-radius: 8px;
             display: flex; align-items: center; justify-content: center;
             font-size: 30px; box-shadow: 0 4px 8px rgba(0,0,0,0.05); position: relative;
+            overflow: hidden;
         }
+        .cover.has-img { font-size: 0; } /* 有图时不显示emoji */
+
         .book-title { font-size: 13px; font-weight: bold; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-        
-        /* 进度条 */
         .progress-bar-bg { position: absolute; bottom: 0; left:0; width:100%; height:4px; background:#eee; border-radius: 0 0 8px 8px; }
         .progress-bar-fill { height:100%; background:var(--primary); width:0%; }
 
-        /* --- 3. 详情页弹窗 --- */
+        /* 详情页弹窗 */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.5); z-index: 1000;
@@ -94,16 +109,17 @@
         }
         .modal-overlay.active { display: flex; }
         .detail-card {
-            background: white; width: 85%; max-width: 400px; border-radius: 15px; overflow: hidden;
-            display: flex; flex-direction: column;
+            background: white; width: 90%; max-width: 400px; border-radius: 15px; overflow: hidden;
+            display: flex; flex-direction: column; max-height: 90vh; overflow-y: auto;
         }
-        .detail-body { padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+        .form-input { border: 1px solid #ddd; padding: 8px; border-radius: 8px; font-size: 14px; outline: none; width: 100%; }
 
-        /* --- 4. 阅读器 (核心优化) --- */
+        /* 阅读器 */
         .reader {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: var(--reader-bg); color: var(--reader-color);
             z-index: 2000; display: none; flex-direction: column;
+            background-size: cover; background-position: center; background-attachment: fixed;
         }
         .reader.active { display: flex; }
 
@@ -112,40 +128,28 @@
             background: rgba(255,255,255,0.9); border-bottom: 1px solid #eee; flex-shrink: 0;
         }
 
-        .reader-container {
-            flex: 1; overflow-y: auto; overflow-x: hidden; /* 锁死横向滚动 */
-            position: relative; width: 100%;
-        }
+        .reader-container { flex: 1; overflow-y: auto; overflow-x: hidden; width: 100%; }
 
-        /* 🌟 核心排版样式 🌟 */
         .reader-content {
-            /* 使用 padding 变量控制左右边距 */
             padding: 20px var(--reader-padding) 80px var(--reader-padding); 
-            max-width: 100%; /* 锁定宽度 */
-            width: 100%;
-            overflow-wrap: break-word; /* 强制断行，防止长英文撑开 */
-            word-wrap: break-word;
-            word-break: break-all;
+            max-width: 100%; width: 100%;
+            overflow-wrap: break-word; word-wrap: break-word; word-break: break-all;
         }
 
-        /* 🌟 段落样式 (控制段距、行距、字距) 🌟 */
+        /* 🌟 段落样式 (含首行缩进) 🌟 */
         .reader-content p {
             font-family: var(--reader-font);
             font-size: var(--reader-size);
             line-height: var(--reader-line-height);
             letter-spacing: var(--reader-letter-spacing);
-            margin-bottom: var(--reader-para-spacing); /* 段距 */
+            margin-bottom: var(--reader-para-spacing);
+            text-align: justify;
+            text-indent: 2em; /* 首行缩进 */
             margin-top: 0;
-            text-align: justify; /* 两端对齐 */
         }
         
-        /* 章节标题 */
-        .chapter-title {
-            font-weight: bold; font-size: 1.4em; margin-bottom: 30px; 
-            color: var(--primary); text-align: center;
-        }
+        .chapter-title { font-weight: bold; font-size: 1.4em; margin-bottom: 30px; color: var(--primary); text-align: center; }
 
-        /* 底部翻页栏 */
         .reader-footer {
             position: absolute; bottom: 0; left: 0; width: 100%;
             background: rgba(255,255,255,0.95); padding: 10px 15px;
@@ -154,7 +158,7 @@
         }
         .page-btn { flex: 1; background: var(--primary); color: white; border: none; padding: 10px; border-radius: 20px; }
 
-        /* --- 5. 设置面板 --- */
+        /* 设置面板 */
         .settings-panel {
             position: absolute; bottom: 0; left: 0; width: 100%;
             background: white; padding: 20px; border-radius: 20px 20px 0 0;
@@ -196,16 +200,26 @@
             <div class="title">📚 藏书阁 Pro</div>
             <div class="import-controls">
                 <select id="encodingSelect" class="encoding-select">
-                    <option value="utf-8">UTF-8 (默认)</option>
-                    <option value="gbk">GBK (老书专用)</option>
+                    <option value="utf-8">UTF-8</option>
+                    <option value="gbk">GBK (老书)</option>
                 </select>
                 <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">📥 导入</button>
+                <button class="btn" style="background:#fff; border:1px solid var(--primary); color:var(--primary);" onclick="exportData()">📤 导出</button>
                 <input type="file" id="fileInput" accept=".txt" multiple style="display:none" onchange="handleImport(this)">
             </div>
         </div>
+        
         <div class="search-box">
             <span>🔍</span>
             <input type="text" class="search-input" id="searchInput" placeholder="搜索书名..." onkeyup="renderBooks(this.value)">
+        </div>
+
+        <div class="filter-bar">
+            <button class="filter-btn active" onclick="filterBooks('all', this)">全部</button>
+            <button class="filter-btn" onclick="filterBooks('reading', this)">⏳ 连载中</button>
+            <button class="filter-btn" onclick="filterBooks('finished', this)">✅ 已完结</button>
+            <button class="filter-btn" onclick="filterBooks('unread', this)">🔴 未读完</button>
+            <button class="filter-btn" onclick="filterBooks('read', this)">🟢 已读完</button>
         </div>
     </div>
 
@@ -213,12 +227,37 @@
 
     <div class="modal-overlay" id="detailModal">
         <div class="detail-card">
-            <div class="detail-body">
-                <h3 id="detailTitle" style="text-align:center; margin:0;">书名</h3>
-                <div id="detailInfo" style="text-align:center; color:#888; font-size:12px;"></div>
-                <button class="btn btn-primary" style="padding:12px;" onclick="startReading()">📖 开始阅读</button>
-                <button class="btn" style="border:1px solid #ddd; background:white;" onclick="deleteCurrentBook()">🗑️ 删除本书</button>
-                <button class="btn" onclick="document.getElementById('detailModal').classList.remove('active')">关闭</button>
+            <div class="detail-body" style="padding:15px; gap:10px; display: flex; flex-direction: column;">
+                <div style="text-align:center; font-weight:bold; color:var(--primary); margin-bottom:5px;">📝 编辑书籍信息</div>
+                
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <div id="previewCover" style="width:60px; height:90px; background:#eee; border-radius:5px; display:flex; justify-content:center; align-items:center; font-size:20px; background-size:cover;">📖</div>
+                    <div style="flex:1; display:flex; flex-direction:column; gap:5px;">
+                        <button class="btn" style="font-size:12px; border:1px solid #ddd;" onclick="document.getElementById('coverInput').click()">🖼️ 上传封面图</button>
+                        <button class="btn" style="font-size:12px; border:1px solid #ddd;" onclick="removeCover()">🔄 恢复默认</button>
+                        <input type="file" id="coverInput" accept="image/*" style="display:none" onchange="handleCoverChange(this)">
+                    </div>
+                </div>
+
+                <input type="text" id="editTitle" class="form-input" placeholder="书名">
+                <input type="text" id="editAuthor" class="form-input" placeholder="作者">
+                
+                <div style="display:flex; gap:5px;">
+                    <select id="editStatus" class="form-input" style="flex:1">
+                        <option value="reading">⏳ 连载中</option>
+                        <option value="finished">✅ 已完结</option>
+                    </select>
+                    <input type="text" id="editTags" class="form-input" style="flex:2" placeholder="标签">
+                </div>
+
+                <div style="display:flex; gap:10px; margin-top:10px;">
+                    <button class="btn btn-primary" style="flex:1; padding:10px;" onclick="saveDetailAndRead()">📖 保存并阅读</button>
+                    <button class="btn" onclick="saveDetailOnly()">💾 仅保存</button>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-top:5px;">
+                    <button class="btn" style="color:#ff6b6b;" onclick="deleteCurrentBook()">🗑️ 删除</button>
+                    <button class="btn" onclick="document.getElementById('detailModal').classList.remove('active')">关闭</button>
+                </div>
             </div>
         </div>
     </div>
@@ -249,41 +288,44 @@
 
         <div class="settings-panel" id="settingsPanel">
             
-            <div class="setting-row" style="border-bottom:1px solid #eee; padding-bottom:10px;">
-                <span class="setting-label">换字体</span>
-                <button class="btn" style="border:1px solid #primary; color:var(--primary); background:#fff; flex:1;" onclick="document.getElementById('fontInput').click()">📂 导入字体文件(.ttf)</button>
+            <div class="setting-row" style="justify-content:space-between; border-bottom:1px solid #eee; padding-bottom:10px;">
+                <span class="setting-label">功能</span>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn" onclick="toggleFullScreen()">📺 全屏</button>
+                    <button class="btn" onclick="document.getElementById('fontInput').click()">🔤 导入字体(永久)</button>
+                </div>
                 <input type="file" id="fontInput" accept=".ttf,.woff,.woff2" style="display:none" onchange="handleFontImport(this)">
             </div>
 
             <div class="setting-row">
                 <span class="setting-label">背景</span>
-                <div style="display:flex; gap:10px; flex:1;">
+                <div style="display:flex; gap:8px; overflow-x:auto; align-items:center;">
                     <div onclick="setTheme('#fdf6e3','#333')" style="width:30px;height:30px;background:#fdf6e3;border:1px solid #ccc;border-radius:50%;"></div>
                     <div onclick="setTheme('#ffffff','#000')" style="width:30px;height:30px;background:#ffffff;border:1px solid #ccc;border-radius:50%;"></div>
-                    <div onclick="setTheme('#c8e6c9','#1b5e20')" style="width:30px;height:30px;background:#c8e6c9;border-radius:50%;"></div>
                     <div onclick="setTheme('#1a1a1a','#999')" style="width:30px;height:30px;background:#1a1a1a;border-radius:50%;"></div>
+                    
+                    <input type="color" id="customBgColor" onchange="setCustomColor(this.value)" style="width:30px; height:30px; border:none; padding:0; background:none;">
+                    
+                    <button class="btn" style="font-size:10px; padding:2px 5px;" onclick="document.getElementById('bgImgInput').click()">🖼️ 图片</button>
+                    <input type="file" id="bgImgInput" accept="image/*" style="display:none" onchange="setCustomBgImage(this)">
                 </div>
             </div>
 
             <div class="setting-row">
                 <span class="setting-label">字号</span>
                 <input type="range" min="12" max="30" value="18" oninput="updateStyle('--reader-size', this.value + 'px')">
-                <span style="font-size:12px;width:25px;" id="val_size">18</span>
             </div>
             <div class="setting-row">
                 <span class="setting-label">行距</span>
                 <input type="range" min="1.0" max="3.0" step="0.1" value="1.8" oninput="updateStyle('--reader-line-height', this.value)">
             </div>
             <div class="setting-row">
-                <span class="setting-label">字距</span>
-                <input type="range" min="0" max="10" step="0.5" value="1" oninput="updateStyle('--reader-letter-spacing', this.value + 'px')">
-            </div>
-            <div class="setting-row">
                 <span class="setting-label">段距</span>
                 <input type="range" min="0" max="50" value="15" oninput="updateStyle('--reader-para-spacing', this.value + 'px')">
             </div>
-            <div class="setting-row">
-                <span class="setting-label">边距</span> <input type="range" min="0" max="60" value="20" oninput="updateStyle('--reader-padding', this.value + 'px')">
+             <div class="setting-row">
+                <span class="setting-label">边距</span>
+                <input type="range" min="0" max="60" value="20" oninput="updateStyle('--reader-padding', this.value + 'px')">
             </div>
         </div>
     </div>
@@ -291,8 +333,8 @@
     <div class="back-home" onclick="if(document.referrer){history.back()}else{window.location.href='主系统.txt'}">🏠</div>
 
     <script>
-        /* ================= 1. 数据库 (IndexedDB) ================= */
-        const DB_NAME = 'LiliNovelDB_V3'; // 升级版本
+        /* ================= 1. 数据库配置 ================= */
+        const DB_NAME = 'LiliNovelDB_V5'; // 升级数据库版本以支持新功能
         let db;
 
         function initDB() {
@@ -305,46 +347,41 @@
                 };
                 req.onsuccess = (e) => {
                     db = e.target.result;
-                    loadSettings();
+                    loadGlobalSettings(); // 加载字体和背景
                     renderBooks();
                     resolve(db);
                 };
             });
         }
 
-        /* ================= 2. 导入逻辑 (解决乱码) ================= */
-        
+        /* ================= 2. 导入与导出 ================= */
         async function handleImport(input) {
             const files = Array.from(input.files);
             if (!files.length) return;
-            
-            // 获取用户选择的编码 (GBK or UTF-8)
             const encoding = document.getElementById('encodingSelect').value;
             let count = 0;
-
             for (const file of files) {
                 try {
                     const text = await readFile(file, encoding);
-                    // 智能分章
                     const chapters = splitChapters(text);
-                    
                     const book = {
                         id: Date.now() + Math.random().toString(),
                         title: file.name.replace('.txt', ''),
+                        author: '未知',
                         chapters: chapters,
                         chapterIndex: 0,
+                        status: 'reading',
+                        cover: null,
+                        tags: '',
                         addedAt: new Date().toLocaleDateString()
                     };
-                    
                     const tx = db.transaction('novels', 'readwrite');
                     tx.objectStore('novels').add(book);
                     await new Promise(r => tx.oncomplete = r);
                     count++;
-                } catch (e) {
-                    alert(`导入失败: ${file.name}\n请尝试切换编码后重试。`);
-                }
+                } catch (e) { alert(`导入失败: ${file.name}`); }
             }
-            alert(`✅ 成功导入 ${count} 本书！\n如果不显示中文，请切换左上角编码为 GBK 再试。`);
+            alert(`✅ 成功导入 ${count} 本书！`);
             input.value = '';
             renderBooks();
         }
@@ -354,46 +391,146 @@
                 const reader = new FileReader();
                 reader.onload = e => resolve(e.target.result);
                 reader.onerror = reject;
-                reader.readAsText(file, encoding); // 关键：使用指定编码
+                reader.readAsText(file, encoding);
             });
         }
 
-        // 智能分章：如果没有明显章节，每3000字切一章
         function splitChapters(text) {
-            // 简单正则匹配 "第X章"
             const regex = /(?:^|\n)\s*(第[0-9零一二三四五六七八九十百千万]+[章回节][^\n]*)/g;
             const parts = text.split(regex);
-            
             if (parts.length < 3) {
-                // 强制切分
-                const chunks = [];
-                const size = 3000;
-                for(let i=0; i<text.length; i+=size) {
-                    chunks.push({ title: `第 ${Math.floor(i/size)+1} 部分`, content: text.substring(i, i+size) });
-                }
+                const chunks = []; const size = 3000;
+                for(let i=0; i<text.length; i+=size) chunks.push({ title: `第 ${Math.floor(i/size)+1} 部分`, content: text.substring(i, i+size) });
                 return chunks;
             } else {
                 const chapters = [];
                 if(parts[0].trim()) chapters.push({title:"序章", content:parts[0]});
-                for(let i=1; i<parts.length; i+=2) {
-                    chapters.push({ title: parts[i].trim(), content: parts[i+1] });
-                }
+                for(let i=1; i<parts.length; i+=2) chapters.push({ title: parts[i].trim(), content: parts[i+1] });
                 return chapters;
             }
         }
 
-        /* ================= 3. 阅读器核心 (解决排版) ================= */
+        function exportData() {
+            const tx = db.transaction('novels', 'readonly');
+            const req = tx.objectStore('novels').getAll();
+            req.onsuccess = (e) => {
+                const data = JSON.stringify(e.target.result);
+                const blob = new Blob([data], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = `梨梨藏书阁备份_${new Date().toLocaleDateString()}.json`;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            };
+        }
+
+        /* ================= 3. 书架与筛选 ================= */
+        let currentFilter = 'all';
+
+        function filterBooks(type, btn) {
+            currentFilter = type;
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderBooks();
+        }
+
+        function renderBooks(searchQuery = '') {
+            const grid = document.getElementById('bookGrid');
+            grid.innerHTML = '';
+            const tx = db.transaction('novels', 'readonly');
+            const req = tx.objectStore('novels').getAll();
+            
+            req.onsuccess = (e) => {
+                let list = e.target.result.reverse();
+                if(searchQuery) {
+                    const q = searchQuery.toLowerCase();
+                    list = list.filter(b => b.title.toLowerCase().includes(q) || (b.author && b.author.toLowerCase().includes(q)));
+                }
+
+                if (currentFilter === 'reading') list = list.filter(b => b.status !== 'finished');
+                if (currentFilter === 'finished') list = list.filter(b => b.status === 'finished');
+                if (currentFilter === 'unread') list = list.filter(b => (b.chapterIndex || 0) < b.chapters.length - 1);
+                if (currentFilter === 'read') list = list.filter(b => (b.chapterIndex || 0) >= b.chapters.length - 1);
+
+                list.forEach(book => {
+                    const progress = Math.round(((book.chapterIndex||0) / book.chapters.length)*100);
+                    let coverHtml = book.cover ? `<div class="cover has-img" style="background-image:url(${book.cover})"></div>` : 
+                        `<div class="cover">📖<div class="book-title" style="position:absolute; padding:10px; text-align:center;">${book.title}</div><div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${progress}%"></div></div></div>`;
+
+                    const el = document.createElement('div');
+                    el.className = 'book';
+                    el.innerHTML = `${coverHtml}<div style="font-size:12px; font-weight:bold; margin-top:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${book.title}</div><div style="font-size:10px; color:#888;">${book.author} · ${progress}%</div>`;
+                    el.onclick = () => openDetail(book);
+                    grid.appendChild(el);
+                });
+            };
+        }
+
+        /* ================= 4. 详情页与编辑 ================= */
         let currentBook = null;
+        let tempCover = null;
+
+        function openDetail(book) {
+            currentBook = book;
+            tempCover = book.cover;
+            document.getElementById('editTitle').value = book.title;
+            document.getElementById('editAuthor').value = book.author || '';
+            document.getElementById('editStatus').value = book.status || 'reading';
+            document.getElementById('editTags').value = book.tags || '';
+            updateCoverPreview(book.cover);
+            document.getElementById('detailModal').classList.add('active');
+        }
+
+        function updateCoverPreview(base64) {
+            const div = document.getElementById('previewCover');
+            if(base64) {
+                div.innerText = ''; div.style.backgroundImage = `url(${base64})`; div.classList.add('has-img');
+            } else {
+                div.innerText = '📖'; div.style.backgroundImage = 'none'; div.classList.remove('has-img');
+            }
+        }
+
+        function handleCoverChange(input) {
+            const file = input.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => { tempCover = e.target.result; updateCoverPreview(tempCover); };
+            reader.readAsDataURL(file);
+        }
+
+        function removeCover() { tempCover = null; updateCoverPreview(null); }
+
+        function saveDetailOnly() { updateBookInfo(); alert('保存成功！'); }
+        function saveDetailAndRead() { updateBookInfo(); startReading(); }
+
+        function updateBookInfo() {
+            if(!currentBook) return;
+            currentBook.title = document.getElementById('editTitle').value;
+            currentBook.author = document.getElementById('editAuthor').value;
+            currentBook.status = document.getElementById('editStatus').value;
+            currentBook.tags = document.getElementById('editTags').value;
+            currentBook.cover = tempCover;
+            const tx = db.transaction('novels', 'readwrite');
+            tx.objectStore('novels').put(currentBook);
+            tx.oncomplete = () => renderBooks();
+        }
+
+        function deleteCurrentBook() {
+            if(confirm('确定删除吗？')) {
+                const tx = db.transaction('novels', 'readwrite');
+                tx.objectStore('novels').delete(currentBook.id);
+                tx.oncomplete = () => { document.getElementById('detailModal').classList.remove('active'); renderBooks(); };
+            }
+        }
+
+        /* ================= 5. 阅读器逻辑 ================= */
         let currentChapterIdx = 0;
 
         function startReading() {
             if(!currentBook) return;
             document.getElementById('detailModal').classList.remove('active');
             document.getElementById('readerPage').classList.add('active');
-            
             currentChapterIdx = currentBook.chapterIndex || 0;
             if(currentChapterIdx >= currentBook.chapters.length) currentChapterIdx = 0;
-            
             document.getElementById('readerTitle').innerText = currentBook.title;
             renderChapter();
         }
@@ -401,174 +538,121 @@
         function renderChapter() {
             const chap = currentBook.chapters[currentChapterIdx];
             const contentDiv = document.getElementById('readerContent');
-            
-            // 1. 标题
             let html = `<div class="chapter-title">${chap.title}</div>`;
-            
-            // 2. 核心排版修复：将换行符转为 <p> 标签
-            // 这样才能单独控制段距 (margin-bottom)
             const paragraphs = chap.content.split('\n');
-            paragraphs.forEach(p => {
-                const trimmed = p.trim();
-                if(trimmed) {
-                    // 每一段包裹在 P 标签里，利用 CSS 变量控制间距
-                    html += `<p>${trimmed}</p>`;
-                }
-            });
-            
+            paragraphs.forEach(p => { if(p.trim()) html += `<p>${p.trim()}</p>`; });
             contentDiv.innerHTML = html;
-            contentDiv.parentElement.scrollTop = 0; // 回到顶部
+            contentDiv.parentElement.scrollTop = 0;
             
-            // 保存进度
             currentBook.chapterIndex = currentChapterIdx;
             const tx = db.transaction('novels', 'readwrite');
             tx.objectStore('novels').put(currentBook);
         }
 
-        function prevChapter() {
-            if(currentChapterIdx > 0) { currentChapterIdx--; renderChapter(); }
-        }
-        function nextChapter() {
-            if(currentChapterIdx < currentBook.chapters.length-1) { currentChapterIdx++; renderChapter(); }
-        }
+        function prevChapter() { if(currentChapterIdx > 0) { currentChapterIdx--; renderChapter(); } }
+        function nextChapter() { if(currentChapterIdx < currentBook.chapters.length-1) { currentChapterIdx++; renderChapter(); } }
 
-        /* ================= 4. 设置与样式 (导入字体、滑块) ================= */
-        
-        // 样式实时更新
+        function closeReader() { document.getElementById('readerPage').classList.remove('active'); renderBooks(); }
+
+        /* ================= 6. 设置与持久化 ================= */
         function updateStyle(varName, value) {
             document.documentElement.style.setProperty(varName, value);
             saveSetting(varName, value);
         }
 
-        // 导入字体文件
-        function handleFontImport(input) {
-            const file = input.files[0];
-            if(!file) return;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const fontData = e.target.result;
-                const fontFace = new FontFace('CustomUserFont', `url(${fontData})`);
-                fontFace.load().then(loadedFace => {
-                    document.fonts.add(loadedFace);
-                    updateStyle('--reader-font', 'CustomUserFont, sans-serif');
-                    alert('字体导入成功！✨');
+        function saveSetting(key, val) {
+            const tx = db.transaction('settings', 'readwrite');
+            tx.objectStore('settings').put({ key: key, value: val });
+        }
+
+        function loadGlobalSettings() {
+            const tx = db.transaction('settings', 'readonly');
+            const store = tx.objectStore('settings');
+            store.getAll().onsuccess = (e) => {
+                e.target.result.forEach(item => {
+                    if (item.key === 'customFont' && item.value instanceof Blob) {
+                         const fontUrl = URL.createObjectURL(item.value);
+                         new FontFace('CustomUserFont', `url(${fontUrl})`).load().then(f => {
+                            document.fonts.add(f);
+                            document.documentElement.style.setProperty('--reader-font', 'CustomUserFont, sans-serif');
+                         });
+                    } else if (item.key === 'customBg') {
+                        applyCustomBg(item.value);
+                    } else {
+                        document.documentElement.style.setProperty(item.key, item.value);
+                    }
                 });
             };
-            reader.readAsDataURL(file); // 读取为Base64以应用
+        }
+
+        function handleFontImport(input) {
+            const file = input.files[0]; if(!file) return;
+            const tx = db.transaction('settings', 'readwrite');
+            tx.objectStore('settings').put({ key: 'customFont', value: file });
+            const fontUrl = URL.createObjectURL(file);
+            new FontFace('CustomUserFont', `url(${fontUrl})`).load().then(f => {
+                document.fonts.add(f);
+                updateStyle('--reader-font', 'CustomUserFont, sans-serif');
+                alert('字体已永久保存！');
+            });
+        }
+
+        function setCustomColor(color) { applyCustomBg({type:'color', val:color}); saveSetting('customBg', {type:'color', val:color}); }
+        function setCustomBgImage(input) {
+            const file = input.files[0]; if(!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => { applyCustomBg({type:'image', val:e.target.result}); saveSetting('customBg', {type:'image', val:e.target.result}); };
+            reader.readAsDataURL(file);
+        }
+
+        function applyCustomBg(bgData) {
+            if(bgData.type === 'color') {
+                updateStyle('--reader-bg', bgData.val);
+                document.getElementById('readerPage').style.backgroundImage = 'none';
+            } else {
+                document.getElementById('readerPage').style.background = 'none';
+                document.getElementById('readerPage').style.backgroundImage = `url(${bgData.val})`;
+            }
+            updateStyle('--reader-color', '#333');
         }
 
         function setTheme(bg, color) {
-            updateStyle('--reader-bg', bg);
-            updateStyle('--reader-color', color);
-            // 导航栏适配
+            updateStyle('--reader-bg', bg); updateStyle('--reader-color', color);
             const navBg = bg === '#1a1a1a' ? 'rgba(0,0,0,0.9)' : 'rgba(255,255,255,0.9)';
             document.querySelector('.reader-nav').style.background = navBg;
             document.querySelector('.reader-nav').style.color = color;
             document.querySelector('.reader-footer').style.background = navBg;
             document.querySelector('.reader-footer').style.color = color;
+            document.getElementById('readerPage').style.backgroundImage = 'none';
         }
 
-        // 保存设置到 DB
-        function saveSetting(key, val) {
-            const tx = db.transaction('settings', 'readwrite');
-            tx.objectStore('settings').put({ key: key, value: val });
-        }
-        
-        function loadSettings() {
-            const tx = db.transaction('settings', 'readonly');
-            const req = tx.objectStore('settings').getAll();
-            req.onsuccess = (e) => {
-                e.target.result.forEach(item => {
-                    document.documentElement.style.setProperty(item.key, item.value);
-                    // 尝试同步滑块位置 (可选)
-                });
-            };
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+            else if (document.exitFullscreen) document.exitFullscreen();
         }
 
-        /* ================= 5. 界面交互 ================= */
-        
-        function renderBooks(filter='') {
-            const grid = document.getElementById('bookGrid');
-            grid.innerHTML = '';
-            const tx = db.transaction('novels', 'readonly');
-            const req = tx.objectStore('novels').getAll();
-            req.onsuccess = (e) => {
-                let list = e.target.result.reverse();
-                if(filter) list = list.filter(b => b.title.includes(filter));
-                
-                list.forEach(book => {
-                    const progress = Math.round(((book.chapterIndex||0) / book.chapters.length)*100);
-                    const el = document.createElement('div');
-                    el.className = 'book';
-                    el.innerHTML = `
-                        <div class="cover">
-                            📖
-                            <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${progress}%"></div></div>
-                        </div>
-                        <div class="book-title">${book.title}</div>
-                    `;
-                    el.onclick = () => {
-                        currentBook = book;
-                        document.getElementById('detailTitle').innerText = book.title;
-                        document.getElementById('detailInfo').innerText = `共 ${book.chapters.length} 章 · 已读 ${progress}%`;
-                        document.getElementById('detailModal').classList.add('active');
-                    };
-                    grid.appendChild(el);
-                });
-            };
-        }
-
-        function deleteCurrentBook() {
-            if(confirm('确定删除吗？')) {
-                const tx = db.transaction('novels', 'readwrite');
-                tx.objectStore('novels').delete(currentBook.id);
-                tx.oncomplete = () => {
-                    document.getElementById('detailModal').classList.remove('active');
-                    renderBooks();
-                };
-            }
-        }
-
+        /* 界面开关 */
         function toggleSettings(force) {
-            const p = document.getElementById('settingsPanel');
-            const m = document.getElementById('touchMask');
-            if(force === false) { p.classList.remove('show'); m.classList.remove('active'); }
-            else { p.classList.toggle('show'); m.classList.toggle('active'); }
+            const p = document.getElementById('settingsPanel'); const m = document.getElementById('touchMask');
+            if(force===false){p.classList.remove('show');m.classList.remove('active');} else{p.classList.toggle('show');m.classList.toggle('active');}
         }
-
         function toggleToc() {
-            const d = document.getElementById('tocDrawer');
-            const m = document.getElementById('touchMask');
+            const d = document.getElementById('tocDrawer'); const m = document.getElementById('touchMask');
             d.classList.add('open'); m.classList.add('active');
-            
-            const list = document.getElementById('tocList');
-            list.innerHTML = '';
+            const list = document.getElementById('tocList'); list.innerHTML = '';
             currentBook.chapters.forEach((c, i) => {
-                const div = document.createElement('div');
-                div.className = `toc-item ${i===currentChapterIdx?'active':''}`;
-                div.innerText = c.title;
-                div.onclick = () => {
-                    currentChapterIdx = i;
-                    renderChapter();
-                    closeOverlays();
-                };
+                const div = document.createElement('div'); div.className = `toc-item ${i===currentChapterIdx?'active':''}`;
+                div.innerText = c.title; div.onclick = () => { currentChapterIdx = i; renderChapter(); closeOverlays(); };
                 list.appendChild(div);
             });
         }
-
         function closeOverlays() {
             document.getElementById('settingsPanel').classList.remove('show');
             document.getElementById('tocDrawer').classList.remove('open');
             document.getElementById('touchMask').classList.remove('active');
         }
 
-        function closeReader() {
-            document.getElementById('readerPage').classList.remove('active');
-            renderBooks();
-        }
-
         initDB();
-
     </script>
 </body>
 </html>
