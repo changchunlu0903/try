@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>梨梨的手机</title>
+    <style>
+        /* --- 继承主系统的可爱字体 --- */
+        @font-face {
+            font-family: 'MyCustomFont';
+            src: url('https://files.catbox.moe/cweam3.ttf') format('truetype');
+            font-display: swap;
+        }
+
+        body {
+            margin: 0; padding: 0;
+            background: transparent; /* 背景透明，为了配合主系统的iframe */
+            font-family: 'MyCustomFont', sans-serif;
+            overflow: hidden;
+            user-select: none;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh;
+        }
+
+        /* 📱 手机外壳 (白身粉框) */
+        .iphone-body {
+            width: 320px; height: 640px;
+            background: #fff;
+            border: 6px solid #ffb7c5;
+            border-radius: 40px;
+            box-shadow: inset 0 0 20px rgba(255,183,197,0.2);
+            position: relative;
+            overflow: hidden;
+            display: flex; flex-direction: column;
+            animation: popUp 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+        }
+
+        @keyframes popUp { from {transform: scale(0.9); opacity: 0;} to {transform: scale(1); opacity: 1;} }
+
+        /* 顶部刘海区域 */
+        .iphone-chin-top {
+            height: 30px; background: #fff; flex-shrink: 0;
+            position: relative; border-bottom: 1px solid #f5f5f5;
+            z-index: 10;
+        }
+        .iphone-camera {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px; height: 12px; background: #eee; border-radius: 20px;
+        }
+
+        /* 屏幕区域 */
+        .iphone-screen {
+            flex: 1;
+            position: relative;
+            /* 壁纸 */
+            background: url('https://files.catbox.moe/gsn7fd.png') center/cover;
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        /* 遮罩让图标更清晰 */
+        .iphone-screen::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.3); pointer-events: none;
+        }
+
+        /* 状态栏 */
+        .status-bar {
+            height: 24px; padding: 0 15px; display: flex; justify-content: space-between; align-items: center;
+            font-size: 11px; font-weight: bold; color: #555; z-index: 5;
+            background: rgba(255,255,255,0.6); backdrop-filter: blur(5px);
+        }
+
+        /* APP 图标网格 */
+        .app-grid {
+            padding: 30px 20px; display: grid; grid-template-columns: repeat(4, 1fr);
+            gap: 20px 10px; align-content: start; flex: 1; z-index: 5;
+            overflow-y: auto;
+        }
+
+        .app-icon-wrapper {
+            display: flex; flex-direction: column; align-items: center; cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .app-icon-wrapper:hover { transform: translateY(-3px); }
+        .app-icon-wrapper:active { transform: scale(0.95); }
+
+        .app-icon {
+            width: 52px; height: 52px; border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 26px; color: #fff;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            position: relative; overflow: hidden;
+            border: 2px solid #fff;
+        }
+        /* 图标渐变色 */
+        .icon-green { background: linear-gradient(135deg, #a8e063, #56ab2f); }
+        .icon-blue { background: linear-gradient(135deg, #89f7fe, #66a6ff); }
+        .icon-pink { background: linear-gradient(135deg, #ff9a9e, #fad0c4); }
+        .icon-yellow { background: linear-gradient(135deg, #fddb92, #d1fdff); }
+        .icon-purple { background: linear-gradient(135deg, #e0c3fc, #8ec5fc); }
+
+        .app-name { font-size: 11px; color: #333; margin-top: 6px; font-weight: bold; text-shadow: 0 1px 1px #fff; }
+
+        /* 底部 Home 键区域 */
+        .iphone-chin-bottom {
+            height: 55px; background: #fff; flex-shrink: 0;
+            display: flex; justify-content: center; align-items: center; border-top: 1px solid #f5f5f5;
+            z-index: 10;
+        }
+        .iphone-home-btn {
+            width: 45px; height: 45px; border-radius: 50%;
+            background: #fff; border: 3px solid #ffb7c5;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.05);
+            cursor: pointer; transition: 0.2s;
+        }
+        .iphone-home-btn:active { transform: scale(0.9); background: #fff0f5; }
+
+        /* APP 窗口 (打开后覆盖屏幕) */
+        .app-window {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #f7f9fc; z-index: 20;
+            transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+            display: flex; flex-direction: column;
+        }
+        .app-window.open { transform: translateY(0); }
+
+        .app-header {
+            height: 45px; background: #fff; border-bottom: 1px solid #eee;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; color: #333; position: relative;
+        }
+        .back-btn {
+            position: absolute; left: 10px; cursor: pointer; color: #ffb7c5; font-size: 20px;
+        }
+
+        .app-content { flex: 1; padding: 15px; overflow-y: auto; text-align: center; color: #888; }
+        
+        /* 这里的CSS是为了让关闭按钮在手机内部生效 */
+        .close-phone-btn {
+            position: absolute; top: 10px; right: 10px;
+            width: 20px; height: 20px; background: #eee;
+            border-radius: 50%; color: #999; text-align: center; line-height: 20px;
+            font-size: 12px; cursor: pointer; z-index: 100;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="iphone-body">
+        
+        <div class="iphone-chin-top">
+            <div class="iphone-camera"></div>
+        </div>
+
+        <div class="iphone-screen">
+            <div class="status-bar">
+                <span id="clock">12:00</span>
+                <span>📶 5G</span>
+            </div>
+
+            <div class="app-grid">
+                
+                <div class="app-icon-wrapper" onclick="openApp('wechat')">
+                    <div class="app-icon icon-green">💬</div>
+                    <div class="app-name">微聊</div>
+                </div>
+
+                <div class="app-icon-wrapper" onclick="openApp('gallery')">
+                    <div class="app-icon icon-pink">🌸</div>
+                    <div class="app-name">相册</div>
+                </div>
+
+                <div class="app-icon-wrapper" onclick="openApp('notes')">
+                    <div class="app-icon icon-yellow">📝</div>
+                    <div class="app-name">便签</div>
+                </div>
+
+                <div class="app-icon-wrapper" onclick="openApp('music')">
+                    <div class="app-icon icon-purple">🎵</div>
+                    <div class="app-name">音乐</div>
+                </div>
+
+                 <div class="app-icon-wrapper" onclick="openApp('settings')">
+                    <div class="app-icon icon-blue">⚙️</div>
+                    <div class="app-name">设置</div>
+                </div>
+
+            </div>
+
+            <div id="app-wechat" class="app-window">
+                <div class="app-header">
+                    <span class="back-btn" onclick="closeApp('wechat')">‹</span>
+                    微聊 (99+)
+                </div>
+                <div class="app-content">
+                    这里是聊天记录列表...<br>
+                    (功能开发中)
+                </div>
+            </div>
+
+            <div id="app-gallery" class="app-window">
+                <div class="app-header">
+                    <span class="back-btn" onclick="closeApp('gallery')">‹</span>
+                    相册
+                </div>
+                <div class="app-content">
+                    没有任何照片...<br>
+                    (请从主系统导入)
+                </div>
+            </div>
+            
+            <div id="app-notes" class="app-window"><div class="app-header"><span class="back-btn" onclick="closeApp('notes')">‹</span>便签</div><div class="app-content">暂无便签</div></div>
+            <div id="app-music" class="app-window"><div class="app-header"><span class="back-btn" onclick="closeApp('music')">‹</span>音乐</div><div class="app-content">暂无歌曲</div></div>
+            <div id="app-settings" class="app-window"><div class="app-header"><span class="back-btn" onclick="closeApp('settings')">‹</span>设置</div><div class="app-content">系统版本 v1.0</div></div>
+
+        </div>
+
+        <div class="iphone-chin-bottom">
+            <div class="iphone-home-btn" onclick="closeAllApps()" title="回到主屏"></div>
+        </div>
+    </div>
+
+    <script>
+        // 更新时间
+        function updateTime() {
+            const now = new Date();
+            const timeString = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+            document.getElementById('clock').innerText = timeString;
+        }
+        setInterval(updateTime, 1000);
+        updateTime();
+
+        // 打开 APP
+        function openApp(appId) {
+            const app = document.getElementById('app-' + appId);
+            if (app) app.classList.add('open');
+        }
+
+        // 关闭 APP
+        function closeApp(appId) {
+            const app = document.getElementById('app-' + appId);
+            if (app) app.classList.remove('open');
+        }
+
+        // Home键：关闭所有
+        function closeAllApps() {
+            const apps = document.querySelectorAll('.app-window');
+            apps.forEach(app => app.classList.remove('open'));
+        }
+    </script>
+</body>
+</html>
