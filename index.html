@@ -3125,6 +3125,17 @@
         <input type="text" style="width:100%;font-size:10px;padding:4px;border:1px solid #ddd;border-radius:5px;" id="musicLink" placeholder="输入mp3链接..." onchange="updateMusicSrc(this.value)">
         <audio id="bgMusic" loop></audio>
     </div>
+<div class="tavern-portal-panel" style="margin-top:10px; margin-bottom:10px;">
+    <button onclick="togglePhoneFrame()" style="width:100%; height:50px;
+    background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%);
+    color: white; border: 3px solid #fff; border-radius: 25px;
+    font-size: 16px; font-weight: bold; cursor: pointer;
+    box-shadow: 0 5px 15px rgba(255, 154, 158, 0.4);
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: transform 0.2s;">
+        📱 打开我的手机
+    </button>
+</div>
 
 <div class="tavern-portal-panel" style="margin-top:10px;">
     <button onclick="window.loadAndOpenRemoteCreator()" style="width:100%; background:linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%); color:white; border:none; padding:10px; border-radius:20px; font-weight:bold; cursor:pointer; box-shadow:0 4px 10px rgba(142, 197, 252, 0.4);">
@@ -4655,14 +4666,32 @@ gap:5px;">
     <div id="saveSlotList" style="flex:1; overflow-y:auto; padding:10px; background:#f9f9f9;">
         </div>
 </div>
-
+<button id="fullscreenExitBtn" onclick="exitFullscreen()">❌ 退出全屏</button>
+<div id="phoneFrameOverlay" style="
+    display: none; /* 默认隐藏 */
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5); /* 半透明黑色背景，聚焦手机 */
+    z-index: 20000; /* 层级最高 */
+    justify-content: center; align-items: center;
+    backdrop-filter: blur(5px); /* 背景模糊 */
+">
+    <div style="position:absolute; width:100%; height:100%;" onclick="togglePhoneFrame()"></div>
+    
+    <iframe src="phone.html" style="
+        width: 340px; height: 660px;
+        border: none;
+        position: relative; z-index: 20001;
+        /* 这里不需要边框，因为 phone.html 里面已经画了手机壳 */
+        transform: scale(0.9); opacity: 0;
+        transition: all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+    " id="phoneIframe"></iframe>
+</div>
 
     <div id="deleteBar" class="delete-bar">
         <button class="delete-btn-cancel" onclick="toggleBatchDeleteMode()">取消</button>
         <button class="delete-btn-confirm" onclick="confirmBatchDelete()">🗑️ 删除 (<span id="deleteCount">0</span>)</button>
     </div>
 
-<button id="fullscreenExitBtn" onclick="exitFullscreen()">❌ 退出全屏</button>
 
     <script>
 
@@ -12765,7 +12794,28 @@ window.enterGameLobby = function() {
     if(window.auth && window.auth.toast) auth.toast("🔧 搜索与侍从系统已彻底修复");
 })();
 
-
+// 📱 切换手机显示/隐藏的函数
+    function togglePhoneFrame() {
+        const overlay = document.getElementById('phoneFrameOverlay');
+        const frame = document.getElementById('phoneIframe');
+        
+        if (overlay.style.display === 'none') {
+            // 打开
+            overlay.style.display = 'flex';
+            // 稍微延迟一下加动画，让它更有弹性
+            setTimeout(() => {
+                frame.style.transform = 'scale(1)';
+                frame.style.opacity = '1';
+            }, 10);
+        } else {
+            // 关闭
+            frame.style.transform = 'scale(0.9)';
+            frame.style.opacity = '0';
+            setTimeout(() => {
+                overlay.style.display = 'none';
+            }, 300);
+        }
+    }
     </script>
 </body>
 </html>
