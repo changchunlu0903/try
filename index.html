@@ -12793,25 +12793,36 @@ window.enterGameLobby = function() {
 
     if(window.auth && window.auth.toast) auth.toast("🔧 搜索与侍从系统已彻底修复");
 })();
-
-// 📱 切换手机显示/隐藏的函数
+    // 📱 手机开关脚本 (兼容版 - 使用 var)
     function togglePhoneFrame() {
-        const overlay = document.getElementById('phoneFrameOverlay');
-        const frame = document.getElementById('phoneIframe');
+        console.log("正在尝试打开手机..."); 
         
-        if (overlay.style.display === 'none') {
-            // 打开
+        // 把 const 改成了 var
+        var overlay = document.getElementById('phoneFrameOverlay');
+        var frame = document.getElementById('phoneIframe');
+        
+        // 检查元素是否存在
+        if (!overlay || !frame) {
+            alert("出错了：找不到手机容器代码！请确保把容器代码放到了文件最底部。");
+            return;
+        }
+
+        // 判断当前是开启还是关闭
+        if (overlay.style.display === 'none' || overlay.style.display === '') {
+            // --- 动作：打开 ---
             overlay.style.display = 'flex';
-            // 稍微延迟一下加动画，让它更有弹性
-            setTimeout(() => {
+            
+            // 把箭头函数 () => {} 改成了 function() {}
+            setTimeout(function() {
                 frame.style.transform = 'scale(1)';
                 frame.style.opacity = '1';
             }, 10);
         } else {
-            // 关闭
+            // --- 动作：关闭 ---
             frame.style.transform = 'scale(0.9)';
             frame.style.opacity = '0';
-            setTimeout(() => {
+            
+            setTimeout(function() {
                 overlay.style.display = 'none';
             }, 300);
         }
