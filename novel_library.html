@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>🌸 梨梨藏书阁 (甜心版 V21.0)</title>
+    <title>🎀 梨梨藏书阁 (V24.1 修复版)</title>
     <style>
-        /* ================= 核心样式：萌化定义 ================= */
+        /* ================= 🌸 核心美学定义 🌸 ================= */
         
         @font-face {
             font-family: 'LiliFont';
@@ -16,261 +16,259 @@
         }
 
         :root {
-            /* 🍬 甜心色板 */
-            --primary: #ffb7c5;      /* 樱花粉 */
-            --primary-dark: #ff8fa3; /* 深粉 */
-            --bg-color: #fff0f5;     /* 浅粉背景 */
-            --card-bg: rgba(255, 255, 255, 0.85);
-            --text-main: #6d5c5c;    /* 巧克力色文字 */
-            --glass: rgba(255, 255, 255, 0.7);
-            --shadow: 0 8px 20px rgba(255, 183, 197, 0.3);
+            /* 🎨 甜心色板 */
+            --primary: #ffb7c5;       /* 樱花粉 */
+            --primary-light: #fff0f5; /* 浅粉背景 */
+            --primary-dark: #ff8fa3;  /* 强调色 */
+            --text-main: #6d5c5c;     /* 巧克力文字 */
+            --glass: rgba(255, 255, 255, 0.85); /* 磨砂玻璃 */
+            --shadow-soft: 0 10px 30px rgba(255, 183, 197, 0.25);
+            --radius-box: 24px;
             
-            /* 📖 阅读器默认变量 */
+            /* 📖 阅读器变量 (默认样式) */
             --reader-font: 'LiliFont', sans-serif;
-            --reader-size: 18px;
-            --reader-line-height: 1.8;
-            --reader-letter-spacing: 1px;
-            --reader-para-spacing: 15px;
-            --reader-padding: 20px;
-            --reader-bg: #fdf6e3;
-            --reader-color: #333;
+            --reader-size: 19px;
+            --reader-line-height: 1.9;       /* 行距 */
+            --reader-letter-spacing: 1.5px;  /* 字距 */
+            --reader-para-spacing: 20px;     /* 段距 */
+            --reader-padding: 25px;          /* 边距 */
+            --reader-bg: #fffbf0;
+            --reader-color: #5d4037;
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
 
         body {
             font-family: 'LiliFont', sans-serif;
-            background: linear-gradient(135deg, #fff0f5 0%, #ffe6eb 100%);
+            background: linear-gradient(180deg, #fff0f5 0%, #fff 100%);
             color: var(--text-main);
             margin: 0; padding: 0;
             height: 100vh; display: flex; flex-direction: column;
             overflow: hidden;
         }
 
-        /* ---------------- 顶部栏 (毛玻璃) ---------------- */
+        /* ---------------- 🧸 顶部导航 ---------------- */
         .header {
+            margin: 10px 15px; 
             background: var(--glass);
-            backdrop-filter: blur(10px); /* 毛玻璃 */
-            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
             padding: 15px 20px;
+            border-radius: var(--radius-box);
+            box-shadow: var(--shadow-soft);
             display: flex; flex-direction: column; gap: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-            z-index: 100;
-            border-radius: 0 0 25px 25px;
+            z-index: 100; border: 1px solid rgba(255,255,255,0.6);
         }
 
         .header-top { display: flex; justify-content: space-between; align-items: center; }
-        .title { font-size: 20px; font-weight: bold; color: var(--primary-dark); text-shadow: 1px 1px 0 #fff; }
+        .title { 
+            font-size: 18px; font-weight: 900; color: var(--primary-dark); 
+            display: flex; align-items: center; gap: 5px;
+        }
+        .title::before { content: '🎀'; font-size: 1.2em; }
 
-        /* 可爱的按钮 */
         .btn {
-            border: none; padding: 8px 15px; border-radius: 20px;
-            font-size: 13px; cursor: pointer; transition: 0.2s; white-space: nowrap;
-            font-family: 'LiliFont', sans-serif;
-            display: flex; align-items: center; justify-content: center; gap: 5px;
+            border: none; padding: 8px 16px; border-radius: 20px;
+            font-size: 13px; cursor: pointer; transition: all 0.2s;
+            font-family: inherit; font-weight: bold;
+            display: inline-flex; align-items: center; justify-content: center; gap: 5px;
         }
-        .btn:active { transform: scale(0.95); }
-        
-        .btn-primary {
-            background: linear-gradient(45deg, var(--primary), var(--primary-dark));
-            color: white;
-            box-shadow: 0 4px 10px rgba(255, 143, 163, 0.4);
-        }
-        .btn-ghost {
-            background: rgba(255,255,255,0.8);
-            border: 1px solid var(--primary);
-            color: var(--primary-dark);
-        }
+        .btn:active { transform: scale(0.92); }
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; box-shadow: 0 4px 12px rgba(255, 143, 163, 0.4); }
+        .btn-ghost { background: white; border: 1px solid var(--primary); color: var(--primary-dark); }
 
-        /* 搜索框 */
         .search-box {
-            background: white; border-radius: 25px; padding: 8px 15px;
-            display: flex; align-items: center; gap: 8px;
-            box-shadow: inset 0 2px 5px rgba(0,0,0,0.02);
-            border: 1px solid #ffe6eb;
+            background: #fff; border-radius: 20px; padding: 10px 15px;
+            display: flex; align-items: center; gap: 8px; border: 2px solid #fff5f7;
         }
-        .search-input { border: none; background: transparent; width: 100%; font-size: 14px; color: var(--text-main); font-family: 'LiliFont'; }
+        .search-input { border: none; background: transparent; width: 100%; font-size: 14px; color: var(--text-main); font-family: inherit; }
 
-        /* 筛选胶囊 */
-        .filter-bar { display:flex; gap:8px; overflow-x:auto; padding-bottom: 5px; scrollbar-width: none; }
+        .filter-bar { display:flex; gap:8px; overflow-x:auto; padding: 5px 0; scrollbar-width: none; }
         .filter-btn {
-            padding: 5px 15px; border-radius:15px; background:rgba(255,255,255,0.6); 
-            color:#888; font-size:12px; white-space:nowrap; border: 1px solid transparent;
-            transition: 0.3s;
+            padding: 6px 14px; border-radius:12px; background:rgba(255,255,255,0.5); 
+            color:#999; font-size:12px; border: 1px solid transparent; transition: 0.3s;
         }
         .filter-btn.active {
-            background: var(--primary); color: white; box-shadow: 0 2px 8px rgba(255, 183, 197, 0.5);
+            background: var(--primary); color: white; box-shadow: 0 4px 10px rgba(255, 183, 197, 0.4);
         }
 
-        /* ---------------- 书架区域 ---------------- */
+        /* ---------------- 📚 书架格子 ---------------- */
         .grid {
-            flex: 1; overflow-y: auto; padding: 20px;
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
+            flex: 1; overflow-y: auto; padding: 15px 20px 100px 20px;
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
             gap: 20px; align-content: start;
         }
-
-        .book {
-            display: flex; flex-direction: column; gap: 8px; cursor: pointer;
-            transition: 0.3s;
-            animation: fadeIn 0.5s ease;
-        }
+        .book { display: flex; flex-direction: column; gap: 8px; cursor: pointer; position: relative; }
         .book:active { transform: scale(0.95); }
-
         .cover {
-            aspect-ratio: 2/3; 
-            background: white;
-            background-size: cover; background-position: center;
-            border-radius: 12px;
+            aspect-ratio: 2/3; background: white; border-radius: 16px;
             display: flex; align-items: center; justify-content: center;
-            font-size: 32px; 
-            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-            position: relative; overflow: hidden;
-            border: 2px solid white;
+            font-size: 36px; box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+            border: 3px solid white; position: relative; overflow: hidden;
+            background-size: cover; background-position: center;
         }
         .cover.has-img { font-size: 0; border: none; }
-        
-        .book-title { 
-            font-size: 13px; font-weight: bold; text-align: center; color: #555;
-            overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; 
-        }
+        .book-title { font-size: 13px; font-weight: bold; text-align: center; color: #555; line-height: 1.4; height: 2.8em; overflow: hidden; }
+        .mini-progress { position: absolute; bottom: 10px; left: 15%; width: 70%; height: 4px; background: rgba(0,0,0,0.05); border-radius: 4px; overflow: hidden; }
+        .mini-fill { height: 100%; background: var(--primary-dark); width: 0%; border-radius: 4px; }
 
-        .progress-bar {
-            position: absolute; bottom: 8px; left: 10%; width: 80%; height: 4px;
-            background: rgba(0,0,0,0.1); border-radius: 4px; overflow: hidden;
-        }
-        .progress-fill { height: 100%; background: var(--primary-dark); width: 0%; border-radius: 4px; }
-
-        /* ---------------- 详情页 & 弹窗 ---------------- */
+        /* ---------------- ✨ 详情页弹窗 ---------------- */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(109, 92, 92, 0.4); z-index: 1000;
-            backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
-            display: none; align-items: center; justify-content: center;
-            opacity: 0; transition: opacity 0.3s;
+            background: rgba(255, 240, 245, 0.6); z-index: 1000; backdrop-filter: blur(8px);
+            display: none; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s;
         }
         .modal-overlay.active { display: flex; opacity: 1; }
-
         .detail-card {
-            background: rgba(255,255,255,0.95); width: 85%; max-width: 380px; 
-            border-radius: 25px; padding: 25px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
-            transform: translateY(20px); transition: transform 0.3s;
-            display: flex; flex-direction: column; gap: 15px;
+            background: rgba(255,255,255,0.9); width: 85%; max-width: 360px; 
+            border-radius: 30px; padding: 30px; box-shadow: 0 20px 60px rgba(255, 183, 197, 0.3);
+            border: 2px solid #fff; transform: scale(0.9); transition: transform 0.3s;
         }
-        .modal-overlay.active .detail-card { transform: translateY(0); }
+        .modal-overlay.active .detail-card { transform: scale(1); }
+        .form-input { background: #fff5f7; border: 1px solid transparent; padding: 12px; border-radius: 15px; font-size: 14px; width: 100%; font-family: inherit; color: #666; }
 
-        .form-input {
-            background: #f9f9f9; border: 1px solid #eee; padding: 10px; 
-            border-radius: 12px; font-size: 14px; width: 100%; font-family: 'LiliFont';
-        }
-        .form-input:focus { border-color: var(--primary); background: white; }
-
-        /* ---------------- 📖 沉浸式阅读器 ---------------- */
+        /* ---------------- 📖 甜心阅读器 ---------------- */
         .reader {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: var(--reader-bg); color: var(--reader-color);
             z-index: 2000; display: none; flex-direction: column;
-            /* 纸张纹理 */
-            background-image: radial-gradient(#00000005 1px, transparent 1px);
-            background-size: 20px 20px;
+            background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%239C92AC' fill-opacity='0.03' fill-rule='evenodd'%3E%3Ccircle cx='3' cy='3' r='1'/%3E%3Ccircle cx='13' cy='13' r='1'/%3E%3C/g%3E%3C/svg%3E");
         }
-        .reader.active { display: flex; animation: slideUp 0.3s ease; }
+        .reader.active { display: flex; animation: slideUp 0.4s; }
 
+        /* 悬浮导航栏 */
         .reader-nav {
-            padding: 0 15px; height: 55px; display: flex; justify-content: space-between; align-items: center;
-            background: rgba(255,255,255,0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(0,0,0,0.05); flex-shrink: 0;
+            position: absolute; top: 15px; left: 15px; right: 15px;
+            height: 55px; padding: 0 15px; background: rgba(255,255,255,0.9); 
+            backdrop-filter: blur(10px); border-radius: 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.05); z-index: 2010; transition: transform 0.3s;
+        }
+        .reader-nav.hidden { transform: translateY(-200%); }
+
+        /* 悬浮底部栏 */
+        .reader-footer {
+            position: absolute; bottom: 25px; left: 15px; right: 15px;
+            background: rgba(255,255,255,0.9); backdrop-filter: blur(10px);
+            padding: 10px; border-radius: 25px;
+            display: flex; justify-content: space-between; gap: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08); z-index: 2010; transition: transform 0.3s;
+        }
+        .reader-footer.hidden { transform: translateY(200%); }
+        
+        .page-btn {
+            flex: 1; background: var(--primary-light); color: var(--text-main); 
+            border: none; padding: 12px; border-radius: 18px; font-weight: bold;
         }
 
-        .reader-container { flex: 1; overflow-y: auto; overflow-x: hidden; width: 100%; scroll-behavior: smooth; }
-
-        .reader-content {
-            padding: 20px var(--reader-padding) 100px var(--reader-padding); 
-            max-width: 100%; width: 100%;
+        /* 阅读容器 */
+        .reader-container { 
+            flex: 1; width: 100%; height: 100%;
+            /* 默认滚动模式 */
+            overflow-y: auto; overflow-x: hidden; scroll-behavior: smooth;
+            padding-top: 80px; padding-bottom: 100px; /* 避开悬浮栏 */
         }
 
+        /* 🌟 左右翻页模式 🌟 */
+       /* --- ✨ 修复：左右翻页核心排版 (解决跳章问题) ✨ --- */
+.reader-container.paging-mode {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden; /* 隐藏滚动条 */
+    padding: 0 !important;
+    position: relative;
+}
+
+.reader-container.paging-mode .reader-content {
+    /* 关键：绝对定位锁死高度，强制生成横向列 */
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    width: auto; /* 让宽度自动延伸 */
+    height: 100vh; 
+    
+    /* 上下留白，左右留白 */
+    padding: 60px var(--reader-padding) 80px var(--reader-padding); 
+    box-sizing: border-box;
+    
+    /* CSS多列布局 */
+    column-width: calc(100vw - (var(--reader-padding) * 2));
+    column-gap: calc(var(--reader-padding) * 2); /* 页缝等于边距 */
+    column-fill: auto;
+}
+
+
+
+        /* 内容排版 */
+        .reader-content { margin: 0 auto; max-width: 800px; padding: 0 var(--reader-padding); }
         .reader-content p {
             font-family: var(--reader-font);
             font-size: var(--reader-size);
-            line-height: var(--reader-line-height);
-            letter-spacing: var(--reader-letter-spacing);
-            margin-bottom: var(--reader-para-spacing);
-            text-align: justify;
-            text-indent: 2em; /* 首行缩进 */
-            margin-top: 0;
+            line-height: var(--reader-line-height);       /* 行距应用 */
+            letter-spacing: var(--reader-letter-spacing); /* 字距应用 */
+            margin-bottom: var(--reader-para-spacing);    /* 段距应用 */
+            text-align: justify; text-indent: 2em; margin-top: 0;
+            break-inside: avoid;
         }
-
         .chapter-title {
-            font-size: 1.5em; font-weight: bold; text-align: center; margin: 30px 0;
-            color: var(--primary-dark); 
-            border-bottom: 2px dashed var(--primary); padding-bottom: 10px; display: inline-block;
+            text-align: center; margin: 40px 0; font-size: 1.4em; color: var(--primary-dark);
+            position: relative; display: inline-block; width: 100%; break-inside: avoid;
         }
 
-        /* 阅读器底部栏 */
-        .reader-footer {
-            position: absolute; bottom: 0; left: 0; width: 100%;
-            background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-            padding: 10px 20px 20px 20px;
-            display: flex; justify-content: space-between; gap: 15px;
-            box-shadow: 0 -5px 20px rgba(0,0,0,0.05); z-index: 2010;
-        }
-        .page-btn {
-            flex: 1; background: var(--bg-color); color: var(--text-main); border: 1px solid var(--primary); 
-            padding: 12px; border-radius: 15px; font-weight: bold;
-        }
-        .page-btn:active { background: var(--primary); color: white; }
+        /* 🌟 全屏点击热区 (懒人模式) 🌟 */
+        .tap-zone { position: fixed; z-index: 1900; }
+        /* 顶部保留10%给“上一页”(防误触)，中间20%给菜单，其余全部是下一页 */
+        .tap-prev { top: 0; left: 0; width: 100%; height: 10%; } 
+        .tap-menu { top: 35%; left: 30%; width: 40%; height: 30%; z-index: 1900; } 
+        /* 其余区域全覆盖用于下一页，但在HTML结构中放到底层，不挡住上面两个 */
+        .tap-next-layer { top: 0; left: 0; width: 100%; height: 100%; z-index: 1800; } 
 
         /* 设置面板 */
         .settings-panel {
             position: absolute; bottom: 0; left: 0; width: 100%;
-            background: white; border-radius: 30px 30px 0 0;
-            padding: 25px; padding-bottom: 40px;
-            box-shadow: 0 -10px 40px rgba(0,0,0,0.15); z-index: 2100;
-            transform: translateY(110%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: white; border-radius: 35px 35px 0 0;
+            padding: 30px; padding-bottom: 50px;
+            box-shadow: 0 -10px 50px rgba(0,0,0,0.1); z-index: 2100;
+            transform: translateY(110%); transition: transform 0.4s;
         }
         .settings-panel.show { transform: translateY(0); }
-
-        .setting-row { display: flex; align-items: center; margin-bottom: 20px; gap: 15px; color: #666; font-size: 14px; }
+        .setting-row { display: flex; align-items: center; margin-bottom: 25px; gap: 15px; font-size: 14px; font-weight: bold; color: #888; }
         
-        /* 🍬 糖果滑块 */
-        input[type=range] {
-            flex: 1; height: 6px; border-radius: 5px; background: #eee;
-            appearance: none; -webkit-appearance: none;
-        }
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%;
-            background: var(--primary); border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }
+        input[type=range] { flex: 1; height: 8px; border-radius: 10px; background: #f0f0f0; appearance: none; -webkit-appearance: none; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; border-radius: 50%; background: white; border: 3px solid var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
 
-        /* 侧边目录 */
         .toc-drawer {
-            position: fixed; top: 0; left: 0; width: 80%; height: 100%; background: #fffafc;
-            transform: translateX(-100%); transition: 0.3s; z-index: 2200; display:flex; flex-direction:column;
-            box-shadow: 5px 0 20px rgba(0,0,0,0.1);
+            position: fixed; top: 0; left: 0; width: 85%; height: 100%; background: #fff;
+            transform: translateX(-100%); transition: 0.4s; z-index: 2200; display:flex; flex-direction:column;
+            border-radius: 0 30px 30px 0; box-shadow: 10px 0 40px rgba(0,0,0,0.1);
         }
         .toc-drawer.open { transform: translateX(0); }
-        .toc-list { padding: 10px; overflow-y: auto; }
-        .toc-item { 
-            padding: 15px; border-bottom: 1px dashed #eee; font-size: 14px; color: #555; 
-            border-radius: 10px; margin-bottom: 5px;
-        }
-        .toc-item.active { background: var(--primary); color: white; border:none; }
+        .toc-list { padding: 15px; overflow-y: auto; }
+        .toc-item { padding: 16px; border-bottom: 1px dashed #f0f0f0; font-size: 15px; color: #666; border-radius: 12px; margin-bottom: 5px; }
+        .toc-item.active { background: var(--primary-light); color: var(--primary-dark); font-weight: bold; }
 
-        /* 遮罩 */
-        .mask { position: fixed; inset:0; background:rgba(0,0,0,0.2); z-index:2050; display:none; backdrop-filter: blur(2px); }
+        .mask { position: fixed; inset:0; background:rgba(0,0,0,0.1); backdrop-filter:blur(2px); z-index:2050; display:none; }
         .mask.active { display:block; }
+        .back-home { position: fixed; bottom: 30px; right: 20px; width: 55px; height: 55px; background: white; border-radius: 50%; box-shadow: 0 8px 20px rgba(255, 183, 197, 0.4); display: flex; justify-content: center; align-items: center; font-size: 26px; z-index: 90; border: 3px solid var(--primary); }
 
-        /* 返回按钮 */
-        .back-home {
-            position: fixed; bottom: 25px; right: 25px; width: 50px; height: 50px;
-            background: white; border-radius: 50%; 
-            box-shadow: 0 5px 15px rgba(255, 183, 197, 0.5);
-            display: flex; justify-content: center; align-items: center; font-size: 24px; z-index: 90;
-            border: 2px solid var(--primary);
-        }
-
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+/* --- 🛠️ 修复：菜单层级修正 --- */
+
+/* 1. 让顶部和底部栏浮在遮罩层上面，这样就不会朦胧，也能点击了 */
+.reader-nav, .reader-footer {
+    z-index: 2060 !important; /* 原来是2010，被遮罩挡住了 */
+}
+
+/* 2. 遮罩层保持在中间 */
+.mask {
+    z-index: 2050 !important;
+    background: rgba(0,0,0,0.3); /*稍微深一点，让菜单更清楚*/
+}
+
+/* 3. 确保目录和设置面板最高 */
+.settings-panel { z-index: 2100 !important; }
+.toc-drawer { z-index: 2200 !important; }
     </style>
 </head>
 <body>
@@ -279,21 +277,19 @@
         <div class="header-top">
             <div class="title">🌸 梨梨藏书阁</div>
             <div class="import-controls" style="display:flex; gap:8px;">
-                <select id="encodingSelect" class="form-input" style="width:auto; padding:5px; font-size:12px;">
+                <select id="encodingSelect" class="form-input" style="width:auto; padding:5px 10px; font-size:12px; border:1px solid #eee;">
                     <option value="utf-8">UTF-8</option>
-                    <option value="gbk">GBK (乱码选我)</option>
+                    <option value="gbk">GBK (老书)</option>
                 </select>
                 <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">📥 导入</button>
                 <button class="btn btn-ghost" onclick="exportData()">📤 备份</button>
                 <input type="file" id="fileInput" accept=".txt" multiple style="display:none" onchange="handleImport(this)">
             </div>
         </div>
-        
         <div class="search-box">
-            <span>🔍</span>
+            <span style="font-size:16px;">🔍</span>
             <input type="text" class="search-input" id="searchInput" placeholder="搜索书名..." onkeyup="renderBooks(this.value)">
         </div>
-
         <div class="filter-bar">
             <button class="filter-btn active" onclick="filterBooks('all', this)">全部</button>
             <button class="filter-btn" onclick="filterBooks('reading', this)">⏳ 连载中</button>
@@ -307,20 +303,17 @@
 
     <div class="modal-overlay" id="detailModal">
         <div class="detail-card">
-            <div style="text-align:center; font-weight:bold; color:var(--primary-dark); font-size:16px;">✨ 书籍信息 ✨</div>
-            
+            <div style="text-align:center; font-weight:bold; color:var(--primary-dark); font-size:18px; margin-bottom:5px;">✨ 书籍信息 ✨</div>
             <div style="display:flex; gap:15px; align-items:center;">
-                <div id="previewCover" class="cover" style="width:70px; height:105px; font-size:24px; box-shadow:none; border:1px dashed #ccc;">📖</div>
+                <div id="previewCover" class="cover" style="width:80px; height:120px; font-size:30px; box-shadow:none; border:2px dashed #ffb7c5;">📖</div>
                 <div style="flex:1; display:flex; flex-direction:column; gap:8px;">
                     <button class="btn btn-ghost" onclick="document.getElementById('coverInput').click()">📷 换封面</button>
-                    <button class="btn btn-ghost" style="border-color:#ccc; color:#888;" onclick="removeCover()">🔄 还原</button>
+                    <button class="btn btn-ghost" style="border-color:#eee; color:#aaa;" onclick="removeCover()">🔄 还原</button>
                     <input type="file" id="coverInput" accept="image/*" style="display:none" onchange="handleCoverChange(this)">
                 </div>
             </div>
-
             <input type="text" id="editTitle" class="form-input" placeholder="书名">
             <input type="text" id="editAuthor" class="form-input" placeholder="作者">
-            
             <div style="display:flex; gap:10px;">
                 <select id="editStatus" class="form-input">
                     <option value="reading">⏳ 连载中</option>
@@ -328,32 +321,41 @@
                 </select>
                 <input type="text" id="editTags" class="form-input" placeholder="标签">
             </div>
-
             <div style="display:flex; gap:10px; margin-top:10px;">
-                <button class="btn btn-primary" style="flex:1; padding:12px; font-size:15px;" onclick="saveDetailAndRead()">💖 开始阅读</button>
+                <button class="btn btn-primary" style="flex:1; padding:12px; font-size:16px;" onclick="saveDetailAndRead()">💖 开始阅读</button>
                 <button class="btn btn-ghost" onclick="saveDetailOnly()">💾 保存</button>
             </div>
-            
-            <div style="display:flex; justify-content:space-between; margin-top:5px;">
-                <button class="btn" style="color:#ff6b6b; background:none;" onclick="deleteCurrentBook()">🗑️ 删除本书</button>
-                <button class="btn" style="color:#888; background:none;" onclick="document.getElementById('detailModal').classList.remove('active')">关闭</button>
-            </div>
+            <button class="btn" style="color:#ff8fa3; background:none; margin-top:5px; font-size:12px;" onclick="deleteCurrentBook()">🗑️ 删除本书</button>
+            <div style="position:absolute; top:15px; right:15px; font-size:24px; color:#ccc; cursor:pointer;" onclick="document.getElementById('detailModal').classList.remove('active')">×</div>
         </div>
     </div>
 
     <div class="reader" id="readerPage">
-        <div class="reader-nav">
+        <div class="reader-nav" id="readerNav">
             <button class="btn btn-icon" onclick="closeReader()" style="font-size:18px;">⬅️</button>
-            <span id="readerTitle" style="font-weight:bold; max-width:60%; overflow:hidden; white-space:nowrap;">标题</span>
-            <button class="btn btn-icon" onclick="toggleSettings()">⚙️</button>
+            <span id="readerTitle" style="font-weight:bold; max-width:50%; overflow:hidden; white-space:nowrap; color:#555;">标题</span>
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-icon" onclick="addBookmark()" style="font-size:18px;">🔖</button>
+                <button class="btn btn-icon" onclick="toggleSettings()" style="font-size:18px;">⚙️</button>
+            </div>
         </div>
         
-        <div class="reader-container">
-            <div class="reader-content" id="readerContent" onclick="toggleSettings(false)"></div>
+        <div class="reader-container" id="readerContainer">
+            <div class="reader-content" id="readerContent"></div>
         </div>
 
+        <div id="tapNextLayer" class="tap-zone tap-next-layer" 
+     style="top:0; left:0; width:100%; height:100%; z-index:1800;" 
+     ontouchstart="recordTouchStart(event)" 
+     ontouchend="handleTouchEnd(event)"
+     onclick="handleReaderTap('next')"> </div>
+
+
+        <div class="tap-zone tap-prev" style="top:0; left:0; width:100%; height:10%; z-index:1900;" onclick="handleReaderTap('prev')"></div>
+        <div class="tap-zone tap-menu" style="top:35%; left:30%; width:40%; height:30%; z-index:1900;" onclick="handleReaderTap('menu')"></div>
+
         <div class="reader-footer" id="readerFooter">
-            <button class="page-btn" onclick="toggleToc()">📂 目录</button>
+            <button class="page-btn" onclick="toggleToc()">📂 目录/书签</button>
             <button class="page-btn" onclick="prevChapter()">上一章</button>
             <button class="page-btn" onclick="nextChapter()">下一章</button>
         </div>
@@ -361,17 +363,25 @@
         <div class="mask" id="touchMask" onclick="closeOverlays()"></div>
 
         <div class="toc-drawer" id="tocDrawer">
-            <div style="padding:20px; font-weight:bold; color:var(--primary-dark); background:#fff;">📑 章节目录</div>
+            <div style="padding:20px; border-bottom:1px solid #f5f5f5; display:flex; gap:10px;">
+                <button class="btn btn-primary" style="flex:1; font-size:12px;" onclick="renderTocList('chapters')">📑 章节</button>
+                <button class="btn btn-ghost" style="flex:1; font-size:12px;" onclick="renderTocList('bookmarks')">🔖 书签</button>
+            </div>
             <div class="toc-list" id="tocList"></div>
         </div>
 
         <div class="settings-panel" id="settingsPanel">
             <div style="text-align:center; margin-bottom:20px; color:#aaa; font-size:12px;">—— 阅读设置 ——</div>
             
-            <div class="setting-row" style="justify-content:space-between;">
+            <div class="setting-row" style="background:#f9f9f9; padding:10px; border-radius:15px; justify-content:space-around;">
+                <button class="btn" id="modeScrollBtn" onclick="changeReaderMode('scroll')" style="flex:1;">↕️ 上下滚动</button>
+                <button class="btn" id="modePageBtn" onclick="changeReaderMode('page')" style="flex:1;">↔️ 左右翻页</button>
+            </div>
+
+            <div class="setting-row">
                 <span class="setting-label">功能</span>
                 <div style="display:flex; gap:10px;">
-                    <button class="btn btn-ghost" onclick="toggleFullScreen()">📺 全屏模式</button>
+                    <button class="btn btn-ghost" onclick="toggleFullScreen()">📺 全屏</button>
                     <button class="btn btn-ghost" onclick="document.getElementById('fontInput').click()">🔤 导入字体</button>
                 </div>
                 <input type="file" id="fontInput" accept=".ttf,.woff,.woff2" style="display:none" onchange="handleFontImport(this)">
@@ -379,33 +389,36 @@
 
             <div class="setting-row">
                 <span class="setting-label">信纸</span>
-                <div style="display:flex; gap:10px; overflow-x:auto;">
-                    <div onclick="setTheme('#fdf6e3','#333')" style="min-width:35px;height:35px;background:#fdf6e3;border-radius:50%;border:2px solid #ddd;"></div>
-                    <div onclick="setTheme('#ffffff','#000')" style="min-width:35px;height:35px;background:#fff;border-radius:50%;border:2px solid #ddd;"></div>
-                    <div onclick="setTheme('#1a1a1a','#999')" style="min-width:35px;height:35px;background:#1a1a1a;border-radius:50%;"></div>
-                    <div onclick="setTheme('#e8f5e9','#1b5e20')" style="min-width:35px;height:35px;background:#e8f5e9;border-radius:50%;border:2px solid #c8e6c9;"></div>
-                    
+                <div style="display:flex; gap:12px; overflow-x:auto; padding-bottom:5px;">
+                    <div onclick="setTheme('#fffbf0','#4a3b32')" style="min-width:40px;height:40px;background:#fffbf0;border-radius:50%;border:2px solid #e0d0b0;"></div>
+                    <div onclick="setTheme('#ffffff','#000')" style="min-width:40px;height:40px;background:#fff;border-radius:50%;border:2px solid #eee;"></div>
+                    <div onclick="setTheme('#222','#ccc')" style="min-width:40px;height:40px;background:#222;border-radius:50%;border:2px solid #444;"></div>
+                    <div onclick="setTheme('#e8f5e9','#1b5e20')" style="min-width:40px;height:40px;background:#e8f5e9;border-radius:50%;border:2px solid #c8e6c9;"></div>
                     <input type="color" id="customBgColor" onchange="setCustomColor(this.value)" style="min-width:35px; height:35px; padding:0; border:none; background:none;">
-                    <button class="btn btn-ghost" style="padding:5px 10px; font-size:10px;" onclick="document.getElementById('bgImgInput').click()">🖼️图</button>
+                    <button class="btn btn-ghost" style="padding:5px 10px; font-size:10px;" onclick="document.getElementById('bgImgInput').click()">🖼️</button>
                     <input type="file" id="bgImgInput" accept="image/*" style="display:none" onchange="setCustomBgImage(this)">
                 </div>
             </div>
 
             <div class="setting-row">
                 <span class="setting-label">字号</span>
-                <span style="font-size:12px">小</span>
-                <input type="range" min="12" max="32" value="18" oninput="updateStyle('--reader-size', this.value + 'px')">
-                <span style="font-size:12px">大</span>
+                <input type="range" min="14" max="32" value="19" oninput="updateStyle('--reader-size', this.value + 'px')">
             </div>
-            
             <div class="setting-row">
                 <span class="setting-label">行距</span>
-                <input type="range" min="1.0" max="3.0" step="0.1" value="1.8" oninput="updateStyle('--reader-line-height', this.value)">
+                <input type="range" min="1.4" max="3.0" step="0.1" value="1.9" oninput="updateStyle('--reader-line-height', this.value)">
             </div>
-            
+            <div class="setting-row">
+                <span class="setting-label">字距</span>
+                <input type="range" min="0" max="5" step="0.5" value="1.5" oninput="updateStyle('--reader-letter-spacing', this.value + 'px')">
+            </div>
+            <div class="setting-row">
+                <span class="setting-label">段距</span>
+                <input type="range" min="0" max="50" value="20" oninput="updateStyle('--reader-para-spacing', this.value + 'px')">
+            </div>
             <div class="setting-row">
                 <span class="setting-label">边距</span>
-                <input type="range" min="0" max="60" value="20" oninput="updateStyle('--reader-padding', this.value + 'px')">
+                <input type="range" min="10" max="50" value="25" oninput="updateStyle('--reader-padding', this.value + 'px')">
             </div>
         </div>
     </div>
@@ -414,7 +427,7 @@
 
     <script>
         /* ================= 1. 数据库配置 ================= */
-        const DB_NAME = 'LiliNovelDB_V21'; 
+        const DB_NAME = 'LiliNovelDB_V24_FIX'; 
         let db;
 
         function initDB() {
@@ -477,7 +490,6 @@
         }
 
         function splitChapters(text) {
-            // 智能分章正则
             const regex = /(?:^|\n)\s*(第[0-9零一二三四五六七八九十百千万]+[章回节][^\n]*)/g;
             const parts = text.split(regex);
             if (parts.length < 3) {
@@ -524,7 +536,6 @@
                     const q = searchQuery.toLowerCase();
                     list = list.filter(b => b.title.toLowerCase().includes(q) || (b.author && b.author.includes(q)));
                 }
-
                 if (currentFilter === 'reading') list = list.filter(b => b.status !== 'finished');
                 if (currentFilter === 'finished') list = list.filter(b => b.status === 'finished');
                 if (currentFilter === 'unread') list = list.filter(b => (b.chapterIndex || 0) < b.chapters.length - 1);
@@ -540,9 +551,8 @@
                     let coverHtml = book.cover ? 
                         `<div class="cover has-img" style="background-image:url(${book.cover})"></div>` : 
                         `<div class="cover">📖
-                             <div class="progress-bar"><div class="progress-fill" style="width:${progress}%"></div></div>
+                             <div class="mini-progress"><div class="mini-fill" style="width:${progress}%"></div></div>
                          </div>`;
-
                     const el = document.createElement('div');
                     el.className = 'book';
                     el.innerHTML = `${coverHtml}<div class="book-title">${book.title}</div>`;
@@ -552,7 +562,7 @@
             };
         }
 
-        /* ================= 4. 详情页与编辑 ================= */
+        /* ================= 4. 详情页 ================= */
         let currentBook = null;
         let tempCover = null;
 
@@ -607,74 +617,242 @@
             }
         }
 
-        /* ================= 5. 阅读器逻辑 ================= */
+        /* ================= 5. 阅读器核心逻辑 ================= */
         let currentChapterIdx = 0;
+        let readerMode = 'scroll'; // 'scroll' | 'page'
 
         function startReading() {
-            if(!currentBook) return;
-            document.getElementById('detailModal').classList.remove('active');
-            document.getElementById('readerPage').classList.add('active');
-            currentChapterIdx = currentBook.chapterIndex || 0;
-            if(currentChapterIdx >= currentBook.chapters.length) currentChapterIdx = 0;
-            document.getElementById('readerTitle').innerText = currentBook.title;
-            renderChapter();
+    if(!currentBook) return;
+    document.getElementById('detailModal').classList.remove('active');
+    document.getElementById('readerPage').classList.add('active');
+    currentChapterIdx = currentBook.chapterIndex || 0;
+    if(currentChapterIdx >= currentBook.chapters.length) currentChapterIdx = 0;
+    document.getElementById('readerTitle').innerText = currentBook.title;
+    
+    renderChapter();
+
+    // ✨ 新增：监听滚动，实现上下模式“自动续章”
+    const container = document.getElementById('readerContainer');
+    container.onscroll = function() {
+        if (readerMode === 'scroll') {
+            // 如果滑到了最底部 (误差 5px)
+            if (container.scrollTop + container.clientHeight >= container.scrollHeight - 5) {
+                // 这里加个防抖，防止瞬间跳好几章，实际体验中通常点击触发更稳，
+                // 但如果你想要纯滑动触发，可以解开下面这行的注释：
+                // nextChapter(); 
+                
+                // 建议：懒人模式下，推荐还是保留“滑不动了再点一下屏幕”进下一章（即 goNext 的逻辑），
+                // 否则看最后一行字的时候容易误触直接跳走了。
+                // 上面的 goNext() 已经实现了：滑到底 -> 再点一下 -> 下一章。
+            }
+        }
+    };
+}
+
+
+        function renderChapter(jumpToEnd = false) {
+    const chap = currentBook.chapters[currentChapterIdx];
+    const contentDiv = document.getElementById('readerContent');
+    // 标题美化
+    let html = `<div class="chapter-title" style="margin-bottom:50px;">${chap.title}</div>`;
+    const paragraphs = chap.content.split('\n');
+    paragraphs.forEach(p => { if(p.trim()) html += `<p>${p.trim()}</p>`; });
+    // 底部加个提示，防止视觉突然断掉
+    html += `<div style="text-align:center; color:#ccc; margin-top:50px; font-size:12px;">- 本章完 -</div>`;
+    contentDiv.innerHTML = html;
+    
+    const container = document.getElementById('readerContainer');
+    if (readerMode === 'scroll') {
+        container.classList.remove('paging-mode');
+        container.scrollTop = 0;
+    } else {
+        container.classList.add('paging-mode');
+        // 强制重绘，确保 scrollWidth 计算正确
+        setTimeout(() => {
+            if (jumpToEnd) {
+                container.scrollLeft = container.scrollWidth;
+            } else {
+                container.scrollLeft = 0;
+            }
+        }, 50); // 给一点点延迟等待渲染
+    }
+    
+    // 自动保存进度
+    currentBook.chapterIndex = currentChapterIdx;
+    db.transaction('novels', 'readwrite').objectStore('novels').put(currentBook);
+}
+
+
+        /* --- 智能点击处理 (懒人核心) --- */
+        function handleReaderTap(zone) {
+            if (zone === 'menu') {
+                toggleMenu(); // 点击中间：菜单开关
+            } else if (zone === 'next') {
+                // 点击其他：下一页 (如果菜单开着，先关菜单)
+                const nav = document.getElementById('readerNav');
+                if (!nav.classList.contains('hidden')) toggleMenu();
+                else goNext();
+            } else if (zone === 'prev') {
+                // 顶部小条：上一页
+                goPrev();
+            }
         }
 
-        function renderChapter() {
-            const chap = currentBook.chapters[currentChapterIdx];
-            const contentDiv = document.getElementById('readerContent');
-            let html = `<div class="chapter-title" style="text-align:center">${chap.title}</div>`;
-            
-            // 文本格式化
-            const paragraphs = chap.content.split('\n');
-            paragraphs.forEach(p => { 
-                if(p.trim()) html += `<p>${p.trim()}</p>`; 
-            });
-            
-            contentDiv.innerHTML = html;
-            contentDiv.parentElement.scrollTop = 0;
-            
-            // 保存进度
-            currentBook.chapterIndex = currentChapterIdx;
-            const tx = db.transaction('novels', 'readwrite');
-            tx.objectStore('novels').put(currentBook);
+     function goNext() {
+    const container = document.getElementById('readerContainer');
+    
+    if (readerMode === 'scroll') {
+        // 上下滚动模式
+        // 如果已经到底了 (允许 10px 误差)
+        if (container.scrollTop + container.clientHeight >= container.scrollHeight - 10) {
+            nextChapter(); // 自动下一章
+        } else {
+            // 还没到底，向下滚屏
+            container.scrollBy({ top: window.innerHeight * 0.8, behavior: 'smooth' });
+        }
+    } else {
+        // ✨ 左右翻页模式 (修复版)
+        // 只有当 (当前位置 + 屏幕宽度) >= 总宽度 时，才算到底
+        const pageWidth = container.clientWidth;
+        const maxScroll = container.scrollWidth - pageWidth; // 最大可滚距离
+        
+        // 这里的 2 是容错值，防止浏览器计算小数误差
+        if (container.scrollLeft < maxScroll - 2) {
+            container.scrollBy({ left: pageWidth, behavior: 'smooth' });
+        } else {
+            nextChapter(); // 真的翻完了，跳下一章
+        }
+    }
+}
+
+
+
+        function goPrev() {
+            const container = document.getElementById('readerContainer');
+            if (readerMode === 'scroll') {
+                container.scrollBy({ top: -window.innerHeight * 0.8, behavior: 'smooth' });
+            } else {
+                const pageWidth = container.clientWidth;
+                if (container.scrollLeft <= 0) {
+                    prevChapter(); // 到头了，上一章
+                } else {
+                    container.scrollBy({ left: -pageWidth, behavior: 'smooth' });
+                }
+            }
         }
 
-        function prevChapter() { if(currentChapterIdx > 0) { currentChapterIdx--; renderChapter(); } else { alert('已经是第一章啦'); } }
-        function nextChapter() { if(currentChapterIdx < currentBook.chapters.length-1) { currentChapterIdx++; renderChapter(); } else { alert('恭喜看完啦！'); currentBook.status='finished'; updateBookInfo(); } }
+        /* 模式切换 */
+        // --- 🔄 核心修复：切换模式逻辑 ---
+function changeReaderMode(mode) {
+    readerMode = mode;
+    saveSetting('readerMode', mode);
+    
+    // 1. 按钮样式切换
+    document.getElementById('modeScrollBtn').className = mode === 'scroll' ? 'btn btn-primary' : 'btn btn-ghost';
+    document.getElementById('modePageBtn').className = mode === 'page' ? 'btn btn-primary' : 'btn btn-ghost';
+    
+    // 2. 核心修复：上下滚动模式时，隐藏“全屏下一页”热区
+    // 这样你就可以自由滑动，不会误触点击了
+    const nextLayer = document.getElementById('tapNextLayer');
+    if (mode === 'scroll') {
+        nextLayer.style.display = 'none'; 
+    } else {
+        nextLayer.style.display = 'block'; // 左右翻页模式才需要全屏点击
+    }
+
+    renderChapter();
+    
+    if(mode === 'page') alert('✨ 已切换【左右翻页】\n点屏幕任何地方都是下一页！');
+    if(mode === 'scroll') alert('✨ 已切换【上下滚动】\n现在可以自由滑动屏幕了！');
+}
+
+
+        /* 菜单开关 */
+        function toggleMenu() {
+            const nav = document.getElementById('readerNav');
+            const footer = document.getElementById('readerFooter');
+            const mask = document.getElementById('touchMask');
+            if (nav.classList.contains('hidden')) {
+                nav.classList.remove('hidden'); footer.classList.remove('hidden'); mask.classList.add('active');
+            } else {
+                nav.classList.add('hidden'); footer.classList.add('hidden'); mask.classList.remove('active');
+            }
+        }
+
+        /* 通用跳转 */
+        function prevChapter() { 
+            if(currentChapterIdx > 0) { 
+                currentChapterIdx--; 
+                // 如果是翻页模式，翻回上一章时，传入 true，跳到章节末尾
+                renderChapter(readerMode === 'page'); 
+            } else { alert('已经是第一章啦'); } 
+        }
+        function nextChapter() { 
+            if(currentChapterIdx < currentBook.chapters.length-1) { 
+                currentChapterIdx++; 
+                renderChapter(); 
+            } else { 
+                alert('恭喜看完啦！'); currentBook.status='finished'; updateBookInfo(); 
+            } 
+        }
+
         function closeReader() { document.getElementById('readerPage').classList.remove('active'); renderBooks(); }
 
-        /* ================= 6. 强力全屏兼容 ================= */
-        function toggleFullScreen() {
-            const doc = window.document;
-            const docEl = doc.documentElement;
+        /* ================= 6. 书签与目录 ================= */
+        function addBookmark() {
+            if (!currentBook) return;
+            if (!currentBook.bookmarks) currentBook.bookmarks = [];
+            const chap = currentBook.chapters[currentChapterIdx];
+            currentBook.bookmarks.push({
+                id: Date.now(), title: chap.title, chapterIdx: currentChapterIdx, time: new Date().toLocaleString()
+            });
+            db.transaction('novels', 'readwrite').objectStore('novels').put(currentBook);
+            alert('🔖 书签已添加！');
+        }
 
-            const requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
-            const cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
-
-            if(!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
-                if(requestFullScreen) {
-                    requestFullScreen.call(docEl).catch(err => {
-                        alert("您的浏览器限制了全屏功能，请尝试在浏览器菜单中点击'添加到主屏幕'。");
-                    });
-                } else {
-                    alert("当前设备不支持自动全屏，请手动隐藏地址栏。");
-                }
+        function renderTocList(type) {
+            const list = document.getElementById('tocList');
+            list.innerHTML = '';
+            
+            if (type === 'chapters') {
+                const fragment = document.createDocumentFragment();
+                currentBook.chapters.forEach((c, i) => {
+                    const div = document.createElement('div');
+                    div.className = `toc-item ${i===currentChapterIdx?'active':''}`;
+                    div.innerText = c.title;
+                    div.onclick = () => { currentChapterIdx = i; renderChapter(); closeOverlays(); };
+                    fragment.appendChild(div);
+                });
+                list.appendChild(fragment);
+                setTimeout(() => { const active = list.querySelector('.active'); if(active) active.scrollIntoView({block:'center'}); }, 100);
             } else {
-                if(cancelFullScreen) cancelFullScreen.call(doc);
+                if (!currentBook.bookmarks || currentBook.bookmarks.length === 0) {
+                    list.innerHTML = '<div style="text-align:center; padding:20px; color:#999;">暂无书签</div>';
+                    return;
+                }
+                [...currentBook.bookmarks].reverse().forEach(bm => {
+                    const div = document.createElement('div');
+                    div.className = 'toc-item';
+                    div.style.display='flex'; div.style.justifyContent='space-between';
+                    div.innerHTML = `<div><div style="font-weight:bold">${bm.title}</div><div style="font-size:12px; color:#999">${bm.time}</div></div><button style="border:none;background:none;color:#ff6b6b;" onclick="deleteBookmark(${bm.id}, event)">🗑️</button>`;
+                    div.onclick = () => { currentChapterIdx = bm.chapterIdx; renderChapter(); closeOverlays(); };
+                    list.appendChild(div);
+                });
+            }
+        }
+
+        function deleteBookmark(id, event) {
+            event.stopPropagation();
+            if(confirm('删除?')) {
+                currentBook.bookmarks = currentBook.bookmarks.filter(b => b.id !== id);
+                db.transaction('novels', 'readwrite').objectStore('novels').put(currentBook);
+                renderTocList('bookmarks');
             }
         }
 
         /* ================= 7. 设置与持久化 ================= */
-        function updateStyle(varName, value) {
-            document.documentElement.style.setProperty(varName, value);
-            saveSetting(varName, value);
-        }
-
-        function saveSetting(key, val) {
-            const tx = db.transaction('settings', 'readwrite');
-            tx.objectStore('settings').put({ key: key, value: val });
-        }
+        function updateStyle(varName, value) { document.documentElement.style.setProperty(varName, value); saveSetting(varName, value); }
+        function saveSetting(key, val) { const tx = db.transaction('settings', 'readwrite'); tx.objectStore('settings').put({ key: key, value: val }); }
 
         function loadGlobalSettings() {
             const tx = db.transaction('settings', 'readonly');
@@ -683,9 +861,10 @@
                     if (item.key === 'customFont' && item.value instanceof Blob) {
                          const fontUrl = URL.createObjectURL(item.value);
                          new FontFace('CustomUserFont', `url(${fontUrl})`).load().then(f => {
-                            document.fonts.add(f);
-                            document.documentElement.style.setProperty('--reader-font', 'CustomUserFont, sans-serif');
+                            document.fonts.add(f); document.documentElement.style.setProperty('--reader-font', 'CustomUserFont, sans-serif');
                          });
+                    } else if (item.key === 'readerMode') {
+                        changeReaderMode(item.value);
                     } else if (item.key === 'customBg') {
                         applyCustomBg(item.value);
                     } else {
@@ -697,13 +876,10 @@
 
         function handleFontImport(input) {
             const file = input.files[0]; if(!file) return;
-            const tx = db.transaction('settings', 'readwrite');
-            tx.objectStore('settings').put({ key: 'customFont', value: file });
+            const tx = db.transaction('settings', 'readwrite'); tx.objectStore('settings').put({ key: 'customFont', value: file });
             const fontUrl = URL.createObjectURL(file);
             new FontFace('CustomUserFont', `url(${fontUrl})`).load().then(f => {
-                document.fonts.add(f);
-                updateStyle('--reader-font', 'CustomUserFont, sans-serif');
-                alert('字体已设置！');
+                document.fonts.add(f); updateStyle('--reader-font', 'CustomUserFont, sans-serif'); alert('字体已设置！');
             });
         }
 
@@ -719,13 +895,9 @@
             const page = document.getElementById('readerPage');
             if(bgData.type === 'color') {
                 updateStyle('--reader-bg', bgData.val);
-                page.style.backgroundImage = 'radial-gradient(#00000005 1px, transparent 1px)'; // 保留纹理
-                page.style.backgroundSize = '20px 20px';
+                page.style.backgroundImage = 'radial-gradient(#00000005 1px, transparent 1px)'; page.style.backgroundSize = '20px 20px';
             } else {
-                page.style.background = 'none';
-                page.style.backgroundImage = `url(${bgData.val})`;
-                page.style.backgroundSize = 'cover';
-                page.style.backgroundAttachment = 'fixed';
+                page.style.background = 'none'; page.style.backgroundImage = `url(${bgData.val})`; page.style.backgroundSize = 'cover'; page.style.backgroundAttachment = 'fixed';
             }
             updateStyle('--reader-color', '#333');
         }
@@ -733,38 +905,114 @@
         function setTheme(bg, color) {
             updateStyle('--reader-bg', bg); updateStyle('--reader-color', color);
             document.getElementById('readerPage').style.backgroundImage = 'radial-gradient(#00000005 1px, transparent 1px)';
-            document.getElementById('readerPage').style.backgroundSize = '20px 20px';
         }
 
-        /* 界面开关 */
-        function toggleSettings(force) {
-            const p = document.getElementById('settingsPanel'); const m = document.getElementById('touchMask');
-            if(force===false){p.classList.remove('show');m.classList.remove('active');} else{p.classList.toggle('show');m.classList.toggle('active');}
+        function toggleFullScreen() {
+            const doc = window.document; const docEl = doc.documentElement;
+            const req = docEl.requestFullscreen || docEl.webkitRequestFullScreen;
+            const exit = doc.exitFullscreen || doc.webkitExitFullscreen;
+            if(!doc.fullscreenElement && !doc.webkitFullscreenElement) { if(req) req.call(docEl); } else { if(exit) exit.call(doc); }
         }
+
+        // 1. 强力开关设置面板
+function toggleSettings(force) {
+    const p = document.getElementById('settingsPanel');
+    const m = document.getElementById('touchMask');
+    const n = document.getElementById('readerNav');
+    const f = document.getElementById('readerFooter');
+    
+    // 如果传入 false，或者面板已经开着 -> 执行关闭
+    if (force === false || p.classList.contains('show')) {
+        p.classList.remove('show');
+        m.classList.remove('active');
+        // 收起菜单时，同时隐藏导航栏 (回到沉浸模式)
+        n.classList.add('hidden');
+        f.classList.add('hidden');
+    } else {
+        // 打开
+        p.classList.add('show');
+        m.classList.add('active'); // 遮罩层激活，点击遮罩层会触发 closeOverlays
+        // 打开设置时，导航栏也得显示出来
+        n.classList.remove('hidden');
+        f.classList.remove('hidden');
+    }
+}
+
         function toggleToc() {
             const d = document.getElementById('tocDrawer'); const m = document.getElementById('touchMask');
             d.classList.add('open'); m.classList.add('active');
-            const list = document.getElementById('tocList'); list.innerHTML = '';
-            
-            // 优化：一次性插入，减少重绘
-            const fragment = document.createDocumentFragment();
-            currentBook.chapters.forEach((c, i) => {
-                const div = document.createElement('div'); 
-                div.className = `toc-item ${i===currentChapterIdx?'active':''}`;
-                div.innerText = c.title; 
-                div.onclick = () => { currentChapterIdx = i; renderChapter(); closeOverlays(); };
-                fragment.appendChild(div);
-            });
-            list.appendChild(fragment);
-            
-            // 自动滚动
-            setTimeout(() => { const active = list.querySelector('.active'); if(active) active.scrollIntoView({block:'center'}); }, 100);
+            renderTocList('chapters'); // 默认显示章节
         }
-        function closeOverlays() {
-            document.getElementById('settingsPanel').classList.remove('show');
-            document.getElementById('tocDrawer').classList.remove('open');
-            document.getElementById('touchMask').classList.remove('active');
+        // 2. 强力关闭所有覆盖层 (点击遮罩/中间 触发)
+function closeOverlays() {
+    // 关掉设置
+    document.getElementById('settingsPanel').classList.remove('show');
+    // 关掉目录
+    document.getElementById('tocDrawer').classList.remove('open');
+    // 关掉遮罩
+    document.getElementById('touchMask').classList.remove('active');
+    
+    // 顺便把导航栏也收起来 (恢复阅读状态)
+    document.getElementById('readerNav').classList.add('hidden');
+    document.getElementById('readerFooter').classList.add('hidden');
+}
+
+/* ================= 🖐️ 手势控制核心 (滑动手感优化) ================= */
+
+let touchStartX = 0;
+let touchStartY = 0;
+let touchStartTime = 0;
+
+// 1. 手指按下：记录位置和时间
+function recordTouchStart(e) {
+    touchStartX = e.changedTouches[0].screenX;
+    touchStartY = e.changedTouches[0].screenY;
+    touchStartTime = new Date().getTime();
+}
+
+// 2. 手指抬起：判断是“点击”还是“滑动”
+function handleTouchEnd(e) {
+    const touchEndX = e.changedTouches[0].screenX;
+    const touchEndY = e.changedTouches[0].screenY;
+    const touchEndTime = new Date().getTime();
+
+    const diffX = touchEndX - touchStartX;
+    const diffY = touchEndY - touchStartY;
+    const timeDiff = touchEndTime - touchStartTime;
+
+    // --- 判断逻辑 ---
+    
+    // 如果滑动距离很短 (小于 10px) -> 视为【点击】
+    if (Math.abs(diffX) < 10 && Math.abs(diffY) < 10) {
+        // 让 onclick 事件去处理“下一页”
+        // 这里不做操作，浏览器会自动触发 onclick
+        return; 
+    }
+
+    // 如果滑动距离较长 -> 视为【滑动】
+    // 只有在“左右翻页”模式下才需要处理滑动翻页
+    // (上下滚动模式自带原生滑动，不需要我们管)
+    if (readerMode === 'page') {
+        e.preventDefault(); // 阻止默认滚动，只执行翻页
+        e.stopPropagation(); // 阻止触发 onclick
+
+        // 判断是横向滑 还是 竖向滑
+        if (Math.abs(diffX) > Math.abs(diffY)) {
+            // --- 横向滑动 ---
+            if (diffX > 50) {
+                // 👉 向右滑 (手指从左往右) -> 上一页
+                goPrev(); 
+            } else if (diffX < -50) {
+                // 👈 向左滑 (手指从右往左) -> 下一页
+                goNext();
+            }
         }
+    }
+}
+
+// 修改 goPrev 和 goNext 以支持手势调用
+// (这两个函数之前已经有了，这里不需要改动，直接调用即可)
+
 
         initDB();
     </script>
