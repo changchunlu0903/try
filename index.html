@@ -3125,17 +3125,6 @@
         <input type="text" style="width:100%;font-size:10px;padding:4px;border:1px solid #ddd;border-radius:5px;" id="musicLink" placeholder="输入mp3链接..." onchange="updateMusicSrc(this.value)">
         <audio id="bgMusic" loop></audio>
     </div>
-<div class="tavern-portal-panel" style="margin-top:10px; margin-bottom:10px;">
-    <button onclick="togglePhoneFrame()" style="width:100%; height:50px;
-    background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%);
-    color: white; border: 3px solid #fff; border-radius: 25px;
-    font-size: 16px; font-weight: bold; cursor: pointer;
-    box-shadow: 0 5px 15px rgba(255, 154, 158, 0.4);
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    transition: transform 0.2s;">
-        📱 打开我的手机
-    </button>
-</div>
 
 <div class="tavern-portal-panel" style="margin-top:10px;">
     <button onclick="window.loadAndOpenRemoteCreator()" style="width:100%; background:linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%); color:white; border:none; padding:10px; border-radius:20px; font-weight:bold; cursor:pointer; box-shadow:0 4px 10px rgba(142, 197, 252, 0.4);">
@@ -12793,40 +12782,7 @@ window.enterGameLobby = function() {
 
     if(window.auth && window.auth.toast) auth.toast("🔧 搜索与侍从系统已彻底修复");
 })();
-    // 📱 手机开关脚本 (兼容版 - 使用 var)
-    function togglePhoneFrame() {
-        console.log("正在尝试打开手机..."); 
-        
-        // 把 const 改成了 var
-        var overlay = document.getElementById('phoneFrameOverlay');
-        var frame = document.getElementById('phoneIframe');
-        
-        // 检查元素是否存在
-        if (!overlay || !frame) {
-            alert("出错了：找不到手机容器代码！请确保把容器代码放到了文件最底部。");
-            return;
-        }
-
-        // 判断当前是开启还是关闭
-        if (overlay.style.display === 'none' || overlay.style.display === '') {
-            // --- 动作：打开 ---
-            overlay.style.display = 'flex';
-            
-            // 把箭头函数 () => {} 改成了 function() {}
-            setTimeout(function() {
-                frame.style.transform = 'scale(1)';
-                frame.style.opacity = '1';
-            }, 10);
-        } else {
-            // --- 动作：关闭 ---
-            frame.style.transform = 'scale(0.9)';
-            frame.style.opacity = '0';
-            
-            setTimeout(function() {
-                overlay.style.display = 'none';
-            }, 300);
-        }
-    }
+    
     </script>
 </body>
 </html>
