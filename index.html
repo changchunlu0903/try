@@ -2994,6 +2994,225 @@
     display: none !important;
 }
 
+/* ==================== 🧭 魔法指南针 CSS ==================== */
+
+/* 1. 左下角悬浮按钮 */
+.guide-float-btn {
+    position: fixed;
+    bottom: 30px;
+    left: 30px;
+    width: 50px;
+    height: 50px;
+    background: #fff;
+    border: 3px solid #a29bfe; /* 淡紫色边框 */
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 24px;
+    cursor: pointer;
+    box-shadow: 0 5px 15px rgba(162, 155, 254, 0.4);
+    z-index: 9999;
+    transition: all 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+    animation: guideFloat 3s ease-in-out infinite;
+}
+.guide-float-btn:hover {
+    transform: scale(1.1) rotate(15deg);
+    background: #f3f0ff;
+}
+@keyframes guideFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+}
+
+/* 2. 导航大厅网格布局 */
+.guide-scroll-area {
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 0 10px;
+}
+.guide-section-title {
+    font-size: 13px;
+    font-weight: bold;
+    color: #888;
+    margin: 15px 0 10px 0;
+    padding-left: 10px;
+    border-left: 3px solid #ffb7c5;
+}
+.guide-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr); /* 一行4个 */
+    gap: 15px;
+}
+
+/* 3. 单个功能图标 */
+.guide-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+.guide-item:hover {
+    transform: translateY(-5px);
+}
+.guide-icon {
+    width: 45px;
+    height: 45px;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    margin-bottom: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+.guide-name {
+    font-size: 11px;
+    color: #555;
+    text-align: center;
+    line-height: 1.2;
+}
+
+/* 手机端适配：一行3个 */
+@media screen and (max-width: 400px) {
+    .guide-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* 🔧 修复补丁：强制按钮显示在最上层 */
+.guide-float-btn {
+    position: fixed !important;
+    bottom: 30px !important;
+    left: 30px !important;
+    width: 50px;
+    height: 50px;
+    background: #fff;
+    border: 3px solid #a29bfe; 
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 24px;
+    cursor: pointer;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    
+    /* 🔥 关键修改：层级必须比锁屏(10000)高 */
+    z-index: 99999 !important; 
+    
+    /* 防止被父元素隐藏 */
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* ==================== 🧭 新增：左下角指南针悬浮窗 ==================== */
+.guide-widget {
+    position: fixed;
+    bottom: 30px;
+    left: 30px; /* 👈 关键：原来的在right，这个在left，互不打架 */
+    z-index: 9999; /* 和原来的层级一样高 */
+    touch-action: none;
+    animation: floatUp 0.5s ease-out; /* 加个出场动画 */
+}
+
+.guide-float-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #fff;
+    /* 边框改成淡紫色，区分原来的红色 */
+    border: 3px solid #a29bfe; 
+    box-shadow: 0 5px 15px rgba(162, 155, 254, 0.4);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 24px;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.2s;
+}
+
+.guide-float-btn:active {
+    transform: scale(0.9);
+}
+
+/* 给它加个呼吸灯动画，让它显眼一点 */
+.guide-float-btn {
+    animation: guidePulse 3s infinite;
+}
+@keyframes guidePulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); box-shadow: 0 0 15px rgba(162, 155, 254, 0.6); }
+    100% { transform: scale(1); }
+}
+
+/* 🔧 暴力穿透补丁：确保里面的按钮能被点到 */
+#guideMenuModal .guide-item {
+    cursor: pointer !important;
+    position: relative !important;
+    z-index: 100 !important; /* 浮起来 */
+    pointer-events: auto !important; /* 强制响应点击 */
+}
+
+/* 确保说明书里的出发按钮能被点到 */
+#guideGoBtn {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    z-index: 200 !important;
+}
+
+/* ==================== 🧭 指南针专属 CSS v3.0 ==================== */
+.guide-widget-container {
+    position: fixed;
+    bottom: 30px;
+    left: 30px;
+    z-index: 99999; /* 极高层级 */
+    animation: floatUp 0.5s ease-out;
+}
+.guide-btn-compass {
+    width: 50px; height: 50px;
+    border-radius: 50%;
+    background: #fff;
+    border: 3px solid #a29bfe;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    display: flex; justify-content: center; align-items: center;
+    font-size: 26px;
+    cursor: pointer;
+    animation: guidePulse 3s infinite;
+}
+@keyframes guidePulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* 菜单样式 */
+.guide-sect-title {
+    font-size: 13px; font-weight: bold; margin: 15px 0 10px 0;
+    padding-left: 10px; border-left: 3px solid #ccc;
+}
+.guide-grid-box {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;
+}
+.guide-item {
+    display: flex; flex-direction: column; align-items: center;
+    cursor: pointer !important; /* 强制手型 */
+    position: relative; z-index: 10;
+    transition: transform 0.2s;
+}
+.guide-item:active { transform: scale(0.9); }
+.guide-icon {
+    width: 45px; height: 45px; border-radius: 15px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; margin-bottom: 5px;
+    pointer-events: none; /* 防止图标挡住点击 */
+}
+.guide-txt { font-size: 11px; color: #555; text-align: center; pointer-events: none; }
+
+@media screen and (max-width: 400px) {
+    .guide-grid-box { grid-template-columns: repeat(3, 1fr); }
+}
 
     </style>
 
@@ -3230,6 +3449,135 @@
     </div>
 </div>
 
+<div class="guide-widget-container" onclick="window.openGuideMenu()">
+    <div class="guide-btn-compass">🧭</div>
+</div>
+
+<div class="modal-overlay" id="guideMenuModal" style="z-index: 999990;">
+    <div class="modal" style="width: 90%; max-width: 450px; background: #fffcf5; border: 4px double #a29bfe;">
+        <button class="close-modal" onclick="window.closeGuideMenu()">×</button>
+        <h2 style="text-align:center; color:#6c5ce7; margin-bottom:5px;">🗺️ 魔法导航图</h2>
+        <div style="text-align:center; font-size:12px; color:#aaa; margin-bottom:20px;">点击图标查看说明书</div>
+
+        <div class="guide-scroll-area" style="max-height: 60vh; overflow-y: auto;">
+            
+            <div class="guide-sect-title" style="color:#a29bfe; border-color:#a29bfe;">🎨 创世</div>
+            <div class="guide-grid-box">
+                <div class="guide-item" onclick="window.showGuideCard('creator')">
+                    <div class="guide-icon" style="background:#e3f2fd;">🪶</div>
+                    <div class="guide-txt">云端写卡</div>
+                </div>
+                <div class="guide-item" onclick="window.showGuideCard('hoard')">
+                    <div class="guide-icon" style="background:#e8f5e9;">📦</div>
+                    <div class="guide-txt">囤卡</div>
+                </div>
+                <div class="guide-item" onclick="window.showGuideCard('api')">
+                    <div class="guide-icon" style="background:#fff3e0;">🔌</div>
+                    <div class="guide-txt">接入API</div>
+                </div>
+                <div class="guide-item" onclick="window.showGuideCard('guide_all')">
+                    <div class="guide-icon" style="background:#eceff1;">📘</div>
+                    <div class="guide-txt">总说明书</div>
+                </div>
+            </div>
+
+            <div class="guide-sect-title" style="color:#ffb7c5; border-color:#ffb7c5;">🎡 游乐</div>
+            <div class="guide-grid-box">
+                <div class="guide-item" onclick="window.showGuideCard('games')">
+                    <div class="guide-icon" style="background:#f3e5f5;">🎮</div>
+                    <div class="guide-txt">联机大厅</div>
+                </div>
+                <div class="guide-item" onclick="window.showGuideCard('theater')">
+                    <div class="guide-icon" style="background:#fff3e0;">🎬</div>
+                    <div class="guide-txt">小剧场</div>
+                </div>
+                <div class="guide-item" onclick="window.showGuideCard('gacha')">
+                    <div class="guide-icon" style="background:#fce4ec;">🎰</div>
+                    <div class="guide-txt">扭蛋机</div>
+                </div>
+                <div class="guide-item" onclick="window.showGuideCard('bar')">
+                    <div class="guide-icon" style="background:#2c3e50;">🍱</div>
+                    <div class="guide-txt">食堂</div>
+                </div>
+                <div class="guide-item" onclick="window.showGuideCard('echo')">
+                    <div class="guide-icon" style="background:#ffebee;">🔮</div>
+                    <div class="guide-txt">回响</div>
+                </div>
+                 <div class="guide-item" onclick="window.showGuideCard('guide_all')">
+                    <div class="guide-icon" style="background:#eceff1;">📘</div>
+                    <div class="guide-txt">总说明书</div>
+                </div>
+            </div>
+
+             <div class="guide-sect-title" style="color:#81ecec; border-color:#81ecec;">📱 生活</div>
+             <div class="guide-grid-box">
+                 <div class="guide-item" onclick="window.showGuideCard('moments')">
+                     <div class="guide-icon" style="background:#fffde7;">✨</div>
+                     <div class="guide-txt">朋友圈</div>
+                 </div>
+                 <div class="guide-item" onclick="window.showGuideCard('travel')">
+                    <div class="guide-icon" style="background:#e0f7fa;">🏔️</div>
+                    <div class="guide-txt">旅行地图</div>
+                </div>
+                 <div class="guide-item" onclick="window.showGuideCard('heir')">
+                    <div class="guide-icon" style="background:#fff0f5;">👶</div>
+                    <div class="guide-txt">养娃教程</div>
+                </div>
+                <div class="guide-item" onclick="window.showGuideCard('guide_all')">
+                    <div class="guide-icon" style="background:#eceff1;">📘</div>
+                    <div class="guide-txt">总说明书</div>
+                </div>
+             </div>
+             
+             <div class="guide-sect-title" style="color:#ffd700; border-color:#ffd700;">🏯 宫廷</div>
+             <div class="guide-grid-box">
+                 <div class="guide-item" onclick="window.showGuideCard('throne')">
+                     <div class="guide-icon" style="background:#fff8e1;">⚖️</div>
+                     <div class="guide-txt">批奏折</div>
+                 </div>
+                 <div class="guide-item" onclick="window.showGuideCard('flip')">
+                     <div class="guide-icon" style="background:#ffebee;">🏮</div>
+                     <div class="guide-txt">翻牌子</div>
+                 </div>
+                 <div class="guide-item" onclick="window.showGuideCard('horoscope')">
+                    <div class="guide-icon" style="background:#303f9f;">🌠</div>
+                    <div class="guide-txt">钦天监</div>
+                </div>
+                <div class="guide-item" onclick="window.showGuideCard('guide_all')">
+                    <div class="guide-icon" style="background:#eceff1;">📘</div>
+                    <div class="guide-txt">总说明书</div>
+                </div>
+             </div>
+
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="guideInstructionModal" style="z-index: 999995;">
+    <div class="modal" style="width: 320px; background: #fff; border-radius: 20px; padding: 0; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
+        
+        <div id="guideBanner" style="height: 100px; background: linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%); display: flex; align-items: center; justify-content: center; font-size: 50px;">
+            <span id="guideHeaderIcon">💡</span>
+        </div>
+
+        <div style="padding: 20px;">
+            <h3 id="guideTitle" style="text-align: center; color: #333; margin: 0 0 10px 0;">功能标题</h3>
+            
+            <div style="background: #f9f9f9; padding: 15px; border-radius: 10px; font-size: 13px; color: #666; line-height: 1.6; border: 1px dashed #ddd; min-height: 80px;">
+                <span id="guideDesc">这里是说明内容...</span>
+            </div>
+
+            <div style="margin-top: 15px; font-size: 12px; color: #aaa; text-align: center;">
+                💡 <span id="guideTip">点击下方按钮前往</span>
+            </div>
+        </div>
+
+        <div style="padding: 0 20px 20px 20px; display: flex; gap: 10px;">
+            <button onclick="window.closeGuideInstruction()" style="flex: 1; background: #f0f0f0; color: #666; border: none; padding: 12px; border-radius: 50px; cursor: pointer; font-weight: bold;">再看看</button>
+            <button id="guideGoBtn" style="flex: 1; background: #a29bfe; color: white; border: none; padding: 12px; border-radius: 50px; cursor: pointer; font-weight: bold; box-shadow: 0 5px 15px rgba(162, 155, 254, 0.4);">🚀 出发</button>
+        </div>
+    </div>
+</div>
 
             <div class="float-btn" id="floatBtn"></div>
         </div>
@@ -12782,7 +13130,141 @@ window.enterGameLobby = function() {
 
     if(window.auth && window.auth.toast) auth.toast("🔧 搜索与侍从系统已彻底修复");
 })();
-    
+
     </script>
+
+<script>
+console.log("🧭 魔法指南针 v3.0 已加载");
+
+// 1. 定义数据 (完全对应你的新需求)
+window.guideMap = {
+    // --- 创世 ---
+    "creator": {
+        icon: "🪶", title: "云端写卡器",
+        desc: "使用云端强大的 AI 工具来创造角色。捏脸、写设定，一键导出。",
+        tip: "需要联网。",
+        action: function() { 
+            // 尝试调用远程加载函数
+            if(window.loadAndOpenRemoteCreator) window.loadAndOpenRemoteCreator(); 
+            else alert("请检查网络或刷新页面");
+        }
+    },
+    "hoard": {
+        icon: "📦", title: "囤卡 (添加角色)",
+        desc: "导入下载的角色卡，或创建新角色盒子。",
+        tip: "对应主页的➕按钮。",
+        action: function() { 
+            // 对应 openAddModal
+            if(window.openAddModal) openAddModal(); 
+            else alert("添加功能未加载");
+        }
+    },
+    "api": {
+        icon: "🔌", title: "接入 API",
+        desc: "连接 AI 大脑 (GPT/Claude)。在这里填写 API Key 和地址。",
+        tip: "对应悬浮窗侍从 -> 设置。",
+        action: function() { 
+            if(window.openAISettings) openAISettings(); 
+            else alert("设置功能未加载");
+        }
+    },
+
+    // --- 游乐 ---
+    "games": {
+        icon: "🎮", title: "联机大厅",
+        desc: "P2P 联机对战，或者挑战 AI 对手。",
+        tip: "正在连接游戏大厅...",
+        action: function() { 
+            if(window.enterGameLobby) enterGameLobby(); 
+            else alert("联机模块正在初始化...");
+        }
+    },
+    "theater": { icon: "🎬", title: "小剧场", desc: "看两个角色自动飙戏。", tip: "吃瓜模式。", action: function(){ window.openTheaterModal && openTheaterModal() } },
+    "gacha": { icon: "🎰", title: "扭蛋机", desc: "随机抽取灵感碎片。", tip: "转一转。", action: function(){ window.openGachaModal && openGachaModal() } },
+    "bar": { icon: "🍱", title: "深夜食堂", desc: "点一份心灵夜宵。", tip: "治愈系。", action: function(){ window.openBarModal && openBarModal() } },
+    "echo": { icon: "🔮", title: "回响", desc: "简单的占卜。", tip: "答案在心中。", action: function(){ window.openEchoModal && openEchoModal() } },
+
+    // --- 生活 ---
+    "moments": { icon: "✨", title: "朋友圈", desc: "查看角色动态与评论。", tip: "社交达人。", action: function(){ window.openMomentsModal && openMomentsModal() } },
+    "travel": { icon: "🏔️", title: "旅行地图", desc: "探索世界，触发奇遇。", tip: "出发吧！", action: function(){ document.getElementById('travelModal').classList.add('active'); } },
+    "heir": {
+        icon: "👶", title: "祈福求子 (教程)",
+        desc: "如何养娃？\n1. 点开【角色卡片】\n2. 翻到【最下方】\n3. 点击粉色【祈福求子】按钮\n(此处仅为教程，请去卡片内操作)",
+        tip: "快去试试吧。",
+        btnText: "朕知道了",
+        action: null // 不跳转
+    },
+
+    // --- 宫廷 ---
+    "throne": { icon: "⚖️", title: "批奏折", desc: "处理国家大事。", tip: "皇帝模拟器。", action: function(){ window.openThroneModal && openThroneModal() } },
+    "flip": { icon: "🏮", title: "翻牌子", desc: "随机抽取侍寝对象。", tip: "翻牌翻牌。", action: function(){ window.openFlipCardModal && openFlipCardModal() } },
+    "horoscope": { icon: "🌠", title: "钦天监", desc: "今日运势占卜。", tip: "每日一签。", action: function(){ window.openHoroscope && openHoroscope() } },
+
+    // --- 总说明书 (预留) ---
+    "guide_all": {
+        icon: "📘", title: "百宝箱总说明书",
+        desc: "【说明书内容加载中...】\n请将你的文案发送给我，我将填入此处。",
+        tip: "完整指南",
+        btnText: "阅读完毕",
+        action: null
+    }
+};
+
+// 2. 打开菜单
+window.openGuideMenu = function() {
+    document.getElementById('guideMenuModal').classList.add('active');
+};
+window.closeGuideMenu = function() {
+    document.getElementById('guideMenuModal').classList.remove('active');
+};
+window.closeGuideInstruction = function() {
+    document.getElementById('guideInstructionModal').classList.remove('active');
+};
+
+// 3. 显示卡片 (核心修复)
+window.showGuideCard = function(key) {
+    // 防错
+    if (!window.guideMap || !window.guideMap[key]) {
+        console.error("未找到 key:", key);
+        return;
+    }
+    const data = window.guideMap[key];
+
+    // 填内容
+    document.getElementById('guideHeaderIcon').innerText = data.icon;
+    document.getElementById('guideTitle').innerText = data.title;
+    document.getElementById('guideDesc').innerText = data.desc;
+    document.getElementById('guideDesc').style.whiteSpace = "pre-wrap"; // 换行生效
+    document.getElementById('guideTip').innerText = data.tip || "";
+
+    // 设置按钮
+    const btn = document.getElementById('guideGoBtn');
+    const newBtn = btn.cloneNode(true); // 清除旧事件
+    btn.parentNode.replaceChild(newBtn, btn);
+
+    newBtn.innerText = data.btnText || "🚀 出发";
+    
+    newBtn.onclick = function() {
+        // 先关弹窗
+        window.closeGuideInstruction();
+        window.closeGuideMenu();
+        
+        // 再跳转
+        if (data.action) {
+            setTimeout(function() {
+                try {
+                    data.action();
+                } catch(e) {
+                    alert("跳转失败: " + e.message);
+                }
+            }, 200);
+        }
+    };
+
+    // 显示
+    document.getElementById('guideInstructionModal').classList.add('active');
+};
+</script>
+
 </body>
 </html>
