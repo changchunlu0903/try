@@ -3081,31 +3081,6 @@
     }
 }
 
-/* 🔧 修复补丁：强制按钮显示在最上层 */
-.guide-float-btn {
-    position: fixed !important;
-    bottom: 30px !important;
-    left: 30px !important;
-    width: 50px;
-    height: 50px;
-    background: #fff;
-    border: 3px solid #a29bfe; 
-    border-radius: 50%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 24px;
-    cursor: pointer;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-    
-    /* 🔥 关键修改：层级必须比锁屏(10000)高 */
-    z-index: 99999 !important; 
-    
-    /* 防止被父元素隐藏 */
-    opacity: 1 !important;
-    visibility: visible !important;
-}
-
 /* ==================== 🧭 新增：左下角指南针悬浮窗 ==================== */
 .guide-widget {
     position: fixed;
@@ -3167,7 +3142,9 @@
     position: fixed;
     bottom: 30px;
     left: 30px;
-    z-index: 99999; /* 极高层级 */
+    z-index: 5000; /* 极高层级 */
+touch-action: none;
+user-select: none;
     animation: floatUp 0.5s ease-out;
 }
 .guide-btn-compass {
@@ -3317,7 +3294,7 @@
             <div class="lock-subtitle" id="recoveryQText">回答你的安全问题</div>
             <input type="text" id="recoveryAnswer" class="lock-input" placeholder="输入答案">
             <button class="welcome-btn btn-gesture" onclick="auth.checkRecovery()">验证</button>
-            <div class="back-link" onclick="location.reload()">返回</div>
+            <div class="back-link" onclick="location.reload() ; toggleCompass(true);">返回</div>
         </div>
     </div>
 
@@ -3449,9 +3426,11 @@
     </div>
 </div>
 
-<div class="guide-widget-container" onclick="window.openGuideMenu()">
+<div class="guide-widget-container" id="mainGuideCompass" style="display:block;" title="可拖动 · 点击打开">
     <div class="guide-btn-compass">🧭</div>
 </div>
+
+
 
 <div class="modal-overlay" id="guideMenuModal" style="z-index: 999990;">
     <div class="modal" style="width: 90%; max-width: 450px; background: #fffcf5; border: 4px double #a29bfe;">
@@ -13266,5 +13245,170 @@ window.showGuideCard = function(key) {
 };
 </script>
 
+<script>
+    console.log("正在加载指南针隐身系统...");
+
+    // 1. 控制开关函数
+    window.toggleCompass = function(show) {
+        const compass = document.getElementById('mainGuideCompass');
+        if (compass) {
+            // 如果是 show=true，则显示；否则隐藏
+            compass.style.display = show ? 'block' : 'none';
+        }
+    };
+
+    // 2. 劫持【打开卡片】的操作 -> 隐藏指南针
+    // 保存原有的 openCard 函数
+    if (window.openCard) {
+        const originalOpenCard = window.openCard;
+        window.openCard = function(cardId) {
+            window.toggleCompass(false); // 关掉指南针
+            originalOpenCard(cardId);    // 执行原来的打开卡片
+        };
+    }
+
+    // 3. 劫持【新建/添加】的操作 -> 隐藏指南针
+    if (window.openAddModal) {
+        const originalOpenAdd = window.openAddModal;
+        window.openAddModal = function() {
+            window.toggleCompass(false); // 关掉指南针
+            originalOpenAdd();           // 执行原来的新建
+        };
+    }
+
+    // 4. 劫持【云端捏人】的操作 -> 隐藏指南针
+    if (window.loadAndOpenRemoteCreator) {
+        const originalRemote = window.loadAndOpenRemoteCreator;
+        window.loadAndOpenRemoteCreator = function() {
+            window.toggleCompass(false);
+            originalRemote();
+        };
+    }
+
+    // ============================================================
+    // 5. 关键：如何变回来？ (监控“返回”和“关闭”按钮)
+    // ============================================================
+    
+    // 方案 A：监控页面上所有的“关闭弹窗”按钮 (class="close-modal")
+    document.addEventListener('click', function(e) {
+        // 如果点击的元素是关闭按钮，或者包含关闭样式
+        if (e.target.classList.contains('close-modal') || 
+            e.target.getAttribute('onclick') == 'closeAddModal()' ||
+            e.target.innerText === '×') {
+            
+            // 延迟一丢丢，等弹窗关掉后，显示指南针
+            setTimeout(() => {
+                // 只有当所有大弹窗都关闭时，才显示
+                // 这里简单粗暴一点：只要点了关闭，就尝试显示
+                window.toggleCompass(true);
+            }, 200);
+        }
+    });
+
+    // 方案 B：专门针对“卡片详情页”的返回按钮
+    // 请确保你的详情页返回按钮（通常是左上角的 < 或 返回）绑定了这个恢复事件
+    // 如果你知道那个返回函数的具体名字（比如 closeCardDetail），可以告诉我
+    // 下面是一个通用的补丁：
+    
+    if (window.closeCardDetail) {
+        const originalCloseCard = window.closeCardDetail;
+        window.closeCardDetail = function() {
+            window.toggleCompass(true); // 回家了，显示指南针
+            originalCloseCard();
+        };
+    } else {
+        // 如果找不到特定的关闭函数，我们尝试“监听”返回按钮
+        // 假设你的返回按钮有 id="backBtn" 或者 class="back-btn"
+        setTimeout(() => {
+            const backBtns = document.querySelectorAll('#backBtn, .back-button, .back-icon');
+            backBtns.forEach(btn => {
+                btn.addEventListener('click', () => window.toggleCompass(true));
+            });
+        }, 1000);
+    }
+
+</script>
+
+<script>
+    (function() {
+        var compass = document.getElementById('mainGuideCompass');
+        var isDragging = false;
+        var hasMoved = false; // 用来区分是点击还是拖动
+        var startX, startY, initialLeft, initialTop;
+
+        // 1. 鼠标/手指按下
+        function dragStart(e) {
+            // 获取触摸点或鼠标坐标
+            var clientX = e.clientX || e.touches[0].clientX;
+            var clientY = e.clientY || e.touches[0].clientY;
+
+            startX = clientX;
+            startY = clientY;
+            
+            // 获取当前元素的位置
+            var rect = compass.getBoundingClientRect();
+            initialLeft = rect.left;
+            initialTop = rect.top;
+
+            isDragging = true;
+            hasMoved = false; // 重置移动标记
+
+            // 移除底部的定位，改为基于 Top/Left 定位，方便计算
+            compass.style.bottom = 'auto';
+            compass.style.right = 'auto';
+            compass.style.left = initialLeft + 'px';
+            compass.style.top = initialTop + 'px';
+            
+            // 阻止默认事件（防止选中文本等）
+            if(e.type === 'mousedown') e.preventDefault();
+        }
+
+        // 2. 移动中
+        function dragMove(e) {
+            if (!isDragging) return;
+
+            var clientX = e.clientX || e.touches[0].clientX;
+            var clientY = e.clientY || e.touches[0].clientY;
+
+            var deltaX = clientX - startX;
+            var deltaY = clientY - startY;
+
+            // 如果移动距离超过 5px，才算真正的拖动（防止手抖误触）
+            if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
+                hasMoved = true;
+            }
+
+            // 更新位置
+            compass.style.left = (initialLeft + deltaX) + 'px';
+            compass.style.top = (initialTop + deltaY) + 'px';
+        }
+
+        // 3. 释放
+        function dragEnd(e) {
+            if (!isDragging) return;
+            isDragging = false;
+
+            // 如果刚才没有发生明显的移动，就算作“点击”
+            if (!hasMoved) {
+                // 触发打开菜单
+                if(window.openGuideMenu) {
+                    window.openGuideMenu();
+                }
+            }
+        }
+
+        // --- 绑定事件 (兼容电脑和手机) ---
+        // 电脑鼠标
+        compass.addEventListener('mousedown', dragStart);
+        document.addEventListener('mousemove', dragMove);
+        document.addEventListener('mouseup', dragEnd);
+
+        // 手机触摸
+        compass.addEventListener('touchstart', dragStart, {passive: false});
+        document.addEventListener('touchmove', dragMove, {passive: false});
+        document.addEventListener('touchend', dragEnd);
+
+    })();
+</script>
 </body>
 </html>
