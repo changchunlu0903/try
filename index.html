@@ -3410,6 +3410,11 @@ user-select: none;
 <div class="fun-btn" onclick="openHoroscope()" style="background:#1a1a2e; border-color:#ffd700; color:#ffd700;">
     <span class="fun-icon">🌠</span>钦天监
 </div>
+<div class="fun-btn" onclick="window.open('spy_game.html', '_blank')" style="background:#fff5f0; border-color:#ffdab9; color:#e67e22; grid-column: span 2;">
+    <span class="fun-icon">🕵️‍♀️</span> 
+    大理寺 · 谁是卧底
+    <div style="font-size:10px; opacity:0.8; font-weight:normal;">独立游戏 / 赚积分</div>
+</div>
 
         </div>
     </div>
@@ -13105,6 +13110,16 @@ window.enterGameLobby = function() {
 
     if(window.auth && window.auth.toast) auth.toast("🔧 搜索与侍从系统已彻底修复");
 })();
+// ========== 自动同步数据到 localStorage (给子游戏用) ==========
+function syncDataForGames() {
+    // 假设你的主数据变量叫 db (根据之前的代码逻辑)
+    // 如果你的变量名是 savedItems 或其他，请替换这里的 db
+    if(typeof db !== 'undefined') {
+        localStorage.setItem('my_royal_db', JSON.stringify(db));
+    }
+}
+// 每秒钟自动同步一次，确保数据最新
+setInterval(syncDataForGames, 2000);
 
     </script>
 
